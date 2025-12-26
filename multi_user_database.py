@@ -184,7 +184,7 @@ class MultiUserDB:
             password_hash = self._hash_password(password)
             
             cursor.execute('''
-                SELECT id, household_id, email, full_name, role, is_active
+                SELECT id, household_id, email, full_name, role, relationship, is_active
                 FROM users
                 WHERE email = ? AND password_hash = ?
             ''', (email, password_hash))
