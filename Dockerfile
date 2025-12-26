@@ -12,5 +12,5 @@ COPY . .
 # Expose port 7860 (Hugging Face Spaces default)
 EXPOSE 7860
 
-# Run Streamlit
-CMD ["streamlit", "run", "family_expense_tracker.py", "--server.port=7860", "--server.address=0.0.0.0", "--server.headless=true"]
+# Run Streamlit with streamlit_app.py (Hugging Face convention)
+CMD ["streamlit", "run", "streamlit_app.py", "--server.port=7860", "--server.address=0.0.0.0", "--server.headless=true"]
