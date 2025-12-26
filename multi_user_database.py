@@ -261,7 +261,7 @@ class MultiUserDB:
         try:
             query = '''
                 SELECT id, email, full_name, role, relationship, is_active, 
-                       invite_token IS NOT NULL as pending_invite
+                       invite_token, invite_token IS NOT NULL as pending_invite
                 FROM users
                 WHERE household_id = ?
                 ORDER BY role DESC, full_name
