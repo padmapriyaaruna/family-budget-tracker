@@ -1,6 +1,8 @@
 streamlit>=1.39.0
 pandas>=2.2.0
 plotly>=5.18.0
+psycopg2-binary>=2.9.9
+sqlalchemy>=2.0.0
 
 # Optional: Only needed if you want Google Sheets sync
 # gspread==5.12.0
