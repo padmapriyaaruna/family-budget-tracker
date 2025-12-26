@@ -293,6 +293,30 @@ class MultiUserDB:
             print(f"Error deactivating member: {str(e)}")
             return False
     
+    def delete_member(self, member_id):
+        """
+        Completely delete a member and all their data
+        This invalidates their invite token and removes all associated records
+        """
+        try:
+            cursor = self.conn.cursor()
+            
+            # Delete all member's financial data
+            cursor.execute('DELETE FROM expenses WHERE user_id = ?', (member_id,))
+            cursor.execute('DELETE FROM allocations WHERE user_id = ?', (member_id,))
+            cursor.execute('DELETE FROM income WHERE user_id = ?', (member_id,))
+            cursor.execute('DELETE FROM monthly_settlements WHERE user_id = ?', (member_id,))
+            
+            # Finally, delete the user account (this also invalidates the invite token)
+            cursor.execute('DELETE FROM users WHERE id = ? AND role != ?', (member_id, 'admin'))
+            
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error deleting member: {str(e)}")
+            self.conn.rollback()
+            return False
+    
     # ==================== INCOME OPERATIONS (USER-SCOPED) ====================
     
     def add_income(self, user_id, date, source, amount):

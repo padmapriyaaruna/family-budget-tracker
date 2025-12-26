@@ -243,11 +243,20 @@ def show_admin_dashboard():
                             household_id, member_email, member_name, relationship, user['id']
                         )
                         if success:
-                            st.success(f"✅ Member {member_name} added!")
-                            st.info(f"📧 Invite Token (share with member):\n`{invite_token}`")
-                            st.caption("Member can use this token to set their password")
-                            st.cache_resource.clear()
-                            st.rerun()
+                            st.success(f"✅ Member {member_name} added successfully!")
+                            st.markdown("---")
+                            st.subheader("🔑 Invite Token")
+                            st.info(f"**Share this token with {member_name}:**")
+                            st.code(invite_token, language=None)
+                            st.caption("💡 Member needs this token to set up their password in the 'Setup Password' tab")
+                            st.markdown("**Instructions to share:**")
+                            st.markdown(f"""
+                            1. Send them the app URL: `{st.session_state.get('app_url', 'your-app-url')}`
+                            2. Send them the token: `{invite_token}`
+                            3. Tell them to go to '🔑 Setup Password' tab
+                            4. Paste token and create password
+                            """)
+                            # Don't auto-rerun so user can copy token
                         else:
                             st.error("❌ Failed to add member. Email may already exist.")
                     else:
@@ -259,19 +268,52 @@ def show_admin_dashboard():
             members_df = db.get_household_members(household_id)
             
             if not members_df.empty:
-                # Format display
-                display_df = members_df.copy()
-                display_df['Status'] = display_df.apply(
-                    lambda row: "Active" if row['is_active'] else "Inactive", axis=1
-                )
-                display_df['Invite Status'] = display_df.apply(
-                    lambda row: "Pending" if row['pending_invite'] else "Accepted", axis=1
-                )
-                
-                display_df = display_df[['full_name', 'email', 'relationship', 'role', 'Status', 'Invite Status']]
-                display_df.columns = ['Name', 'Email', 'Relationship', 'Role', 'Status', 'Invite']
-                
-                st.dataframe(display_df, use_container_width=True, hide_index=True)
+                # Display each member with action buttons
+                for idx, member in members_df.iterrows():
+                    with st.container():
+                        col_info, col_actions = st.columns([3, 1])
+                        
+                        with col_info:
+                            status_icon = "✅" if member['is_active'] else "❌"
+                            invite_icon = "⏳" if member['pending_invite'] else "✓"
+                            
+                            st.markdown(f"""
+                            **{member['full_name']}** {status_icon}  
+                            📧 {member['email']} | 👔 {member['role'].title()} | 🤝 {member['relationship']}  
+                            Status: {invite_icon} {('Pending Invite' if member['pending_invite'] else 'Active')}
+                            """)
+                            
+                            # Show token if invite is pending
+                            if member['pending_invite'] and member['invite_token']:
+                                with st.expander("📋 View Invite Token"):
+                                    st.code(member['invite_token'], language=None)
+                                    st.caption("Share this with the member to let them set up their account")
+                        
+                        with col_actions:
+                            # Only show delete for non-admin members
+                            if member['role'] != 'admin':
+                                if st.button("🗑️ Delete", key=f"delete_{member['id']}", use_container_width=True):
+                                    st.session_state[f'confirm_delete_{member["id"]}'] = True
+                                
+                                # Confirm deletion
+                                if st.session_state.get(f'confirm_delete_{member["id"]}', False):
+                                    st.warning(f"Delete {member['full_name']}?")
+                                    col_yes, col_no = st.columns(2)
+                                    with col_yes:
+                                        if st.button("✓", key=f"yes_{member['id']}"):
+                                            if db.delete_member(member['id']):
+                                                st.success(f"Deleted {member['full_name']}")
+                                                st.session_state.pop(f'confirm_delete_{member["id"]}')
+                                                st.cache_resource.clear()
+                                                st.rerun()
+                                            else:
+                                                st.error("Failed to delete")
+                                    with col_no:
+                                        if st.button("✗", key=f"no_{member['id']}"):
+                                            st.session_state.pop(f'confirm_delete_{member["id"]}')
+                                            st.rerun()
+                        
+                        st.divider()
             else:
                 st.info("No additional members yet")
     
