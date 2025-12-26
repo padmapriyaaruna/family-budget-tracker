@@ -1,58 +1,36 @@
 """
 Multi-User Database Layer for Family Budget Tracker
 Handles all database operations with user authentication and data isolation
-Supports both PostgreSQL (production) and SQLite (local development)
 """
-import os
+import sqlite3
 import pandas as pd
 from datetime import datetime
+import os
 import hashlib
 import secrets
 import config
-
-# Auto-detect database type
-DATABASE_URL = os.getenv('DATABASE_URL')
-USE_POSTGRES = DATABASE_URL is not None
-
-if USE_POSTGRES:
-    import psycopg2
-    from psycopg2.extras import RealDictCursor
-    from urllib.parse import urlparse
-    print("🐘 Using PostgreSQL database")
-else:
-    import sqlite3
-    print("📁 Using SQLite database (local development)")
 
 
 class MultiUserDB:
     """Manages multi-user database operations with role-based access control"""
     
     def __init__(self, db_path=None):
-        """Initialize connection to PostgreSQL or SQLite database"""
-        self.use_postgres = USE_POSTGRES
-        self.conn = None
-        
-        if self.use_postgres:
-            self._connect_postgres()
-        else:
-            if db_path is None:
+        """Initialize connection to SQLite database"""
+        if db_path is None:
+            # Use persistent disk on Render (/data), fallback to local for development
+            if os.path.exists("/data"):
+                db_path = "/data/family_budget.db"
+                print("📁 Using persistent disk storage at /data")
+            else:
                 db_path = os.path.join(os.path.dirname(__file__), "family_budget.db")
-            self.db_path = db_path
-            self._connect_sqlite()
+                print("📁 Using local storage (development mode)")
         
+        self.db_path = db_path
+        self.conn = None
+        self._connect()
         self._initialize_tables()
     
-    def _connect_postgres(self):
-        """Establish connection to PostgreSQL database"""
-        try:
-            self.conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-            self.conn.autocommit = False
-            print("✅ Connected to PostgreSQL")
-        except Exception as e:
-            print(f"Error connecting to PostgreSQL: {str(e)}")
-            raise
-    
-    def _connect_sqlite(self):
+    def _connect(self):
         """Establish connection to SQLite database"""
         try:
             # Create database directory if it doesn't exist
@@ -62,41 +40,18 @@ class MultiUserDB:
             
             self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
             self.conn.row_factory = sqlite3.Row  # Enable column access by name
-            print("✅ Connected to SQLite")
         except Exception as e:
             print(f"Error connecting to database: {str(e)}")
             raise
     
-    def _get_placeholder(self):
-        """Get SQL parameter placeholder for current database type"""
-        return '%s' if self.use_postgres else '?'
-    
-    def _get_returning_clause(self):
-        """Get RETURNING clause for INSERT operations (PostgreSQL only)"""
-        return ' RETURNING id' if self.use_postgres else ''
-    
-    def _get_last_insert_id(self, cursor):
-        """Get last inserted ID (different for PostgreSQL vs SQLite)"""
-        if self.use_postgres:
-            result = cursor.fetchone()
-            return result['id'] if result else None
-        else:
-            return cursor.lastrowid
-    
     def _initialize_tables(self):
-        """Create tables if they don't exist (PostgreSQL and SQLite compatible)"""
+        """Create tables if they don't exist"""
         cursor = self.conn.cursor()
         
-        # Use SERIAL for PostgreSQL, INTEGER AUTOINCREMENT for SQLite
-        if self.use_postgres:
-            id_type = "SERIAL PRIMARY KEY"
-        else:
-            id_type = "INTEGER PRIMARY KEY AUTOINCREMENT"
-        
         # Households table
-        cursor.execute(f'''
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS households (
-                id {id_type},
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 created_by INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -104,9 +59,9 @@ class MultiUserDB:
         ''')
         
         # Users table
-        cursor.execute(f'''
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
-                id {id_type},
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 household_id INTEGER,
                 email TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
@@ -121,9 +76,9 @@ class MultiUserDB:
         ''')
         
         # Income table (with user_id)
-        cursor.execute(f'''
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS income (
-                id {id_type},
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
                 date TEXT NOT NULL,
                 source TEXT NOT NULL,
@@ -135,9 +90,9 @@ class MultiUserDB:
         ''')
         
         # Allocations table (with user_id)
-        cursor.execute(f'''
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS allocations (
-                id {id_type},
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
                 category TEXT NOT NULL,
                 allocated_amount REAL NOT NULL,
@@ -151,9 +106,9 @@ class MultiUserDB:
         ''')
         
         # Expenses table (with user_id)
-        cursor.execute(f'''
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS expenses (
-                id {id_type},
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
                 date TEXT NOT NULL,
                 category TEXT NOT NULL,
@@ -166,9 +121,9 @@ class MultiUserDB:
         ''')
         
         # Monthly settlements table (with user_id)
-        cursor.execute(f'''
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS monthly_settlements (
-                id {id_type},
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
                 year INTEGER NOT NULL,
                 month INTEGER NOT NULL,
@@ -182,7 +137,6 @@ class MultiUserDB:
         ''')
         
         self.conn.commit()
-        print("✅ Database tables initialized")
     
     # ==================== AUTHENTICATION & USER MANAGEMENT ====================
     
