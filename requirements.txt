@@ -1,6 +1,6 @@
-streamlit==1.29.0
-pandas==2.1.4
-plotly==5.18.0
+streamlit>=1.39.0
+pandas>=2.2.0
+plotly>=5.18.0
 
 # Optional: Only needed if you want Google Sheets sync
 # gspread==5.12.0
