@@ -248,6 +248,9 @@ class MultiUserDB:
     def authenticate_user(self, email, password):
         """Authenticate user and return user info"""
         try:
+            # Ensure connection is alive
+            self._ensure_connection()
+            
             cursor = self.conn.cursor()
             password_hash = self._hash_password(password)
             
