@@ -690,7 +690,7 @@ class MultiUserDB:
         """Add a new income entry for a user"""
         try:
             cursor = self.conn.cursor()
-            cursor.execute(
+            self._execute(cursor,
                 'INSERT INTO income (user_id, date, source, amount) VALUES (?, ?, ?, ?)',
                 (user_id, date, source, float(amount))
             )
@@ -698,6 +698,9 @@ class MultiUserDB:
             return True
         except Exception as e:
             print(f"Error adding income: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            self.conn.rollback()
             return False
     
     def get_all_income(self, user_id):
@@ -735,8 +738,8 @@ class MultiUserDB:
         """Update an existing income entry"""
         try:
             cursor = self.conn.cursor()
-            cursor.execute(
-                'UPDATE income SET date = ?, source = ?, amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+            self._execute(cursor,
+                'UPDATE income SET date = ?, source = ?, amount = ? WHERE id = ? AND user_id = ?',
                 (date, source, float(amount), income_id, user_id)
             )
             self.conn.commit()
@@ -749,7 +752,7 @@ class MultiUserDB:
         """Delete an income entry"""
         try:
             cursor = self.conn.cursor()
-            cursor.execute('DELETE FROM income WHERE id = ? AND user_id = ?', (income_id, user_id))
+            self._execute(cursor, 'DELETE FROM income WHERE id = ? AND user_id = ?', (income_id, user_id))
             self.conn.commit()
             return True
         except Exception as e:
