@@ -626,33 +626,43 @@ class MultiUserDB:
             return (False, str(e))
     
     def add_member_to_family_super_admin(self, household_id, email, full_name, relationship):
-        """Super admin adds member to any family"""
+        """Super admin adds a new member to a family"""
         try:
             cursor = self.conn.cursor()
             
-            # Check if email exists
-            cursor.execute('SELECT id FROM users WHERE email = ?', (email,))
+            # Check if email already exists
+            self._execute(cursor, 'SELECT id FROM users WHERE email = ?', (email,))
             if cursor.fetchone():
                 return (False, None, "Email already exists")
             
-            # Generate invite token
-            invite_token = self.generate_invite_token()
+            # Generate temporary password and invite token
             temp_password = secrets.token_urlsafe(16)
             password_hash = self._hash_password(temp_password)
+            invite_token = self.generate_invite_token()
             
-            # Create member
-            cursor.execute('''
-                INSERT INTO users (household_id, email, password_hash, full_name, role, relationship, invite_token, is_active)
-                VALUES (?, ?, ?, ?, 'member', ?, ?, 1)
-            ''', (household_id, email, password_hash, full_name, relationship, invite_token))
+            # Create member with appropriate method for database type
+            is_active_value = True if self.use_postgres else 1
+            if self.use_postgres:
+                self._execute(cursor, '''
+                    INSERT INTO users (household_id, email, password_hash, full_name, role, relationship, invite_token, is_active)
+                    VALUES (?, ?, ?, ?, 'member', ?, ?, ?)
+                    RETURNING id
+                ''', (household_id, email, password_hash, full_name, relationship, invite_token, is_active_value))
+                member_id = cursor.fetchone()['id']
+            else:
+                self._execute(cursor, '''
+                    INSERT INTO users (household_id, email, password_hash, full_name, role, relationship, invite_token, is_active)
+                    VALUES (?, ?, ?, ?, 'member', ?, ?, ?)
+                ''', (household_id, email, password_hash, full_name, relationship, invite_token, is_active_value))
+                member_id = cursor.lastrowid
             
-            member_id = cursor.lastrowid
             self.conn.commit()
-            
             return (True, member_id, invite_token)
         except Exception as e:
+            print(f"Error adding member to family: {str(e)}")
+            import traceback
+            traceback.print_exc()
             self.conn.rollback()
-            print(f"Error adding member: {str(e)}")
             return (False, None, str(e))
     
     
