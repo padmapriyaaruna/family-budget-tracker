@@ -567,29 +567,6 @@ def show_member_expense_tracking(user_id):
 
 # ==================== SUPER ADMIN DASHBOARD ====================
 
-def show_admin_dashboard():
-    """Admin dashboard for managing household"""
-    user = st.session_state.user
-    household_id = user['household_id']
-    
-    # Get household info
-    households_df = db.get_all_households()
-    household_name = "Your Family"
-    if not households_df.empty:
-        household_row = households_df[households_df['id'] == household_id]
-        if not household_row.empty:
-            household_name = household_row.iloc[0]['name']
-    
-    # Header with logout button
-    col1, col2 = st.columns([6, 1])
-    with col1:
-        st.title(f"📊 {household_name} - Admin Dashboard")
-        st.caption(f"Welcome, {user['full_name']} (Family Admin)")
-    with col2:
-        if st.button("Logout", use_container_width=True):
-            st.session_state.logged_in = False
-            st.session_state.user = None
-            st.rerun()
 
 def show_super_admin_dashboard():
     """Super admin dashboard for managing multiple households"""
