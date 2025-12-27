@@ -334,17 +334,22 @@ class MultiUserDB:
     def get_household_members(self, household_id):
         """Get all members of a household"""
         try:
-            query = '''
+            # Use appropriate parameter placeholder
+            param_placeholder = '%s' if self.use_postgres else '?'
+            query = f'''
                 SELECT id, email, full_name, role, relationship, is_active, 
                        invite_token, invite_token IS NOT NULL as pending_invite
                 FROM users
-                WHERE household_id = ?
+                WHERE household_id = {param_placeholder}
                 ORDER BY role DESC, full_name
             '''
             df = pd.read_sql_query(query, self.conn, params=(household_id,))
+            print(f"DEBUG: get_household_members returned {len(df)} rows for household {household_id}")
             return df
         except Exception as e:
             print(f"Error fetching members: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return pd.DataFrame()
     
     def get_user_by_id(self, user_id):
