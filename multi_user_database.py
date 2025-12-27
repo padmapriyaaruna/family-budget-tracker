@@ -54,6 +54,21 @@ class MultiUserDB:
         
         self._initialize_tables()
     
+    def _ensure_connection(self):
+        """Ensure database connection is alive, reconnect if needed"""
+        if self.use_postgres:
+            try:
+                cursor = self.conn.cursor()
+                cursor.execute('SELECT 1')
+                cursor.close()
+            except:
+                print("Connection lost, reconnecting...")
+                import psycopg2
+                from psycopg2.extras import RealDictCursor
+                self.conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+                self.conn.autocommit = False
+                print("✅ Reconnected to PostgreSQL")
+    
     def _execute(self, cursor, query, params=None):
         """Helper method to execute queries with correct parameter syntax for the database type"""
         if self.use_postgres:
