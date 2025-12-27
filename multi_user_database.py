@@ -43,6 +43,19 @@ class MultiUserDB:
             print("✅ Connected to SQLite")
         
         self._initialize_tables()
+    
+    def _execute(self, cursor, query, params=None):
+        """Helper method to execute queries with correct parameter syntax for the database type"""
+        if self.use_postgres:
+            # Convert ? placeholders to %s for PostgreSQL
+            query = query.replace('?', '%s')
+        
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+        
+        return cursor
         
     def _initialize_tables(self):
         """Create tables if they don't exist"""
@@ -167,7 +180,7 @@ class MultiUserDB:
             cursor = self.conn.cursor()
             
             # Check if super admin exists
-            cursor.execute("SELECT id FROM users WHERE email = 'superadmin' AND role = 'superadmin'")
+            self._execute(cursor, "SELECT id FROM users WHERE email = 'superadmin' AND role = 'superadmin'")
             if cursor.fetchone():
                 return  # Super admin already exists
             
@@ -175,14 +188,12 @@ class MultiUserDB:
             superadmin_password = os.getenv('SUPERADMIN_PASSWORD', 'superuser')
             password_hash = self._hash_password(superadmin_password)
             
-            # Use appropriate parameter placeholder and boolean value
-            param_placeholder = '%s' if self.use_postgres else '?'
-            is_active_value = True if self.use_postgres else 1
-            
             # Create super admin (household_id is NULL)
-            cursor.execute(f'''
+            # Use ? placeholder - it will be auto-converted to %s for PostgreSQL
+            is_active_value = True if self.use_postgres else 1
+            self._execute(cursor, '''
                 INSERT INTO users (household_id, email, password_hash, full_name, role, relationship, is_active)
-                VALUES (NULL, 'superadmin', {param_placeholder}, 'Super Administrator', 'superadmin', NULL, {param_placeholder})
+                VALUES (NULL, 'superadmin', ?, 'Super Administrator', 'superadmin', NULL, ?)
             ''', (password_hash, is_active_value))
             
             self.conn.commit()
@@ -230,7 +241,7 @@ class MultiUserDB:
             cursor = self.conn.cursor()
             password_hash = self._hash_password(password)
             
-            cursor.execute('''
+            self._execute(cursor, '''
                 SELECT id, household_id, email, full_name, role, relationship, is_active
                 FROM users
                 WHERE email = ? AND password_hash = ?
