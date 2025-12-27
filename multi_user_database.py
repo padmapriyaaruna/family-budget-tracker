@@ -407,25 +407,26 @@ class MultiUserDB:
             cursor = self.conn.cursor()
             
             # Check if email already exists
-            cursor.execute('SELECT id FROM users WHERE email = ?', (admin_email,))
+            self._execute(cursor, 'SELECT id FROM users WHERE email = ?', (admin_email,))
             if cursor.fetchone():
                 return (False, None, "Email already exists")
             
             # Create household
-            cursor.execute('INSERT INTO households (name, is_active) VALUES (?, 1)', (household_name,))
+            is_active_value = True if self.use_postgres else 1
+            self._execute(cursor, 'INSERT INTO households (name, is_active) VALUES (?, ?)', (household_name, is_active_value))
             household_id = cursor.lastrowid
            
             # Create admin user
             password_hash = self._hash_password(admin_password)
-            cursor.execute('''
+            self._execute(cursor, '''
                 INSERT INTO users (household_id, email, password_hash, full_name, role, relationship, is_active)
-                VALUES (?, ?, ?, ?, 'admin', 'self', 1)
-            ''', (household_id, admin_email, password_hash, admin_name))
+                VALUES (?, ?, ?, ?, 'admin', 'self', ?)
+            ''', (household_id, admin_email, password_hash, admin_name, is_active_value))
             
             admin_id = cursor.lastrowid
             
             # Update household created_by
-            cursor.execute('UPDATE households SET created_by = ? WHERE id = ?', (admin_id, household_id))
+            self._execute(cursor, 'UPDATE households SET created_by = ? WHERE id = ?', (admin_id, household_id))
             
             self.conn.commit()
             return (True, household_id, f"Household '{household_name}' created successfully")
