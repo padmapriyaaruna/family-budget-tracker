@@ -828,8 +828,11 @@ def show_super_admin_dashboard():
             display_df['is_active'] = display_df['is_active'].apply(lambda x: '✅' if x == 1 else '❌')
             display_df['role'] = display_df['role'].str.title()
             # Only parse datetime if the dataframe has rows
-            if len(display_df) > 0:
-                display_df['created_at'] = pd.to_datetime(display_df['created_at']).dt.strftime('%Y-%m-%d')
+            if len(display_df) > 0 and 'created_at' in display_df.columns:
+                try:
+                    display_df['created_at'] = pd.to_datetime(display_df['created_at']).dt.strftime('%Y-%m-%d')
+                except:
+                    pass  # Keep original format if parsing fails
             display_df.columns = ['Name', 'Email', 'Family', 'Role', 'Active', 'Joined']
             
             # Filter options
