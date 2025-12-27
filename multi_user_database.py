@@ -25,7 +25,7 @@ if USE_POSTGRES:
 class MultiUserDB:
     """Manages multi-user database operations with role-based access control"""
     
-        def __init__(self, db_path=None):
+    def __init__(self, db_path=None):
         """Initialize database connection"""
         self.use_postgres = USE_POSTGRES
         
