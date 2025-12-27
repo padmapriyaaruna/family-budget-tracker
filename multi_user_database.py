@@ -308,7 +308,7 @@ class MultiUserDB:
             cursor = self.conn.cursor()
             
             # Find user by invite token
-            cursor.execute('SELECT id FROM users WHERE invite_token = ?', (invite_token,))
+            self._execute(cursor, 'SELECT id FROM users WHERE invite_token = ?', (invite_token,))
             user = cursor.fetchone()
             
             if not user:
@@ -316,7 +316,7 @@ class MultiUserDB:
             
             # Update password and clear invite token
             password_hash = self._hash_password(new_password)
-            cursor.execute('''
+            self._execute(cursor, '''
                 UPDATE users 
                 SET password_hash = ?, invite_token = NULL
                 WHERE id = ?
@@ -326,6 +326,8 @@ class MultiUserDB:
             return (True, "Password set successfully! You can now login.")
         except Exception as e:
             print(f"Error accepting invite: {str(e)}")
+            import traceback
+            traceback.print_exc()
             self.conn.rollback()
             return (False, f"Error: {str(e)}")
     
