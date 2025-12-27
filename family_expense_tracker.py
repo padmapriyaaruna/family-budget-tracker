@@ -219,31 +219,29 @@ def show_admin_dashboard():
             
             # Visualization
             st.subheader("📈 Member Contribution Visualization")
-            # Re-fetch for visualization (without formatting)
+            
+            # Use original data for visualization (before formatting)
             member_summary_viz = db.get_household_member_summary(household_id)
             
-            fig = go.Figure()
-            fig.add_trace(go.Bar(
-                name="Income",
-                x=member_summary_viz['Member'],
-                y=member_summary_viz['Income'],
-                marker_color='lightgreen'
-            ))
-            fig.add_trace(go.Bar(
-                name="Expenses",
-                x=member_summary_viz['Member'],
-                y=member_summary_viz['Expenses'],
-                marker_color='lightcoral'
-            ))
-            fig.update_layout(
-                barmode='group',
-                height=400,
-                xaxis_title="Family Member",
-                yaxis_title=f"Amount ({config.CURRENCY_SYMBOL})"
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            # Check if we have the required columns
+            if not member_summary_viz.empty and all(col in member_summary_viz.columns for col in ['Member', 'Income', 'Expenses', 'Savings']):
+                fig = go.Figure(data=[
+                    go.Bar(name='Income', x=member_summary_viz['Member'], y=member_summary_viz['Income']),
+                    go.Bar(name='Expenses', x=member_summary_viz['Member'], y=member_summary_viz['Expenses']),
+                    go.Bar(name='Savings', x=member_summary_viz['Member'], y=member_summary_viz['Savings'])
+                ])
+                
+                fig.update_layout(
+                    barmode='group',
+                    title='Financial Overview by Member',
+                    xaxis_title='Member',
+                    yaxis_title='Amount (₹)',
+                    height=400
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("No financial data yet. Add members and start tracking!")
+            st.info("No member financial data available yet"). Add members and start tracking!")
     
     # TAB 2: Manage Members
     with tab2:
