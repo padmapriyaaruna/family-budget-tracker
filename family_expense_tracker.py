@@ -73,10 +73,7 @@ def show_login_page():
         st.info("For system administrators only. Manage multiple families and users.")
         
         with st.form("superadmin_login_form"):
-            st.markdown("**Default Credentials:**")
-            st.code("Email: superadmin\nPassword: superuser")
-            
-            super_email = st.text_input("Email", value="superadmin", key="super_email")
+            super_email = st.text_input("Email", placeholder="superadmin", key="super_email")
             super_password = st.text_input("Password", type="password", key="super_password")
             super_submit = st.form_submit_button("Login as Super Admin", use_container_width=True)
             
@@ -588,11 +585,6 @@ def show_admin_dashboard():
     with col1:
         st.title(f"📊 {household_name} - Admin Dashboard")
         st.caption(f"Welcome, {user['full_name']} (Family Admin)")
-    with col2:
-        if st.button("Logout", use_container_width=True):
-            st.session_state.logged_in = False
-            st.session_state.user = None
-            st.rerun()
     with col2:
         if st.button("Logout", use_container_width=True):
             st.session_state.logged_in = False
