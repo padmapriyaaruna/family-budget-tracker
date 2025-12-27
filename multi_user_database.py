@@ -48,17 +48,18 @@ class MultiUserDB:
         """Create tables if they don't exist"""
         cursor = self.conn.cursor()
         
-        # Households table
+        # Households table (with is_active for super admin management)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS households (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 created_by INTEGER,
+                is_active INTEGER DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
-        # Users table
+        # Users table (role can be: superadmin, admin, member)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,6 +75,13 @@ class MultiUserDB:
                 FOREIGN KEY (household_id) REFERENCES households(id)
             )
         ''')
+        
+        # Check and add is_active column to households if it doesn't exist
+        cursor.execute("PRAGMA table_info(households)")
+        columns = [column[1] for column in cursor.fetchall()]
+        if 'is_active' not in columns:
+            cursor.execute('ALTER TABLE households ADD COLUMN is_active INTEGER DEFAULT 1')
+            print("✅ Added is_active column to households table")
         
         # Income table (with user_id)
         cursor.execute('''
@@ -137,12 +145,41 @@ class MultiUserDB:
         ''')
         
         self.conn.commit()
+        
+        # Create super admin if it doesn't exist
+        self._create_super_admin()
     
     # ==================== AUTHENTICATION & USER MANAGEMENT ====================
     
     def _hash_password(self, password):
         """Hash password using SHA256"""
         return hashlib.sha256(password.encode()).hexdigest()
+    
+    def _create_super_admin(self):
+        """Create super admin user if it doesn't exist"""
+        try:
+            cursor = self.conn.cursor()
+            
+            # Check if super admin exists
+            cursor.execute("SELECT id FROM users WHERE email = 'superadmin' AND role = 'superadmin'")
+            if cursor.fetchone():
+                return  # Super admin already exists
+            
+            # Get password from environment or use default
+            superadmin_password = os.getenv('SUPERADMIN_PASSWORD', 'superuser')
+            password_hash = self._hash_password(superadmin_password)
+            
+            # Create super admin (household_id is NULL)
+            cursor.execute('''
+                INSERT INTO users (household_id, email, password_hash, full_name, role, relationship, is_active)
+                VALUES (NULL, 'superadmin', ?, 'Super Administrator', 'superadmin', NULL, 1)
+            ''', (password_hash,))
+            
+            self.conn.commit()
+            print("✅ Super admin created successfully")
+        except Exception as e:
+            print(f"Note: Super admin may already exist or error: {str(e)}")
+            # Don't fail if super admin already exists
     
     def create_admin_user(self, email, password, full_name, household_name):
         """Create admin user and household"""
@@ -321,6 +358,148 @@ class MultiUserDB:
             print(f"Error deleting member: {str(e)}")
             self.conn.rollback()
             return False
+    
+    # ==================== SUPER ADMIN METHODS ====================
+    
+    def get_all_households(self):
+        """Get all households (for super admin)"""
+        try:
+            query = '''
+                SELECT h.id, h.name, h.is_active, h.created_at,
+                       u.full_name as admin_name, u.email as admin_email,
+                       COUNT(DISTINCT m.id) as member_count
+                FROM households h
+                LEFT JOIN users u ON h.created_by = u.id
+                LEFT JOIN users m ON m.household_id = h.id
+                GROUP BY h.id
+                ORDER BY h.created_at DESC
+            '''
+            df = pd.read_sql_query(query, self.conn)
+            return df
+        except Exception as e:
+            print(f"Error fetching households: {str(e)}")
+            return pd.DataFrame()
+    
+    def create_household_with_admin(self, household_name, admin_email, admin_name, admin_password):
+        """Super admin creates a new household with a family admin"""
+        try:
+            cursor = self.conn.cursor()
+            
+            # Check if email already exists
+            cursor.execute('SELECT id FROM users WHERE email = ?', (admin_email,))
+            if cursor.fetchone():
+                return (False, None, "Email already exists")
+            
+            # Create household
+            cursor.execute('INSERT INTO households (name, is_active) VALUES (?, 1)', (household_name,))
+            household_id = cursor.lastrowid
+           
+            # Create admin user
+            password_hash = self._hash_password(admin_password)
+            cursor.execute('''
+                INSERT INTO users (household_id, email, password_hash, full_name, role, relationship, is_active)
+                VALUES (?, ?, ?, ?, 'admin', 'self', 1)
+            ''', (household_id, admin_email, password_hash, admin_name))
+            
+            admin_id = cursor.lastrowid
+            
+            # Update household created_by
+            cursor.execute('UPDATE households SET created_by = ? WHERE id = ?', (admin_id, household_id))
+            
+            self.conn.commit()
+            return (True, household_id, f"Household '{household_name}' created successfully")
+        except Exception as e:
+            self.conn.rollback()
+            print(f"Error creating household: {str(e)}")
+            return (False, None, str(e))
+    
+    def toggle_household_status(self, household_id):
+        """Enable/disable a household"""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('UPDATE households SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = ?', 
+                         (household_id,))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error toggling household status: {str(e)}")
+            return False
+    
+    def delete_household(self, household_id):
+        """Delete a household and all its users/data (super admin only)"""
+        try:
+            cursor = self.conn.cursor()
+            
+            # Get all users in the household
+            cursor.execute('SELECT id FROM users WHERE household_id = ?', (household_id,))
+            user_ids = [row['id'] for row in cursor.fetchall()]
+            
+            # Delete all user data
+            for user_id in user_ids:
+                cursor.execute('DELETE FROM expenses WHERE user_id = ?', (user_id,))
+                cursor.execute('DELETE FROM allocations WHERE user_id = ?', (user_id,))
+                cursor.execute('DELETE FROM income WHERE user_id = ?', (user_id,))
+                cursor.execute('DELETE FROM monthly_settlements WHERE user_id = ?', (user_id,))
+            
+            # Delete users and household
+            cursor.execute('DELETE FROM users WHERE household_id = ?', (household_id,))
+            cursor.execute('DELETE FROM households WHERE id = ?', (household_id,))
+            
+            self.conn.commit()
+            return (True, "Household deleted successfully")
+        except Exception as e:
+            self.conn.rollback()
+            print(f"Error deleting household: {str(e)}")
+            return (False, str(e))
+    
+    def get_all_users_super_admin(self):
+        """Get all users across all households (for super admin)"""
+        try:
+            query = '''
+                SELECT u.id, u.email, u.full_name, u.role, u.is_active,
+                       h.name as household_name, u.created_at
+                FROM users u
+                LEFT JOIN households h ON u.household_id = h.id
+                WHERE u.role != 'superadmin'
+                ORDER BY h.name, u.role DESC, u.full_name
+            '''
+            df = pd.read_sql_query(query, self.conn)
+            return df
+        except Exception as e:
+            print(f"Error fetching users: {str(e)}")
+            return pd.DataFrame()
+    
+    def get_system_statistics(self):
+        """Get system-wide statistics (for super admin)"""
+        try:
+            cursor = self.conn.cursor()
+            
+            stats = {}
+            
+            # Total households
+            cursor.execute('SELECT COUNT(*) as count FROM households')
+            stats['total_households'] = cursor.fetchone()['count']
+            
+            # Active households  
+            cursor.execute('SELECT COUNT(*) as count FROM households WHERE is_active = 1')
+            stats['active_households'] = cursor.fetchone()['count']
+            
+            # Total users (excluding super admin)
+            cursor.execute("SELECT COUNT(*) as count FROM users WHERE role != 'superadmin'")
+            stats['total_users'] = cursor.fetchone()['count']
+            
+            # Total admins
+            cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = 'admin'")
+            stats['total_admins'] = cursor.fetchone()['count']
+            
+            # Total members
+            cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = 'member'")
+            stats['total_members'] = cursor.fetchone()['count']
+            
+            return stats
+        except Exception as e:
+            print(f"Error getting statistics: {str(e)}")
+            return {}
     
     # ==================== INCOME OPERATIONS (USER-SCOPED) ====================
     

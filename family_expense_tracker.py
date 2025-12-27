@@ -537,7 +537,224 @@ def show_member_expense_tracking(user_id):
                 expenses_display["Amount"] = expenses_display["Amount"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
                 st.dataframe(expenses_display, use_container_width=True, hide_index=True)
             else:
-                st.info("No expenses recorded yet")
+                st.markdown("**No expenses recorded yet**")
+
+# ==================== SUPER ADMIN DASHBOARD ====================
+
+def show_admin_dashboard():
+    """Admin dashboard for managing household"""
+    user = st.session_state.user
+    household_id = user['household_id']
+    
+    # Get household info
+    households_df = db.get_all_households()
+    household_name = "Your Family"
+    if not households_df.empty:
+        household_row = households_df[households_df['id'] == household_id]
+        if not household_row.empty:
+            household_name = household_row.iloc[0]['name']
+    
+    # Header with logout button
+    col1, col2 = st.columns([6, 1])
+    with col1:
+        st.title(f"📊 {household_name} - Admin Dashboard")
+        st.caption(f"Welcome, {user['full_name']} (Family Admin)")
+    with col2:
+        if st.button("Logout", use_container_width=True):
+            st.session_state.logged_in = False
+            st.session_state.user = None
+            st.rerun()
+    with col2:
+        if st.button("Logout", use_container_width=True):
+            st.session_state.logged_in = False
+            st.session_state.user = None
+            st.rerun()
+
+def show_super_admin_dashboard():
+    """Super admin dashboard for managing multiple households"""
+    user = st.session_state.user
+    
+    # Header with logout
+    col1, col2 = st.columns([6, 1])
+    with col1:
+        st.title("🔱 Super Admin Dashboard")
+        st.caption(f"Welcome, {user['full_name']}")
+    with col2:
+        if st.button("Logout", use_container_width=True):
+            st.session_state.logged_in = False
+            st.session_state.user = None
+            st.rerun()
+    
+    st.divider()
+    
+    # Main tabs
+    tab1, tab2, tab3 = st.tabs(["📊 Overview", "🏠 Manage Families", "👥 All Users"])
+    
+    # TAB 1: Overview
+    with tab1:
+        st.header("System Overview")
+        
+        # Get statistics
+        stats = db.get_system_statistics()
+        
+        # Display metrics
+        col1, col2, col3, col4, col5 = st.columns(5)
+        with col1:
+            st.metric("Total Households", stats.get('total_households', 0))
+        with col2:
+            st.metric("Active Households", stats.get('active_households', 0))
+        with col3:
+            st.metric("Total Users", stats.get('total_users', 0))
+        with col4:
+            st.metric("Family Admins", stats.get('total_admins', 0))
+        with col5:
+            st.metric("Members", stats.get('total_members', 0))
+        
+        st.divider()
+        
+        # Recent households
+        st.subheader("Recent Households")
+        households_df = db.get_all_households()
+        if not households_df.empty:
+            display_df = households_df[['name', 'admin_name', 'admin_email', 'member_count', 'is_active', 'created_at']].copy()
+            display_df['is_active'] = display_df['is_active'].apply(lambda x: '✅ Active' if x == 1 else '❌ Inactive')
+            display_df.columns = ['Family Name', 'Admin Name', 'Admin Email', 'Members', 'Status', 'Created']
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+        else:
+            st.info("No households created yet")
+    
+    # TAB 2: Manage Families
+    with tab2:
+        st.header("Family Household Management")
+        
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            st.subheader("➕ Create New Family")
+            
+            with st.form("create_household_form"):
+                household_name = st.text_input("Family/Household Name", placeholder="e.g., Smith Family")
+                admin_name = st.text_input("Family Admin Name")
+                admin_email = st.text_input("Family Admin Email")
+                admin_password = st.text_input("Admin Password", type="password")
+                confirm_password = st.text_input("Confirm Password", type="password")
+                
+                create_btn = st.form_submit_button("Create Family", use_container_width=True)
+                
+                if create_btn:
+                    if not all([household_name, admin_name, admin_email, admin_password]):
+                        st.error("Please fill all fields")
+                    elif admin_password != confirm_password:
+                        st.error("Passwords do not match")
+                    elif len(admin_password) < 6:
+                        st.error("Password must be at least 6 characters")
+                    else:
+                        success, household_id, message = db.create_household_with_admin(
+                            household_name, admin_email, admin_name, admin_password
+                        )
+                        if success:
+                            st.success(f"✅ {message}")
+                            st.info(f"📧 Family admin can now login with:\nEmail: {admin_email}\nPassword: {admin_password}")
+                            st.cache_data.clear()
+                            st.rerun()
+                        else:
+                            st.error(f"❌ {message}")
+        
+        with col2:
+            st.subheader("📋 All Families")
+            
+            households_df = db.get_all_households()
+            
+            if not households_df.empty:
+                for idx, household in households_df.iterrows():
+                    with st.container():
+                        col_info, col_actions = st.columns([3, 1])
+                        
+                        with col_info:
+                            status_icon = "✅" if household['is_active'] == 1 else "❌"
+                            st.markdown(f"""
+                            **{household['name']}** {status_icon}  
+                            👤 Admin: {household['admin_name']} ({household['admin_email']})  
+                            👥 Members: {household['member_count']} | 📅 Created: {household['created_at'][:10]}
+                            """)
+                        
+                        with col_actions:
+                            col_toggle, col_delete = st.columns(2)
+                            
+                            with col_toggle:
+                                toggle_label = "❌" if household['is_active'] == 1 else "✅"
+                                if st.button(toggle_label, key=f"toggle_{household['id']}", help="Enable/Disable"):
+                                    if db.toggle_household_status(household['id']):
+                                        st.cache_data.clear()
+                                        st.rerun()
+                            
+                            with col_delete:
+                                if st.button("🗑️", key=f"del_{household['id']}", help="Delete"):
+                                    st.session_state[f'confirm_del_h_{household["id"]}'] = True
+                                    st.rerun()
+                            
+                            # Confirmation dialog
+                            if st.session_state.get(f'confirm_del_h_{household["id"]}', False):
+                                st.warning(f"Delete '{household['name']}'?")
+                                col_yes, col_no = st.columns(2)
+                                with col_yes:
+                                    if st.button("Yes", key=f"yes_h_{household['id']}"):
+                                        success, msg = db.delete_household(household['id'])
+                                        if success:
+                                            st.success(msg)
+                                            st.session_state.pop(f'confirm_del_h_{household["id"]}')
+                                            st.cache_data.clear()
+                                            st.rerun()
+                                        else:
+                                            st.error(msg)
+                                with col_no:
+                                    if st.button("No", key=f"no_h_{household['id']}"):
+                                        st.session_state.pop(f'confirm_del_h_{household["id"]}')
+                                        st.rerun()
+                        
+                        st.divider()
+            else:
+                st.info("No families created yet. Create one using the form on the left.")
+    
+    # TAB 3: All Users
+    with tab3:
+        st.header("All Users Across Families")
+        
+        users_df = db.get_all_users_super_admin()
+        
+        if not users_df.empty:
+            display_df = users_df[['full_name', 'email', 'household_name', 'role', 'is_active', 'created_at']].copy()
+            display_df['is_active'] = display_df['is_active'].apply(lambda x: '✅' if x == 1 else '❌')
+            display_df['role'] = display_df['role'].str.title()
+            display_df['created_at'] = pd.to_datetime(display_df['created_at']).dt.strftime('%Y-%m-%d')
+            display_df.columns = ['Name', 'Email', 'Family', 'Role', 'Active', 'Joined']
+            
+            # Filter options
+            col1, col2 = st.columns(2)
+            with col1:
+                family_filter = st.multiselect(
+                    "Filter by Family",
+                    options=display_df['Family'].unique().tolist(),
+                    default=[]
+                )
+            with col2:
+                role_filter = st.multiselect(
+                    "Filter by Role",
+                    options=display_df['Role'].unique().tolist(),
+                    default=[]
+                )
+            
+            # Apply filters
+            filtered_df = display_df.copy()
+            if family_filter:
+                filtered_df = filtered_df[filtered_df['Family'].isin(family_filter)]
+            if role_filter:
+                filtered_df = filtered_df[filtered_df['Role'].isin(role_filter)]
+            
+            st.dataframe(filtered_df, use_container_width=True, hide_index=True)
+            st.caption(f"Showing {len(filtered_df)} of {len(display_df)} users")
+        else:
+            st.info("No users found")
 
 # ==================== MAIN APPLICATION FLOW ====================
 
@@ -549,7 +766,9 @@ def main():
     else:
         user = st.session_state.user
         
-        if user['role'] == 'admin':
+        if user['role'] == 'superadmin':
+            show_super_admin_dashboard()
+        elif user['role'] == 'admin':
             show_admin_dashboard()
         else:
             show_member_dashboard()
