@@ -209,10 +209,11 @@ def show_admin_dashboard():
         st.subheader("👥 Member-wise Financial Summary")
         member_summary = db.get_household_member_summary(household_id)
         
-        if not member_summary.empty:
-            # Format currency columns
+        if not member_summary.empty and len(member_summary.columns) > 0:
+            # Format currency columns - check if columns exist first
             for col in ['Income', 'Expenses', 'Savings']:
-                member_summary[col] = member_summary[col].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
+                if col in member_summary.columns:
+                    member_summary[col] = member_summary[col].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
             
             st.dataframe(member_summary, use_container_width=True, hide_index=True)
             
