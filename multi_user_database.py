@@ -707,10 +707,17 @@ class MultiUserDB:
         """Get all income entries for a user"""
         try:
             query = 'SELECT date as "Date", source as "Source", amount as "Amount" FROM income WHERE user_id = ? ORDER BY date DESC'
-            df = pd.read_sql_query(query, self.conn, params=(user_id,))
+            # Use engine for pandas queries if PostgreSQL
+            conn_to_use = self.engine if (self.use_postgres and self.engine) else self.conn
+            if self.use_postgres and self.engine:
+                # For PostgreSQL, replace ? with parameter placeholder
+                query = 'SELECT date as "Date", source as "Source", amount as "Amount" FROM income WHERE user_id = %s ORDER BY date DESC'
+            df = pd.read_sql_query(query, conn_to_use, params=(user_id,))
             return df
         except Exception as e:
             print(f"Error fetching income: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return pd.DataFrame(columns=["Date", "Source", "Amount"])
     
     def get_total_income(self, user_id):
