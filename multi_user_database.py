@@ -3,24 +3,24 @@ Multi-User Database Layer for Family Budget Tracker
 Handles all database operations with user authentication and data isolation
 """
 import sqlite3
-import pandas as pd
-from datetime import datetime
-import os
 import hashlib
 import secrets
-import config
+import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import pandas as pd
+from datetime import datetime
+from sqlalchemy import create_engine
+from sqlalchemy.pool import NullPool
 
-# PostgreSQL support
+# Check if we should use PostgreSQL
 DATABASE_URL = os.getenv('DATABASE_URL')
 USE_POSTGRES = DATABASE_URL is not None
 
 if USE_POSTGRES:
-    try:
-        import psycopg2
-        from psycopg2.extras import RealDictCursor
-        print("🐘 PostgreSQL detected via DATABASE_URL")
-    except ImportError:
-        USE_POSTGRES = False
+    print("🐘 PostgreSQL detected via DATABASE_URL")
+else:
+    print("📁 Using SQLite (local development)")
 
 class MultiUserDB:
     """Manages multi-user database operations with role-based access control"""
@@ -30,9 +30,18 @@ class MultiUserDB:
         self.use_postgres = USE_POSTGRES
         
         if USE_POSTGRES:
+            # psycopg2 for regular queries
             self.conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
             self.conn.autocommit = False
             print("✅ Connected to PostgreSQL")
+            
+            # SQLAlchemy engine for pandas queries (fixes connection issues)
+            self.engine = create_engine(
+                DATABASE_URL,
+                poolclass=NullPool,  # No pooling for serverless
+                connect_args={"sslmode": "require"}
+            )
+            print("✅ SQLAlchemy engine created for pandas queries")
             self.db_path = None
         else:
             if db_path is None:
@@ -40,6 +49,7 @@ class MultiUserDB:
             self.db_path = db_path
             self.conn = sqlite3.connect(db_path, check_same_thread=False)
             self.conn.row_factory = sqlite3.Row
+            self.engine = None  # No engine needed for SQLite
             print("✅ Connected to SQLite")
         
         self._initialize_tables()
@@ -357,7 +367,9 @@ class MultiUserDB:
                 WHERE household_id = {param_placeholder}
                 ORDER BY role DESC, full_name
             '''
-            df = pd.read_sql_query(query, self.conn, params=(household_id,))
+            # Use engine for pandas queries if PostgreSQL
+            conn_to_use = self.engine if (self.use_postgres and self.engine) else self.conn
+            df = pd.read_sql_query(query, conn_to_use, params=(household_id,))
             print(f"DEBUG: get_household_members returned {len(df)} rows for household {household_id}")
             return df
         except Exception as e:
@@ -431,7 +443,9 @@ class MultiUserDB:
                 GROUP BY h.id, h.name, h.is_active, h.created_at, u.full_name, u.email
                 ORDER BY h.created_at DESC
             '''
-            df = pd.read_sql_query(query, self.conn)
+            # Use engine for pandas queries if PostgreSQL
+            conn_to_use = self.engine if (self.use_postgres and self.engine) else self.conn
+            df = pd.read_sql_query(query, conn_to_use)
             print(f"DEBUG: get_all_households returned {len(df)} rows")
             if not df.empty:
                 print(f"DEBUG: First row: {df.iloc[0].to_dict()}")
@@ -540,8 +554,9 @@ class MultiUserDB:
                 WHERE u.role != 'superadmin'
                 ORDER BY h.name, u.role DESC, u.full_name
             '''
-            # No parameters needed - no placeholder issue
-            df = pd.read_sql_query(query, self.conn)
+            # Use engine for pandas queries if PostgreSQL
+            conn_to_use = self.engine if (self.use_postgres and self.engine) else self.conn
+            df = pd.read_sql_query(query, conn_to_use)
             print(f"DEBUG: get_all_users_super_admin returned {len(df)} rows")
             if not df.empty:
                 print(f"DEBUG: First row: {df.iloc[0].to_dict()}")
@@ -1043,7 +1058,9 @@ class MultiUserDB:
                 GROUP BY u.id, u.full_name
                 ORDER BY u.full_name
             '''
-            df = pd.read_sql_query(query, self.conn, params=(household_id,))
+            # Use engine for pandas queries if PostgreSQL
+            conn_to_use = self.engine if (self.use_postgres and self.engine) else self.conn
+            df = pd.read_sql_query(query, conn_to_use, params=(household_id,))
             print(f"DEBUG: get_household_member_summary returned {len(df)} rows for household {household_id}")
             return df
         except Exception as e:
