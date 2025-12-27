@@ -673,14 +673,17 @@ def show_super_admin_dashboard():
             if not households_df.empty:
                 for idx, household in households_df.iterrows():
                     with st.container():
-                        col_info, col_actions = st.columns([3, 1])
+                        col_info, col_actions =st.columns([3, 1])
+                        
+                        # Get household ID as integer to ensure unique keys
+                        household_id = int(household['id'])
                         
                         with col_info:
                             status_icon = "✅" if household['is_active'] == 1 else "❌"
                             st.markdown(f"""
                             **{household['name']}** {status_icon}  
                             👤 Admin: {household['admin_name']} ({household['admin_email']})  
-                            👥 Members: {household['member_count']} | 📅 Created: {household['created_at'][:10]}
+                            👥 Members: {household['member_count']} | 📅 Created: {str(household['created_at'])[:10]}
                             """)
                         
                         with col_actions:
@@ -688,33 +691,33 @@ def show_super_admin_dashboard():
                             
                             with col_toggle:
                                 toggle_label = "❌" if household['is_active'] == 1 else "✅"
-                                if st.button(toggle_label, key=f"toggle_{household['id']}", help="Enable/Disable"):
-                                    if db.toggle_household_status(household['id']):
+                                if st.button(toggle_label, key=f"toggle_{household_id}", help="Enable/Disable"):
+                                    if db.toggle_household_status(household_id):
                                         st.cache_data.clear()
                                         st.rerun()
                             
                             with col_delete:
-                                if st.button("🗑️", key=f"del_{household['id']}", help="Delete"):
-                                    st.session_state[f'confirm_del_h_{household["id"]}'] = True
+                                if st.button("🗑️", key=f"del_{household_id}", help="Delete"):
+                                    st.session_state[f'confirm_del_h_{household_id}'] = True
                                     st.rerun()
                             
                             # Confirmation dialog
-                            if st.session_state.get(f'confirm_del_h_{household["id"]}', False):
+                            if st.session_state.get(f'confirm_del_h_{household_id}', False):
                                 st.warning(f"Delete '{household['name']}'?")
                                 col_yes, col_no = st.columns(2)
                                 with col_yes:
-                                    if st.button("Yes", key=f"yes_h_{household['id']}"):
-                                        success, msg = db.delete_household(household['id'])
+                                    if st.button("Yes", key=f"yes_h_{household_id}"):
+                                        success, msg = db.delete_household(household_id)
                                         if success:
                                             st.success(msg)
-                                            st.session_state.pop(f'confirm_del_h_{household["id"]}')
+                                            st.session_state.pop(f'confirm_del_h_{household_id}')
                                             st.cache_data.clear()
                                             st.rerun()
                                         else:
                                             st.error(msg)
                                 with col_no:
-                                    if st.button("No", key=f"no_h_{household['id']}"):
-                                        st.session_state.pop(f'confirm_del_h_{household["id"]}')
+                                    if st.button("No", key=f"no_h_{household_id}"):
+                                        st.session_state.pop(f'confirm_del_h_{household_id}')
                                         st.rerun()
                         
                         st.divider()
