@@ -48,49 +48,55 @@ class MultiUserDB:
         """Create tables if they don't exist"""
         cursor = self.conn.cursor()
         
+        # Detect if using PostgreSQL or SQLite
+        id_type = "SERIAL PRIMARY KEY" if self.use_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
+        bool_type = "BOOLEAN" if self.use_postgres else "INTEGER"
+        text_type = "TEXT"
+        
         # Households table (with is_active for super admin management)
-        cursor.execute('''
+        cursor.execute(f'''
             CREATE TABLE IF NOT EXISTS households (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
+                id {id_type},
+                name {text_type} NOT NULL,
                 created_by INTEGER,
-                is_active INTEGER DEFAULT 1,
+                is_active {bool_type} DEFAULT {'TRUE' if self.use_postgres else '1'},
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
         # Users table (role can be: superadmin, admin, member)
-        cursor.execute('''
+        cursor.execute(f'''
             CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {id_type},
                 household_id INTEGER,
-                email TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                full_name TEXT NOT NULL,
-                role TEXT DEFAULT 'member',
-                relationship TEXT,
-                is_active INTEGER DEFAULT 1,
-                invite_token TEXT UNIQUE,
+                email {text_type} UNIQUE NOT NULL,
+                password_hash {text_type} NOT NULL,
+                full_name {text_type} NOT NULL,
+                role {text_type} DEFAULT 'member',
+                relationship {text_type},
+                is_active {bool_type} DEFAULT {'TRUE' if self.use_postgres else '1'},
+                invite_token {text_type} UNIQUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (household_id) REFERENCES households(id)
             )
         ''')
         
-        # Check and add is_active column to households if it doesn't exist
-        cursor.execute("PRAGMA table_info(households)")
-        columns = [column[1] for column in cursor.fetchall()]
-        if 'is_active' not in columns:
-            cursor.execute('ALTER TABLE households ADD COLUMN is_active INTEGER DEFAULT 1')
-            print("✅ Added is_active column to households table")
+        # Check and add is_active column to households if it doesn't exist (SQLite only)
+        if not self.use_postgres:
+            cursor.execute("PRAGMA table_info(households)")
+            columns = [column[1] for column in cursor.fetchall()]
+            if 'is_active' not in columns:
+                cursor.execute('ALTER TABLE households ADD COLUMN is_active INTEGER DEFAULT 1')
+                print("✅ Added is_active column to households table")
         
         # Income table (with user_id)
-        cursor.execute('''
+        cursor.execute(f'''
             CREATE TABLE IF NOT EXISTS income (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {id_type},
                 user_id INTEGER NOT NULL,
-                date TEXT NOT NULL,
-                source TEXT NOT NULL,
-                amount REAL NOT NULL,
+                date {text_type} NOT NULL,
+                source {text_type} NOT NULL,
+                amount {'NUMERIC' if self.use_postgres else 'REAL'} NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id)
@@ -98,14 +104,14 @@ class MultiUserDB:
         ''')
         
         # Allocations table (with user_id)
-        cursor.execute('''
+        cursor.execute(f'''
             CREATE TABLE IF NOT EXISTS allocations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {id_type},
                 user_id INTEGER NOT NULL,
-                category TEXT NOT NULL,
-                allocated_amount REAL NOT NULL,
-                spent_amount REAL DEFAULT 0,
-                balance REAL NOT NULL,
+                category {text_type} NOT NULL,
+                allocated_amount {'NUMERIC' if self.use_postgres else 'REAL'} NOT NULL,
+                spent_amount {'NUMERIC' if self.use_postgres else 'REAL'} DEFAULT 0,
+                balance {'NUMERIC' if self.use_postgres else 'REAL'} NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id),
@@ -114,14 +120,14 @@ class MultiUserDB:
         ''')
         
         # Expenses table (with user_id)
-        cursor.execute('''
+        cursor.execute(f'''
             CREATE TABLE IF NOT EXISTS expenses (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {id_type},
                 user_id INTEGER NOT NULL,
-                date TEXT NOT NULL,
-                category TEXT NOT NULL,
-                amount REAL NOT NULL,
-                comment TEXT,
+                date {text_type} NOT NULL,
+                category {text_type} NOT NULL,
+                amount {'NUMERIC' if self.use_postgres else 'REAL'} NOT NULL,
+                comment {text_type},
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id)
@@ -129,15 +135,15 @@ class MultiUserDB:
         ''')
         
         # Monthly settlements table (with user_id)
-        cursor.execute('''
+        cursor.execute(f'''
             CREATE TABLE IF NOT EXISTS monthly_settlements (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {id_type},
                 user_id INTEGER NOT NULL,
                 year INTEGER NOT NULL,
                 month INTEGER NOT NULL,
-                total_income REAL NOT NULL,
-                total_expenses REAL NOT NULL,
-                total_savings REAL NOT NULL,
+                total_income {'NUMERIC' if self.use_postgres else 'REAL'} NOT NULL,
+                total_expenses {'NUMERIC' if self.use_postgres else 'REAL'} NOT NULL,
+                total_savings {'NUMERIC' if self.use_postgres else 'REAL'} NOT NULL,
                 settled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id),
                 UNIQUE(user_id, year, month)
