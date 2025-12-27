@@ -396,9 +396,14 @@ class MultiUserDB:
                 ORDER BY h.created_at DESC
             '''
             df = pd.read_sql_query(query, self.conn)
+            print(f"DEBUG: get_all_households returned {len(df)} rows")
+            if not df.empty:
+                print(f"DEBUG: First row: {df.iloc[0].to_dict()}")
             return df
         except Exception as e:
             print(f"Error fetching households: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return pd.DataFrame()
     
     def create_household_with_admin(self, household_name, admin_email, admin_name, admin_password):
