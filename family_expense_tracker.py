@@ -578,15 +578,16 @@ def show_super_admin_dashboard():
         st.title("🔱 Super Admin Dashboard")
         st.caption(f"Welcome, {user['full_name']}")
     with col2:
-        if st.button("Logout", use_container_width=True):
+        st.write("")  # Spacer for alignment
+        if st.button("Logout", key="super_logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.user = None
             st.rerun()
     
     st.divider()
     
-    # Main tabs
-    tab1, tab2, tab3 = st.tabs(["📊 Overview", "🏠 Manage Families", "👥 All Users"])
+    # Main tabs - now with 4 tabs
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 Overview", "🏠 Manage Families", "👥 Manage Members", "📋 All Users"])
     
     # TAB 1: Overview
     with tab1:
@@ -714,8 +715,98 @@ def show_super_admin_dashboard():
             else:
                 st.info("No families created yet. Create one using the form on the left.")
     
-    # TAB 3: All Users
+    # TAB 3: Manage Members
     with tab3:
+        st.header("Member Management Across Families")
+        
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            st.subheader("➕ Add Member to Family")
+            
+            # Get list of families for dropdown
+            households_df = db.get_all_households()
+            if not households_df.empty:
+                with st.form("add_member_super_form"):
+                    household_options = {row['name']: row['id'] for _, row in households_df.iterrows()}
+                    selected_family = st.selectbox("Select Family", options=list(household_options.keys()))
+                    
+                    member_name = st.text_input("Member Name")
+                    member_email = st.text_input("Member Email")
+                    member_relationship = st.selectbox("Relationship", 
+                        ["Spouse", "Parent", "Child", "Sibling", "Other"])
+                    
+                    add_member_btn = st.form_submit_button("Add Member", use_container_width=True)
+                    
+                    if add_member_btn:
+                        if not all([selected_family, member_name, member_email]):
+                            st.error("Please fill all fields")
+                        else:
+                            household_id = household_options[selected_family]
+                            success, member_id, invite_token = db.add_member_to_family_super_admin(
+                                household_id, member_email, member_name, member_relationship
+                            )
+                            if success:
+                                st.success(f"✅ Member added to {selected_family}")
+                                st.info(f"📧 Invite Token:\n`{invite_token}`")
+                                st.caption("Share this token with the member")
+                                st.cache_data.clear()
+                                st.rerun()
+                            else:
+                                st.error(f"❌ {invite_token}")
+            else:
+                st.info("Create families first before adding members")
+        
+        with col2:
+            st.subheader("👤 Members by Family")
+            
+            users_df = db.get_all_users_super_admin()
+            
+            if not users_df.empty:
+                # Group by family
+                families = users_df['household_name'].unique()
+                
+                for family in families:
+                    if pd.isna(family):
+                        continue
+                        
+                    st.markdown(f"### {family}")
+                    family_users = users_df[users_df['household_name'] == family]
+                    
+                    for _, user in family_users.iterrows():
+                        with st.container():
+                            col_info, col_action = st.columns([3, 1])
+                            
+                            with col_info:
+                                role_icon = "👑" if user['role'] == 'admin' else "👤"
+                                status_icon = "✅" if user['is_active'] == 1 else "❌"
+                                st.markdown(f"""
+                                {role_icon} **{user['full_name']}** {status_icon}  
+                                📧 {user['email']} | Role: {user['role'].title()}
+                                """)
+                            
+                            with col_action:
+                                # Only show promote button for members
+                                if user['role'] == 'member':
+                                    if st.button("👑 Make Admin", key=f"promote_{user['id']}", help="Promote to family admin"):
+                                        # Get household_id from household_name
+                                        household_row = households_df[households_df['name'] == family]
+                                        if not household_row.empty:
+                                            household_id = household_row.iloc[0]['id']
+                                            success, msg = db.promote_member_to_admin(user['id'], household_id)
+                                            if success:
+                                                st.success(msg)
+                                                st.cache_data.clear()
+                                                st.rerun()
+                                            else:
+                                                st.error(msg)
+                        
+                        st.divider()
+            else:
+                st.info("No users found")
+    
+    # TAB 4: All Users
+    with tab4:
         st.header("All Users Across Families")
         
         users_df = db.get_all_users_super_admin()

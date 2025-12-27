@@ -501,6 +501,62 @@ class MultiUserDB:
             print(f"Error getting statistics: {str(e)}")
             return {}
     
+    def promote_member_to_admin(self, user_id, household_id):
+        """Promote a member to family admin (super admin only)"""
+        try:
+            cursor = self.conn.cursor()
+            
+            # Update user role to admin
+            cursor.execute('''
+                UPDATE users 
+                SET role = 'admin', relationship = 'self'
+                WHERE id = ? AND household_id = ?
+            ''', (user_id, household_id))
+            
+            # Update household created_by if needed
+            cursor.execute('SELECT created_by FROM households WHERE id = ?', (household_id,))
+            result = cursor.fetchone()
+            if result and not result['created_by']:
+                cursor.execute('UPDATE households SET created_by = ? WHERE id = ?', (user_id, household_id))
+            
+            self.conn.commit()
+            return (True, "User promoted to family admin successfully")
+        except Exception as e:
+            self.conn.rollback()
+            print(f"Error promoting user: {str(e)}")
+            return (False, str(e))
+    
+    def add_member_to_family_super_admin(self, household_id, email, full_name, relationship):
+        """Super admin adds member to any family"""
+        try:
+            cursor = self.conn.cursor()
+            
+            # Check if email exists
+            cursor.execute('SELECT id FROM users WHERE email = ?', (email,))
+            if cursor.fetchone():
+                return (False, None, "Email already exists")
+            
+            # Generate invite token
+            invite_token = self.generate_invite_token()
+            temp_password = secrets.token_urlsafe(16)
+            password_hash = self._hash_password(temp_password)
+            
+            # Create member
+            cursor.execute('''
+                INSERT INTO users (household_id, email, password_hash, full_name, role, relationship, invite_token, is_active)
+                VALUES (?, ?, ?, ?, 'member', ?, ?, 1)
+            ''', (household_id, email, password_hash, full_name, relationship, invite_token))
+            
+            member_id = cursor.lastrowid
+            self.conn.commit()
+            
+            return (True, member_id, invite_token)
+        except Exception as e:
+            self.conn.rollback()
+            print(f"Error adding member: {str(e)}")
+            return (False, None, str(e))
+    
+    
     # ==================== INCOME OPERATIONS (USER-SCOPED) ====================
     
     def add_income(self, user_id, date, source, amount):
