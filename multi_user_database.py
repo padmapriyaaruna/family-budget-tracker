@@ -392,7 +392,7 @@ class MultiUserDB:
                 FROM households h
                 LEFT JOIN users u ON h.created_by = u.id
                 LEFT JOIN users m ON m.household_id = h.id
-                GROUP BY h.id
+                GROUP BY h.id, h.name, h.is_active, h.created_at, u.full_name, u.email
                 ORDER BY h.created_at DESC
             '''
             df = pd.read_sql_query(query, self.conn)
@@ -499,23 +499,24 @@ class MultiUserDB:
             stats = {}
             
             # Total households
-            cursor.execute('SELECT COUNT(*) as count FROM households')
+            self._execute(cursor, 'SELECT COUNT(*) as count FROM households')
             stats['total_households'] = cursor.fetchone()['count']
             
             # Active households  
-            cursor.execute('SELECT COUNT(*) as count FROM households WHERE is_active = 1')
+            is_active_value = True if self.use_postgres else 1
+            self._execute(cursor, 'SELECT COUNT(*) as count FROM households WHERE is_active = ?', (is_active_value,))
             stats['active_households'] = cursor.fetchone()['count']
             
             # Total users (excluding super admin)
-            cursor.execute("SELECT COUNT(*) as count FROM users WHERE role != 'superadmin'")
+            self._execute(cursor, "SELECT COUNT(*) as count FROM users WHERE role != 'superadmin'")
             stats['total_users'] = cursor.fetchone()['count']
             
             # Total admins
-            cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = 'admin'")
+            self._execute(cursor, "SELECT COUNT(*) as count FROM users WHERE role = 'admin'")
             stats['total_admins'] = cursor.fetchone()['count']
             
             # Total members
-            cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = 'member'")
+            self._execute(cursor, "SELECT COUNT(*) as count FROM users WHERE role = 'member'")
             stats['total_members'] = cursor.fetchone()['count']
             
             return stats
