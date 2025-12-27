@@ -175,16 +175,20 @@ class MultiUserDB:
             superadmin_password = os.getenv('SUPERADMIN_PASSWORD', 'superuser')
             password_hash = self._hash_password(superadmin_password)
             
+            # Use appropriate parameter placeholder and boolean value
+            param_placeholder = '%s' if self.use_postgres else '?'
+            is_active_value = True if self.use_postgres else 1
+            
             # Create super admin (household_id is NULL)
-            cursor.execute('''
+            cursor.execute(f'''
                 INSERT INTO users (household_id, email, password_hash, full_name, role, relationship, is_active)
-                VALUES (NULL, 'superadmin', ?, 'Super Administrator', 'superadmin', NULL, 1)
-            ''', (password_hash,))
+                VALUES (NULL, 'superadmin', {param_placeholder}, 'Super Administrator', 'superadmin', NULL, {param_placeholder})
+            ''', (password_hash, is_active_value))
             
             self.conn.commit()
             print("✅ Super admin created successfully")
         except Exception as e:
-            print(f"Note: Super admin may already exist or error: {str(e)}")
+            print(f"❌ Error creating super admin: {str(e)}")
             # Don't fail if super admin already exists
     
     def create_admin_user(self, email, password, full_name, household_name):
