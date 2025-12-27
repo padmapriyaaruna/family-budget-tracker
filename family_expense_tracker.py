@@ -617,6 +617,12 @@ def show_super_admin_dashboard():
         if not households_df.empty:
             display_df = households_df[['name', 'admin_name', 'admin_email', 'member_count', 'is_active', 'created_at']].copy()
             display_df['is_active'] = display_df['is_active'].apply(lambda x: '✅ Active' if x == 1 else '❌ Inactive')
+            # Format created_at only if dataframe has rows
+            if len(display_df) > 0 and 'created_at' in display_df.columns:
+                try:
+                    display_df['created_at'] = pd.to_datetime(display_df['created_at']).dt.strftime('%Y-%m-%d')
+                except:
+                    pass  # Keep original format if parsing fails
             display_df.columns = ['Family Name', 'Admin Name', 'Admin Email', 'Members', 'Status', 'Created']
             st.dataframe(display_df, use_container_width=True, hide_index=True)
         else:

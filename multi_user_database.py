@@ -450,8 +450,11 @@ class MultiUserDB:
         """Enable/disable a household"""
         try:
             cursor = self.conn.cursor()
-            cursor.execute('UPDATE households SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = ?', 
-                         (household_id,))
+            # For PostgreSQL, need to handle boolean vs integer
+            if self.use_postgres:
+                self._execute(cursor, 'UPDATE households SET is_active = CASE WHEN is_active = TRUE THEN FALSE ELSE TRUE END WHERE id = ?', (household_id,))
+            else:
+                self._execute(cursor, 'UPDATE households SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = ?', (household_id,))
             self.conn.commit()
             return True
         except Exception as e:
@@ -464,19 +467,19 @@ class MultiUserDB:
             cursor = self.conn.cursor()
             
             # Get all users in the household
-            cursor.execute('SELECT id FROM users WHERE household_id = ?', (household_id,))
+            self._execute(cursor, 'SELECT id FROM users WHERE household_id = ?', (household_id,))
             user_ids = [row['id'] for row in cursor.fetchall()]
             
             # Delete all user data
             for user_id in user_ids:
-                cursor.execute('DELETE FROM expenses WHERE user_id = ?', (user_id,))
-                cursor.execute('DELETE FROM allocations WHERE user_id = ?', (user_id,))
-                cursor.execute('DELETE FROM income WHERE user_id = ?', (user_id,))
-                cursor.execute('DELETE FROM monthly_settlements WHERE user_id = ?', (user_id,))
+                self._execute(cursor, 'DELETE FROM expenses WHERE user_id = ?', (user_id,))
+                self._execute(cursor, 'DELETE FROM allocations WHERE user_id = ?', (user_id,))
+                self._execute(cursor, 'DELETE FROM income WHERE user_id = ?', (user_id,))
+                self._execute(cursor, 'DELETE FROM monthly_settlements WHERE user_id = ?', (user_id,))
             
             # Delete users and household
-            cursor.execute('DELETE FROM users WHERE household_id = ?', (household_id,))
-            cursor.execute('DELETE FROM households WHERE id = ?', (household_id,))
+            self._execute(cursor, 'DELETE FROM users WHERE household_id = ?', (household_id,))
+            self._execute(cursor, 'DELETE FROM households WHERE id = ?', (household_id,))
             
             self.conn.commit()
             return (True, "Household deleted successfully")
