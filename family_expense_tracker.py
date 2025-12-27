@@ -616,7 +616,8 @@ def show_super_admin_dashboard():
         households_df = db.get_all_households()
         if not households_df.empty:
             display_df = households_df[['name', 'admin_name', 'admin_email', 'member_count', 'is_active', 'created_at']].copy()
-            display_df['is_active'] = display_df['is_active'].apply(lambda x: '✅ Active' if x == 1 else '❌ Inactive')
+            # Handle both PostgreSQL (True/False) and SQLite (1/0)
+            display_df['is_active'] = display_df['is_active'].apply(lambda x: '✅ Active' if x else '❌ Inactive')
             # Format created_at only if dataframe has rows
             if len(display_df) > 0 and 'created_at' in display_df.columns:
                 try:
@@ -682,7 +683,8 @@ def show_super_admin_dashboard():
                         col_info, col_actions = st.columns([3, 1])
                         
                         with col_info:
-                            status_icon = "✅" if household['is_active'] == 1 else "❌"
+                            # Handle both PostgreSQL (True/False) and SQLite (1/0)
+                            status_icon = "✅" if household['is_active'] else "❌"
                             st.markdown(f"""
                             **{household['name']}** {status_icon}  
                             👤 Admin: {household['admin_name']} ({household['admin_email']})  
@@ -693,7 +695,8 @@ def show_super_admin_dashboard():
                             col_toggle, col_delete = st.columns(2)
                             
                             with col_toggle:
-                                toggle_label = "❌" if household['is_active'] == 1 else "✅"
+                                # Handle both PostgreSQL (True/False) and SQLite (1/0)
+                                toggle_label = "❌" if household['is_active'] else "✅"
                                 if st.button(toggle_label, key=f"toggle_{household_id}", help="Enable/Disable"):
                                     if db.toggle_household_status(household_id):
                                         st.cache_data.clear()
@@ -791,7 +794,8 @@ def show_super_admin_dashboard():
                             
                             with col_info:
                                 role_icon = "👑" if user['role'] == 'admin' else "👤"
-                                status_icon = "✅" if user['is_active'] == 1 else "❌"
+                                # Handle both PostgreSQL (True/False) and SQLite (1/0)
+                                status_icon = "✅" if user['is_active'] else "❌"
                                 st.markdown(f"""
                                 {role_icon} **{user['full_name']}** {status_icon}  
                                 📧 {user['email']} | Role: {user['role'].title()}
@@ -825,7 +829,8 @@ def show_super_admin_dashboard():
         
         if not users_df.empty:
             display_df = users_df[['full_name', 'email', 'household_name', 'role', 'is_active', 'created_at']].copy()
-            display_df['is_active'] = display_df['is_active'].apply(lambda x: '✅' if x == 1 else '❌')
+            # Handle both PostgreSQL (True/False) and SQLite (1/0)
+            display_df['is_active'] = display_df['is_active'].apply(lambda x: '✅' if x else '❌')
             display_df['role'] = display_df['role'].str.title()
             # Only parse datetime if the dataframe has rows
             if len(display_df) > 0 and 'created_at' in display_df.columns:
