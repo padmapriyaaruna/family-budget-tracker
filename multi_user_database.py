@@ -1012,7 +1012,7 @@ class MultiUserDB:
         """Get total income for entire household"""
         try:
             cursor = self.conn.cursor()
-            cursor.execute('''
+            self._execute(cursor, '''
                 SELECT SUM(i.amount) as total
                 FROM income i
                 JOIN users u ON i.user_id = u.id
@@ -1028,7 +1028,7 @@ class MultiUserDB:
         """Get total expenses for entire household"""
         try:
             cursor = self.conn.cursor()
-            cursor.execute('''
+            self._execute(cursor, '''
                 SELECT SUM(e.amount) as total
                 FROM expenses e
                 JOIN users u ON e.user_id = u.id
