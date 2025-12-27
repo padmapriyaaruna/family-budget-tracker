@@ -56,67 +56,96 @@ if 'user' not in st.session_state:
 # ==================== AUTHENTICATION PAGES ====================
 
 def show_login_page():
-    """Display login and signup page"""
+    """Display login page with separate tabs for different user types"""
     st.title("👨‍👩‍👧‍👦 Family Budget Tracker")
+    st.caption("Multi-Family Budget Management System")
     
-    tab1, tab2, tab3 = st.tabs(["🔐 Login", "📝 Create Admin Account", "🔑 Setup Password (Members)"])
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "🔱 Super Admin Login", 
+        "👨‍👩‍👧 Family Admin Login", 
+        "👤 Member Login",
+        "🔑 Setup Password"
+    ])
     
+    # TAB 1: Super Admin Login
     with tab1:
-        st.subheader("Login to Your Account")
+        st.subheader("🔱 Super Admin Login")
+        st.info("For system administrators only. Manage multiple families and users.")
         
-        with st.form("login_form"):
-            email = st.text_input("Email")
-            password = st.text_input("Password", type="password")
-            submit = st.form_submit_button("Login", use_container_width=True)
+        with st.form("superadmin_login_form"):
+            st.markdown("**Default Credentials:**")
+            st.code("Email: superadmin\nPassword: superuser")
             
-            if submit:
-                if email and password:
-                    success, user_data = db.authenticate_user(email, password)
-                    if success:
+            super_email = st.text_input("Email", value="superadmin", key="super_email")
+            super_password = st.text_input("Password", type="password", key="super_password")
+            super_submit = st.form_submit_button("Login as Super Admin", use_container_width=True)
+            
+            if super_submit:
+                if super_email and super_password:
+                    success, user_data = db.authenticate_user(super_email, super_password)
+                    if success and user_data.get('role') == 'superadmin':
                         st.session_state.logged_in = True
                         st.session_state.user = user_data
                         st.success(f"Welcome, {user_data['full_name']}!")
                         st.rerun()
                     else:
-                        st.error("Invalid email or password")
+                        st.error("Invalid super admin credentials or account not found")
                 else:
                     st.error("Please enter both email and password")
     
+    # TAB 2: Family Admin Login
     with tab2:
-        st.subheader("Create Admin Account")
-        st.info("Create the first admin account for your household")
+        st.subheader("👨‍👩‍👧 Family Admin Login")
+        st.info("Login to manage your family household. Contact super admin if you don't have an account.")
         
-        with st.form("signup_form"):
-            household_name = st.text_input("Household/Family Name", placeholder="e.g., Smith Family")
-            full_name = st.text_input("Your Full Name")
-            signup_email = st.text_input("Email Address")
-            signup_password = st.text_input("Password", type="password")
-            confirm_password = st.text_input("Confirm Password", type="password")
+        with st.form("admin_login_form"):
+            admin_email = st.text_input("Email", placeholder="your.email@example.com", key="admin_email")
+            admin_password = st.text_input("Password", type="password", key="admin_password")
+            admin_submit = st.form_submit_button("Login as Family Admin", use_container_width=True)
             
-            submit_signup = st.form_submit_button("Create Account", use_container_width=True)
-            
-            if submit_signup:
-                if not all([household_name, full_name, signup_email, signup_password]):
-                    st.error("Please fill all fields")
-                elif signup_password != confirm_password:
-                    st.error("Passwords do not match")
-                elif len(signup_password) < 6:
-                    st.error("Password must be at least 6 characters")
-                else:
-                    success, user_id, message = db.create_admin_user(
-                        signup_email, signup_password, full_name, household_name
-                    )
-                    if success:
-                        st.success(f"✅ {message} Please login with your credentials.")
+            if admin_submit:
+                if admin_email and admin_password:
+                    success, user_data = db.authenticate_user(admin_email, admin_password)
+                    if success and user_data.get('role') == 'admin':
+                        st.session_state.logged_in = True
+                        st.session_state.user = user_data
+                        st.success(f"Welcome, {user_data['full_name']}!")
+                        st.rerun()
                     else:
-                        st.error(f"❌ {message}")
+                        st.error("Invalid credentials or not a family admin account")
+                else:
+                    st.error("Please enter both email and password")
     
+    # TAB 3: Member Login
     with tab3:
+        st.subheader("👤 Family Member Login")
+        st.info("Login to track your personal expenses. Use the invite token to set up your account first.")
+        
+        with st.form("member_login_form"):
+            member_email = st.text_input("Email", placeholder="your.email@example.com", key="member_email")
+            member_password = st.text_input("Password", type="password", key="member_password")
+            member_submit = st.form_submit_button("Login as Member", use_container_width=True)
+            
+            if member_submit:
+                if member_email and member_password:
+                    success, user_data = db.authenticate_user(member_email, member_password)
+                    if success and user_data.get('role') == 'member':
+                        st.session_state.logged_in = True
+                        st.session_state.user = user_data
+                        st.success(f"Welcome, {user_data['full_name']}!")
+                        st.rerun()
+                    else:
+                        st.error("Invalid credentials or not a member account")
+                else:
+                    st.error("Please enter both email and password")
+    
+    # TAB 4: Setup Password (for new members)
+    with tab4:
         st.subheader("🔑 Setup Your Password")
-        st.info("If you were invited to join a household, use your invite token to set your password")
+        st.info("If you were invited as a family member, use your invite token to set up your password")
         
         with st.form("password_setup_form"):
-            invite_token = st.text_input("Invite Token", placeholder="Paste the token shared by your admin")
+            invite_token = st.text_input("Invite Token", placeholder="Paste the token shared by your family admin")
             new_password = st.text_input("New Password", type="password")
             confirm_new_password = st.text_input("Confirm Password", type="password")
             
@@ -133,7 +162,7 @@ def show_login_page():
                     success, message = db.accept_invite(invite_token, new_password)
                     if success:
                         st.success(f"✅ {message}")
-                        st.info("You can now login with your email and new password!")
+                        st.info("You can now login with your email using the 'Member Login' tab!")
                     else:
                         st.error(f"❌ {message}")
 
