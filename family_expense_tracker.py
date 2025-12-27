@@ -672,11 +672,14 @@ def show_super_admin_dashboard():
             
             if not households_df.empty:
                 for idx, household in households_df.iterrows():
-                    with st.container():
-                        col_info, col_actions =st.columns([3, 1])
-                        
-                        # Get household ID as integer to ensure unique keys
+                    # Skip if ID is not valid (e.g., header row)
+                    try:
                         household_id = int(household['id'])
+                    except (ValueError, TypeError):
+                        continue  # Skip this row if ID is not a number
+                    
+                    with st.container():
+                        col_info, col_actions = st.columns([3, 1])
                         
                         with col_info:
                             status_icon = "✅" if household['is_active'] == 1 else "❌"
