@@ -526,10 +526,16 @@ class MultiUserDB:
                 WHERE u.role != 'superadmin'
                 ORDER BY h.name, u.role DESC, u.full_name
             '''
+            # No parameters needed - no placeholder issue
             df = pd.read_sql_query(query, self.conn)
+            print(f"DEBUG: get_all_users_super_admin returned {len(df)} rows")
+            if not df.empty:
+                print(f"DEBUG: First row: {df.iloc[0].to_dict()}")
             return df
         except Exception as e:
             print(f"Error fetching users: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return pd.DataFrame()
     
     def get_system_statistics(self):
@@ -1006,26 +1012,30 @@ class MultiUserDB:
             return 0
     
     def get_household_member_summary(self, household_id):
-        """Get income/expense summary by member"""
+        """Get member-wise financial summary"""
         try:
-            query = '''
+            # Use appropriate parameter placeholder
+            param_placeholder = '%s' if self.use_postgres else '?'
+            query = f'''
                 SELECT 
-                    u.full_name as "Member",
-                    u.relationship as "Relationship",
-                    COALESCE(SUM(i.amount), 0) as "Income",
-                    COALESCE(SUM(e.amount), 0) as "Expenses",
-                    COALESCE(SUM(i.amount), 0) - COALESCE(SUM(e.amount), 0) as "Savings"
+                    u.full_name as Member,
+                    COALESCE(SUM(i.amount), 0) as Income,
+                    COALESCE(SUM(e.amount), 0) as Expenses,
+                    COALESCE(SUM(i.amount), 0) - COALESCE(SUM(e.amount), 0) as Savings
                 FROM users u
                 LEFT JOIN income i ON u.id = i.user_id
                 LEFT JOIN expenses e ON u.id = e.user_id
-                WHERE u.household_id = ? AND u.is_active = 1
-                GROUP BY u.id, u.full_name, u.relationship
-                ORDER BY u.role DESC, u.full_name
+                WHERE u.household_id = {param_placeholder}
+                GROUP BY u.id, u.full_name
+                ORDER BY u.full_name
             '''
             df = pd.read_sql_query(query, self.conn, params=(household_id,))
+            print(f"DEBUG: get_household_member_summary returned {len(df)} rows for household {household_id}")
             return df
         except Exception as e:
-            print(f"Error fetching household summary: {str(e)}")
+            print(f"Error getting member summary: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return pd.DataFrame()
     
     def close(self):
