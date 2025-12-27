@@ -241,6 +241,9 @@ class MultiUserDB:
             cursor = self.conn.cursor()
             password_hash = self._hash_password(password)
             
+            print(f"DEBUG: Authenticating user: {email}")
+            print(f"DEBUG: Password hash: {password_hash}")
+            
             self._execute(cursor, '''
                 SELECT id, household_id, email, full_name, role, relationship, is_active
                 FROM users
@@ -249,12 +252,23 @@ class MultiUserDB:
             
             user = cursor.fetchone()
             
-            if user and user['is_active']:
-                return (True, dict(user))
+            print(f"DEBUG: Query result: {user}")
+            
+            if user:
+                print(f"DEBUG: User found - is_active: {user['is_active']} (type: {type(user['is_active'])})")
+                if user['is_active']:
+                    print(f"DEBUG: User is active, authentication successful")
+                    return (True, dict(user))
+                else:
+                    print(f"DEBUG: User is inactive")
+                    return (False, None)
             else:
+                print(f"DEBUG: No user found with email and password")
                 return (False, None)
         except Exception as e:
             print(f"Authentication error: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return (False, None)
     
     def generate_invite_token(self):
