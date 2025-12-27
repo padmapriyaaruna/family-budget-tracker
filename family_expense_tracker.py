@@ -815,7 +815,9 @@ def show_super_admin_dashboard():
             display_df = users_df[['full_name', 'email', 'household_name', 'role', 'is_active', 'created_at']].copy()
             display_df['is_active'] = display_df['is_active'].apply(lambda x: '✅' if x == 1 else '❌')
             display_df['role'] = display_df['role'].str.title()
-            display_df['created_at'] = pd.to_datetime(display_df['created_at']).dt.strftime('%Y-%m-%d')
+            # Only parse datetime if the dataframe has rows
+            if len(display_df) > 0:
+                display_df['created_at'] = pd.to_datetime(display_df['created_at']).dt.strftime('%Y-%m-%d')
             display_df.columns = ['Name', 'Email', 'Family', 'Role', 'Active', 'Joined']
             
             # Filter options
