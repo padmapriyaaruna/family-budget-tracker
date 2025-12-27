@@ -886,7 +886,7 @@ class MultiUserDB:
         try:
             cursor = self.conn.cursor()
             
-            cursor.execute(
+            self._execute(cursor,
                 'INSERT INTO expenses (user_id, date, category, amount, comment) VALUES (?, ?, ?, ?, ?)',
                 (user_id, date, category, float(amount), comment)
             )
@@ -959,13 +959,15 @@ class MultiUserDB:
             print(f"Error fetching expenses with IDs: {str(e)}")
             return pd.DataFrame(columns=["id", "date", "category", "amount", "comment"])
     
-    def update_expense(self, expense_id, user_id, date, category, amount, comment, old_category, old_amount):
-        """Update an existing expense and recalculate allocations"""
+    def update_expense(self, expense_id, user_id, date, category, amount, old_category, old_amount, comment):
+        """Update an existing expense and adjust allocations"""
+        # This method has complex logic with allocation updates - needs comprehensive fixing
+        # For now, adding traceback to help debug
         try:
             cursor = self.conn.cursor()
             
-            #Reverse old expense
-            cursor.execute(
+            # Get old allocation
+            self._execute(cursor,
                 'SELECT allocated_amount, spent_amount FROM allocations WHERE user_id = ? AND category = ?',
                 (user_id, old_category)
             )
@@ -975,13 +977,13 @@ class MultiUserDB:
                 old_spent = old_row['spent_amount']
                 new_old_spent = old_spent - float(old_amount)
                 new_old_balance = old_allocated - new_old_spent
-                cursor.execute(
-                    'UPDATE allocations SET spent_amount = ?, balance = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND category = ?',
+                self._execute(cursor,
+                    'UPDATE allocations SET spent_amount = ?, balance = ? WHERE user_id = ? AND category = ?',
                     (new_old_spent, new_old_balance, user_id, old_category)
                 )
             
-            # Add new expense
-            cursor.execute(
+            # Get new allocation  
+            self._execute(cursor,
                 'SELECT allocated_amount, spent_amount FROM allocations WHERE user_id = ? AND category = ?',
                 (user_id, category)
             )
@@ -991,13 +993,14 @@ class MultiUserDB:
                 new_spent = new_row['spent_amount']
                 new_new_spent = new_spent + float(amount)
                 new_new_balance = new_allocated - new_new_spent
-                cursor.execute(
-                    'UPDATE allocations SET spent_amount = ?, balance = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND category = ?',
+                self._execute(cursor,
+                    'UPDATE allocations SET spent_amount = ?, balance = ? WHERE user_id = ? AND category = ?',
                     (new_new_spent, new_new_balance, user_id, category)
                 )
             
-            cursor.execute(
-                'UPDATE expenses SET date = ?, category = ?, amount = ?, comment = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+            # Update expense
+            self._execute(cursor,
+                'UPDATE expenses SET date = ?, category = ?, amount = ?, comment = ? WHERE id = ? AND user_id = ?',
                 (date, category, float(amount), comment, expense_id, user_id)
             )
             
@@ -1005,6 +1008,8 @@ class MultiUserDB:
             return True
         except Exception as e:
             print(f"Error updating expense: {str(e)}")
+            import traceback
+            traceback.print_exc()
             self.conn.rollback()
             return False
     
@@ -1013,7 +1018,7 @@ class MultiUserDB:
         try:
             cursor = self.conn.cursor()
             
-            cursor.execute(
+            self._execute(cursor,
                 'SELECT allocated_amount, spent_amount FROM allocations WHERE user_id = ? AND category = ?',
                 (user_id, category)
             )
@@ -1023,12 +1028,12 @@ class MultiUserDB:
                 spent = row['spent_amount']
                 new_spent = spent - float(amount)
                 new_balance = allocated - new_spent
-                cursor.execute(
+                self._execute(cursor,
                     'UPDATE allocations SET spent_amount = ?, balance = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND category = ?',
                     (new_spent, new_balance, user_id, category)
                 )
             
-            cursor.execute('DELETE FROM expenses WHERE id = ? AND user_id = ?', (expense_id, user_id))
+            self._execute(cursor, 'DELETE FROM expenses WHERE id = ? AND user_id = ?', (expense_id, user_id))
             
             self.conn.commit()
             return True
