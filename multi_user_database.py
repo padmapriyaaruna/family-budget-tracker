@@ -271,21 +271,36 @@ class MultiUserDB:
             password_hash = self._hash_password(temp_password)
             invite_token = self.generate_invite_token()
             
-            cursor.execute('''
-                INSERT INTO users (household_id, email, password_hash, full_name, role, relationship, invite_token)
-                VALUES (?, ?, ?, ?, 'member', ?, ?)
-            ''', (household_id, email, password_hash, full_name, relationship, invite_token))
+            # Create member with appropriate method for database type
+            if self.use_postgres:
+                self._execute(cursor, '''
+                    INSERT INTO users (household_id, email, password_hash, full_name, role, relationship, invite_token)
+                    VALUES (?, ?, ?, ?, 'member', ?, ?)
+                    RETURNING id
+                ''', (household_id, email, password_hash, full_name, relationship, invite_token))
+                member_id = cursor.fetchone()['id']
+            else:
+                self._execute(cursor, '''
+                    INSERT INTO users (household_id, email, password_hash, full_name, role, relationship, invite_token)
+                    VALUES (?, ?, ?, ?, 'member', ?, ?)
+                ''', (household_id, email, password_hash, full_name, relationship, invite_token))
+                member_id = cursor.lastrowid
             
-            member_id = cursor.lastrowid
             self.conn.commit()
             
             return (True, member_id, invite_token)
-        except sqlite3.IntegrityError:
-            return (False, None, None)
         except Exception as e:
-            print(f"Error creating member: {str(e)}")
+            error_msg = str(e)
+            print(f"Error creating member: {error_msg}")
             self.conn.rollback()
-            return (False, None, None)
+            # Check if it's a unique constraint violation (email already exists)
+            if 'unique' in error_msg.lower() or 'duplicate' in error_msg.lower():
+                return (False, None, None)
+            else:
+                # Other error - log it
+                import traceback
+                traceback.print_exc()
+                return (False, None, None)
     
     def accept_invite(self, invite_token, new_password):
         """Accept invite and set new password"""
