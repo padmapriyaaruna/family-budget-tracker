@@ -10,40 +10,40 @@ import hashlib
 import secrets
 import config
 
-# PostgreSQL support
-DATABASE_URL = os.getenv('DATABASE_URL')
-USE_POSTGRES = DATABASE_URL is not None
-
-if USE_POSTGRES:
-    try:
-        import psycopg2
-        from psycopg2.extras import RealDictCursor
-        print("🐘 PostgreSQL detected via DATABASE_URL")
-    except ImportError:
-        USE_POSTGRES = False
 
 class MultiUserDB:
     """Manages multi-user database operations with role-based access control"""
     
-        def __init__(self, db_path=None):
-        """Initialize database connection"""
-        self.use_postgres = USE_POSTGRES
+    def __init__(self, db_path=None):
+        """Initialize connection to SQLite database"""
+        if db_path is None:
+            # Use persistent disk on Render (/data), fallback to local for development
+            if os.path.exists("/data"):
+                db_path = "/data/family_budget.db"
+                print("📁 Using persistent disk storage at /data")
+            else:
+                db_path = os.path.join(os.path.dirname(__file__), "family_budget.db")
+                print("📁 Using local storage (development mode)")
         
-        if USE_POSTGRES:
-            self.conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-            self.conn.autocommit = False
-            print("✅ Connected to PostgreSQL")
-            self.db_path = None
-        else:
-            if db_path is None:
-                db_path = "/data/family_budget.db" if os.path.exists("/data") else os.path.join(os.path.dirname(__file__), "family_budget.db")
-            self.db_path = db_path
-            self.conn = sqlite3.connect(db_path, check_same_thread=False)
-            self.conn.row_factory = sqlite3.Row
-            print("✅ Connected to SQLite")
-        
+        self.db_path = db_path
+        self.conn = None
+        self._connect()
         self._initialize_tables()
-        
+    
+    def _connect(self):
+        """Establish connection to SQLite database"""
+        try:
+            # Create database directory if it doesn't exist
+            db_dir = os.path.dirname(self.db_path)
+            if db_dir and not os.path.exists(db_dir):
+                os.makedirs(db_dir)
+            
+            self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            self.conn.row_factory = sqlite3.Row  # Enable column access by name
+        except Exception as e:
+            print(f"Error connecting to database: {str(e)}")
+            raise
+    
     def _initialize_tables(self):
         """Create tables if they don't exist"""
         cursor = self.conn.cursor()
