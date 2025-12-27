@@ -241,7 +241,7 @@ def show_admin_dashboard():
                 
                 st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("No member financial data available yet"). Add members and start tracking!")
+            st.info("No member financial data available yet. Add members and start tracking!")
     
     # TAB 2: Manage Members
     with tab2:
