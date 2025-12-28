@@ -737,11 +737,19 @@ class MultiUserDB:
         """Get all income entries with IDs for editing"""
         try:
             query = 'SELECT id, date, source, amount FROM income WHERE user_id = ? ORDER BY date DESC'
-            df = pd.read_sql_query(query, self.conn, params=(user_id,))
+            # Use engine for pandas queries if PostgreSQL
+            conn_to_use = self.engine if (self.use_postgres and self.engine) else self.conn
+            if self.use_postgres and self.engine:
+                # For PostgreSQL, replace ? with parameter placeholder
+                query = 'SELECT id, date, source, amount FROM income WHERE user_id = %s ORDER BY date DESC'
+            df = pd.read_sql_query(query, conn_to_use, params=(user_id,))
             return df
         except Exception as e:
             print(f"Error fetching income with IDs: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return pd.DataFrame(columns=["id", "date", "source", "amount"])
+
     
     def update_income(self, income_id, user_id, date, source, amount):
         """Update an existing income entry"""
@@ -828,11 +836,19 @@ class MultiUserDB:
         """Get all allocations with IDs for editing"""
         try:
             query = 'SELECT id, category, allocated_amount, spent_amount, balance FROM allocations WHERE user_id = ? ORDER BY category'
-            df = pd.read_sql_query(query, self.conn, params=(user_id,))
+            # Use engine for pandas queries if PostgreSQL
+            conn_to_use = self.engine if (self.use_postgres and self.engine) else self.conn
+            if self.use_postgres and self.engine:
+                # For PostgreSQL, replace ? with parameter placeholder
+                query = 'SELECT id, category, allocated_amount, spent_amount, balance FROM allocations WHERE user_id = %s ORDER BY category'
+            df = pd.read_sql_query(query, conn_to_use, params=(user_id,))
             return df
         except Exception as e:
             print(f"Error fetching allocations with IDs: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return pd.DataFrame(columns=["id", "category", "allocated_amount", "spent_amount", "balance"])
+
     
     def update_allocation(self, allocation_id, user_id, category, allocated_amount):
         """Update an allocation entry by ID"""
@@ -1030,11 +1046,19 @@ class MultiUserDB:
         """Get all expenses with IDs for editing"""
         try:
             query = 'SELECT id, date, category, amount, comment FROM expenses WHERE user_id = ? ORDER BY date DESC'
-            df = pd.read_sql_query(query, self.conn, params=(user_id,))
+            # Use engine for pandas queries if PostgreSQL
+            conn_to_use = self.engine if (self.use_postgres and self.engine) else self.conn
+            if self.use_postgres and self.engine:
+                # For PostgreSQL, replace ? with parameter placeholder
+                query = 'SELECT id, date, category, amount, comment FROM expenses WHERE user_id = %s ORDER BY date DESC'
+            df = pd.read_sql_query(query, conn_to_use, params=(user_id,))
             return df
         except Exception as e:
             print(f"Error fetching expenses with IDs: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return pd.DataFrame(columns=["id", "date", "category", "amount", "comment"])
+
     
     def update_expense(self, expense_id, user_id, date, category, amount, old_category, old_amount, comment):
         """Update an existing expense and adjust allocations"""
