@@ -1074,8 +1074,8 @@ class MultiUserDB:
             )
             old_row = cursor.fetchone()
             if old_row:
-                old_allocated = old_row['allocated_amount']
-                old_spent = old_row['spent_amount']
+                old_allocated = float(old_row['allocated_amount'])
+                old_spent = float(old_row['spent_amount'])
                 new_old_spent = old_spent - float(old_amount)
                 new_old_balance = old_allocated - new_old_spent
                 self._execute(cursor,
@@ -1090,8 +1090,8 @@ class MultiUserDB:
             )
             new_row = cursor.fetchone()
             if new_row:
-                new_allocated = new_row['allocated_amount']
-                new_spent = new_row['spent_amount']
+                new_allocated = float(new_row['allocated_amount'])
+                new_spent = float(new_row['spent_amount'])
                 new_new_spent = new_spent + float(amount)
                 new_new_balance = new_allocated - new_new_spent
                 self._execute(cursor,
