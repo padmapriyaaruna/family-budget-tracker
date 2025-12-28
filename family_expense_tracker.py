@@ -523,93 +523,75 @@ def show_member_expense_tracking(user_id):
             
             income_df = db.get_income_with_ids(user_id)
             if not income_df.empty:
-                # Header row
-                header_cols = st.columns([2, 2, 2, 1.5])
-                header_cols[0].markdown("**Date**")
-                header_cols[1].markdown("**Source**")
-                header_cols[2].markdown("**Amount**")
-                header_cols[3].markdown("**Actions**")
-                
-                st.divider()
-                
-                # Render each row
+                # Create editable table
                 for idx, row in income_df.iterrows():
                     income_id = int(row['id'])
                     edit_key = f'edit_income_{income_id}'
                     is_editing = st.session_state.get(edit_key, False)
                     
-                    cols = st.columns([2, 2, 2, 1.5])
-                    
-                    if is_editing:
-                        # Edit mode: show input fields
-                        with cols[0]:
-                            new_date = st.date_input("", value=pd.to_datetime(row['date']).date(), key=f"date_{income_id}", label_visibility="collapsed")
-                        with cols[1]:
-                            new_source = st.text_input("", value=row['source'], key=f"source_{income_id}", label_visibility="collapsed")
-                        with cols[2]:
-                            new_amount = st.number_input("", value=float(row['amount']), min_value=0.0, step=100.0, key=f"amount_{income_id}", label_visibility="collapsed")
+                    # Use container for cleaner borders
+                    with st.container():
+                        cols = st.columns([2, 3, 2, 2])
                         
-                        with cols[3]:
-                            btn_cols = st.columns(3)
-                            with btn_cols[0]:
-                                st.button("✏️", key=f"edit_income_btn_{income_id}", disabled=True, help="Edit", use_container_width=True)
-                            with btn_cols[1]:
-                                if st.button("💾", key=f"update_income_{income_id}", help="Update", use_container_width=True):
-                                    # Validation
-                                    if not new_source or new_source.strip() == "":
-                                        st.error("Source cannot be empty")
-                                    elif new_amount <= 0:
-                                        st.error("Amount must be greater than 0")
+                        if is_editing:
+                            # Edit mode: compact input fields
+                            new_date = cols[0].date_input("", value=pd.to_datetime(row['date']).date(), key=f"date_{income_id}", label_visibility="collapsed")
+                            new_source = cols[1].text_input("", value=row['source'], key=f"source_{income_id}", label_visibility="collapsed")
+                            new_amount = cols[2].number_input("", value=float(row['amount']), min_value=0.0, step=100.0, key=f"amount_{income_id}", label_visibility="collapsed", format="%.2f")
+                            
+                            # Compact action buttons
+                            btn_col = cols[3].columns([1, 1, 1])
+                            btn_col[0].button("✏️", key=f"edit_income_btn_{income_id}", disabled=True, help="Edit")
+                            if btn_col[1].button("💾", key=f"update_income_{income_id}", help="Save"):
+                                if not new_source or new_source.strip() == "":
+                                    st.error("Source cannot be empty")
+                                elif new_amount <= 0:
+                                    st.error("Amount must be greater than 0")
+                                else:
+                                    if db.update_income(income_id, user_id, new_date.strftime(config.DATE_FORMAT), new_source, new_amount):
+                                        st.session_state[edit_key] = False
+                                        st.cache_resource.clear()
+                                        st.rerun()
                                     else:
-                                        # Update in database
-                                        if db.update_income(income_id, user_id, new_date.strftime(config.DATE_FORMAT), new_source, new_amount):
-                                            st.session_state[edit_key] = False
-                                            st.cache_resource.clear()
-                                            st.rerun()
-                                        else:
-                                            st.error("Failed to update income")
-                            with btn_cols[2]:
-                                st.button("🗑️", key=f"delete_income_btn_{income_id}", disabled=True, help="Delete", use_container_width=True)
-                    else:
-                        # View mode: show text
-                        cols[0].write(row['date'])
-                        cols[1].write(row['source'])
-                        cols[2].write(f"{config.CURRENCY_SYMBOL}{float(row['amount']):,.2f}")
+                                        st.error("Failed to update")
+                            btn_col[2].button("🗑️", key=f"delete_income_btn_{income_id}", disabled=True, help="Delete")
+                        else:
+                            # View mode: show as text
+                            cols[0].markdown(f"<small>{row['date']}</small>", unsafe_allow_html=True)
+                            cols[1].markdown(f"<small>{row['source']}</small>", unsafe_allow_html=True)
+                            cols[2].markdown(f"<small>{config.CURRENCY_SYMBOL}{float(row['amount']):,.2f}</small>", unsafe_allow_html=True)
+                            
+                            # Compact action buttons
+                            btn_col = cols[3].columns([1, 1, 1])
+                            if btn_col[0].button("✏️", key=f"edit_income_btn_{income_id}", help="Edit"):
+                                st.session_state[edit_key] = True
+                                st.rerun()
+                            btn_col[1].button("💾", key=f"update_income_{income_id}", disabled=True, help="Save")
+                            
+                            delete_key = f'confirm_delete_income_{income_id}'
+                            if btn_col[2].button("🗑️", key=f"delete_income_btn_{income_id}", help="Delete"):
+                                st.session_state[delete_key] = True
+                                st.rerun()
+                            
+                            # Inline delete confirmation
+                            if st.session_state.get(delete_key, False):
+                                conf_cols = st.columns([3, 1, 1])
+                                conf_cols[0].warning("Delete this entry?")
+                                if conf_cols[1].button("Yes", key=f"yes_del_income_{income_id}"):
+                                    if db.delete_income(income_id, user_id):
+                                        st.session_state.pop(delete_key, None)
+                                        st.cache_resource.clear()
+                                        st.rerun()
+                                    else:
+                                        st.error("Failed to delete")
+                                if conf_cols[2].button("No", key=f"no_del_income_{income_id}"):
+                                    st.session_state.pop(delete_key, None)
+                                    st.rerun()
                         
-                        with cols[3]:
-                            btn_cols = st.columns(3)
-                            with btn_cols[0]:
-                                if st.button("✏️", key=f"edit_income_btn_{income_id}", help="Edit", use_container_width=True):
-                                    st.session_state[edit_key] = True
-                                    st.rerun()
-                            with btn_cols[1]:
-                                st.button("💾", key=f"update_income_{income_id}", disabled=True, help="Update", use_container_width=True)
-                            with btn_cols[2]:
-                                delete_key = f'confirm_delete_income_{income_id}'
-                                if st.button("🗑️", key=f"delete_income_btn_{income_id}", help="Delete", use_container_width=True):
-                                    st.session_state[delete_key] = True
-                                    st.rerun()
-                                
-                                # Confirmation dialog
-                                if st.session_state.get(delete_key, False):
-                                    st.warning(f"Delete this income entry?")
-                                    conf_cols = st.columns(2)
-                                    with conf_cols[0]:
-                                        if st.button("Yes", key=f"yes_del_income_{income_id}"):
-                                            if db.delete_income(income_id, user_id):
-                                                st.session_state.pop(delete_key, None)
-                                                st.cache_resource.clear()
-                                                st.rerun()
-                                            else:
-                                                st.error("Failed to delete")
-                                    with conf_cols[1]:
-                                        if st.button("No", key=f"no_del_income_{income_id}"):
-                                            st.session_state.pop(delete_key, None)
-                                            st.rerun()
-                    
-                    st.divider()
+                        st.markdown("---")  # Subtle divider
             else:
                 st.info("No income entries yet")
+
 
     
     # TAB 3: Allocations
