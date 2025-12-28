@@ -866,7 +866,7 @@ class MultiUserDB:
                 print(f"Allocation with ID {allocation_id} not found")
                 return False
             
-            current_spent = row['spent_amount']
+            current_spent = float(row['spent_amount'])
             new_balance = float(allocated_amount) - current_spent
             
             # Update allocation
@@ -898,8 +898,8 @@ class MultiUserDB:
                 print(f"Category '{category}' not found")
                 return False
             
-            allocated = row['allocated_amount']
-            current_spent = row['spent_amount']
+            allocated = float(row['allocated_amount'])
+            current_spent = float(row['spent_amount'])
             
             new_spent = current_spent + float(expense_amount)
             new_balance = allocated - new_spent
@@ -931,7 +931,7 @@ class MultiUserDB:
                 print(f"Category '{category}' not found")
                 return False
             
-            current_spent = row['spent_amount']
+            current_spent = float(row['spent_amount'])
             new_balance = float(new_allocated_amount) - current_spent
             
             cursor.execute(
@@ -1125,8 +1125,8 @@ class MultiUserDB:
             )
             row = cursor.fetchone()
             if row:
-                allocated = row['allocated_amount']
-                spent = row['spent_amount']
+                allocated = float(row['allocated_amount'])
+                spent = float(row['spent_amount'])
                 new_spent = spent - float(amount)
                 new_balance = allocated - new_spent
                 self._execute(cursor,
