@@ -771,21 +771,21 @@ class MultiUserDB:
     # ==================== ALLOCATION OPERATIONS (USER-SCOPED) ====================
     
     def add_allocation(self, user_id, category, allocated_amount):
-        """Add a new allocation category for a user"""
+        """Add a new allocation for a category"""
         try:
             cursor = self.conn.cursor()
-            balance = float(allocated_amount)
-            cursor.execute(
+            balance = allocated_amount
+            self._execute(cursor,
                 'INSERT INTO allocations (user_id, category, allocated_amount, spent_amount, balance) VALUES (?, ?, ?, 0, ?)',
-                (user_id, category, float(allocated_amount), balance)
+                (user_id, category, float(allocated_amount), float(balance))
             )
             self.conn.commit()
             return True
-        except sqlite3.IntegrityError:
-            print(f"Category '{category}' already exists for this user")
-            return False
         except Exception as e:
             print(f"Error adding allocation: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            self.conn.rollback()
             return False
     
     def get_all_allocations(self, user_id):
