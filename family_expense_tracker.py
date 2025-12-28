@@ -508,9 +508,9 @@ def show_member_expense_tracking(user_id):
                         with cols[3]:
                             btn_cols = st.columns(3)
                             with btn_cols[0]:
-                                st.button("✏️", key=f"edit_btn_{income_id}", disabled=True, help="Edit", use_container_width=True)
+                                st.button("✏️", key=f"edit_income_btn_{income_id}", disabled=True, help="Edit", use_container_width=True)
                             with btn_cols[1]:
-                                if st.button("💾", key=f"update_{income_id}", help="Update", use_container_width=True):
+                                if st.button("💾", key=f"update_income_{income_id}", help="Update", use_container_width=True):
                                     # Validation
                                     if not new_source or new_source.strip() == "":
                                         st.error("Source cannot be empty")
@@ -525,7 +525,7 @@ def show_member_expense_tracking(user_id):
                                         else:
                                             st.error("Failed to update income")
                             with btn_cols[2]:
-                                st.button("🗑️", key=f"delete_btn_{income_id}", disabled=True, help="Delete", use_container_width=True)
+                                st.button("🗑️", key=f"delete_income_btn_{income_id}", disabled=True, help="Delete", use_container_width=True)
                     else:
                         # View mode: show text
                         cols[0].write(row['date'])
@@ -535,14 +535,14 @@ def show_member_expense_tracking(user_id):
                         with cols[3]:
                             btn_cols = st.columns(3)
                             with btn_cols[0]:
-                                if st.button("✏️", key=f"edit_btn_{income_id}", help="Edit", use_container_width=True):
+                                if st.button("✏️", key=f"edit_income_btn_{income_id}", help="Edit", use_container_width=True):
                                     st.session_state[edit_key] = True
                                     st.rerun()
                             with btn_cols[1]:
-                                st.button("💾", key=f"update_{income_id}", disabled=True, help="Update", use_container_width=True)
+                                st.button("💾", key=f"update_income_{income_id}", disabled=True, help="Update", use_container_width=True)
                             with btn_cols[2]:
                                 delete_key = f'confirm_delete_income_{income_id}'
-                                if st.button("🗑️", key=f"delete_btn_{income_id}", help="Delete", use_container_width=True):
+                                if st.button("🗑️", key=f"delete_income_btn_{income_id}", help="Delete", use_container_width=True):
                                     st.session_state[delete_key] = True
                                     st.rerun()
                                 
@@ -551,7 +551,7 @@ def show_member_expense_tracking(user_id):
                                     st.warning(f"Delete this income entry?")
                                     conf_cols = st.columns(2)
                                     with conf_cols[0]:
-                                        if st.button("Yes", key=f"yes_del_{income_id}"):
+                                        if st.button("Yes", key=f"yes_del_income_{income_id}"):
                                             if db.delete_income(income_id, user_id):
                                                 st.session_state.pop(delete_key, None)
                                                 st.cache_resource.clear()
@@ -559,7 +559,7 @@ def show_member_expense_tracking(user_id):
                                             else:
                                                 st.error("Failed to delete")
                                     with conf_cols[1]:
-                                        if st.button("No", key=f"no_del_{income_id}"):
+                                        if st.button("No", key=f"no_del_income_{income_id}"):
                                             st.session_state.pop(delete_key, None)
                                             st.rerun()
                     
@@ -630,9 +630,9 @@ def show_member_expense_tracking(user_id):
                         with cols[4]:
                             btn_cols = st.columns(3)
                             with btn_cols[0]:
-                                st.button("✏️", key=f"edit_btn_{alloc_id}", disabled=True, help="Edit", use_container_width=True)
+                                st.button("✏️", key=f"edit_alloc_btn_{alloc_id}", disabled=True, help="Edit", use_container_width=True)
                             with btn_cols[1]:
-                                if st.button("💾", key=f"update_{alloc_id}", help="Update", use_container_width=True):
+                                if st.button("💾", key=f"update_alloc_{alloc_id}", help="Update", use_container_width=True):
                                     # Validation
                                     if not new_category or new_category.strip() == "":
                                         st.error("Category cannot be empty")
@@ -647,7 +647,7 @@ def show_member_expense_tracking(user_id):
                                         else:
                                             st.error("Failed to update allocation")
                             with btn_cols[2]:
-                                st.button("🗑️", key=f"delete_btn_{alloc_id}", disabled=True, help="Delete", use_container_width=True)
+                                st.button("🗑️", key=f"delete_alloc_btn_{alloc_id}", disabled=True, help="Delete", use_container_width=True)
                     else:
                         # View mode: show text
                         cols[0].write(row['category'])
@@ -658,14 +658,14 @@ def show_member_expense_tracking(user_id):
                         with cols[4]:
                             btn_cols = st.columns(3)
                             with btn_cols[0]:
-                                if st.button("✏️", key=f"edit_btn_{alloc_id}", help="Edit", use_container_width=True):
+                                if st.button("✏️", key=f"edit_alloc_btn_{alloc_id}", help="Edit", use_container_width=True):
                                     st.session_state[edit_key] = True
                                     st.rerun()
                             with btn_cols[1]:
-                                st.button("💾", key=f"update_{alloc_id}", disabled=True, help="Update", use_container_width=True)
+                                st.button("💾", key=f"update_alloc_{alloc_id}", disabled=True, help="Update", use_container_width=True)
                             with btn_cols[2]:
                                 delete_key = f'confirm_delete_alloc_{alloc_id}'
-                                if st.button("🗑️", key=f"delete_btn_{alloc_id}", help="Delete", use_container_width=True):
+                                if st.button("🗑️", key=f"delete_alloc_btn_{alloc_id}", help="Delete", use_container_width=True):
                                     st.session_state[delete_key] = True
                                     st.rerun()
                                 
@@ -674,7 +674,7 @@ def show_member_expense_tracking(user_id):
                                     st.warning(f"Delete allocation '{row['category']}'?")
                                     conf_cols = st.columns(2)
                                     with conf_cols[0]:
-                                        if st.button("Yes", key=f"yes_del_{alloc_id}"):
+                                        if st.button("Yes", key=f"yes_del_alloc_{alloc_id}"):
                                             if db.delete_allocation_by_id(alloc_id, user_id):
                                                 st.session_state.pop(delete_key, None)
                                                 st.cache_resource.clear()
@@ -682,7 +682,7 @@ def show_member_expense_tracking(user_id):
                                             else:
                                                 st.error("Failed to delete")
                                     with conf_cols[1]:
-                                        if st.button("No", key=f"no_del_{alloc_id}"):
+                                        if st.button("No", key=f"no_del_alloc_{alloc_id}"):
                                             st.session_state.pop(delete_key, None)
                                             st.rerun()
                     
