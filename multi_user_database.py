@@ -726,7 +726,7 @@ class MultiUserDB:
         """Calculate total income for a user"""
         try:
             cursor = self.conn.cursor()
-            cursor.execute('SELECT SUM(amount) as total FROM income WHERE user_id = ?', (user_id,))
+            self._execute(cursor, 'SELECT SUM(amount) as total FROM income WHERE user_id = ?', (user_id,))
             result = cursor.fetchone()
             return result['total'] if result['total'] else 0
         except Exception as e:
@@ -801,17 +801,23 @@ class MultiUserDB:
                 WHERE user_id = ?
                 ORDER BY category
             '''
-            df = pd.read_sql_query(query, self.conn, params=(user_id,))
+            # Use engine for pandas queries if PostgreSQL
+            conn_to_use = self.engine if (self.use_postgres and self.engine) else self.conn
+            if self.use_postgres and self.engine:
+                query = query.replace('?', '%s')
+            df = pd.read_sql_query(query, conn_to_use, params=(user_id,))
             return df
         except Exception as e:
             print(f"Error fetching allocations: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return pd.DataFrame(columns=["Category", "Allocated Amount", "Spent Amount", "Balance"])
     
     def get_categories(self, user_id):
         """Get list of all allocation categories for a user"""
         try:
             cursor = self.conn.cursor()
-            cursor.execute('SELECT category FROM allocations WHERE user_id = ? ORDER BY category', (user_id,))
+            self._execute(cursor, 'SELECT category FROM allocations WHERE user_id = ? ORDER BY category', (user_id,))
             rows = cursor.fetchall()
             return [row['category'] for row in rows]
         except Exception as e:
@@ -922,17 +928,23 @@ class MultiUserDB:
                 WHERE user_id = ?
                 ORDER BY date DESC
             '''
-            df = pd.read_sql_query(query, self.conn, params=(user_id,))
+            # Use engine for pandas queries if PostgreSQL
+            conn_to_use = self.engine if (self.use_postgres and self.engine) else self.conn
+            if self.use_postgres and self.engine:
+                query = query.replace('?', '%s')
+            df = pd.read_sql_query(query, conn_to_use, params=(user_id,))
             return df
         except Exception as e:
             print(f"Error fetching expenses: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return pd.DataFrame(columns=["Date", "Category", "Amount", "Comment"])
     
     def get_total_expenses(self, user_id):
         """Calculate total expenses for a user"""
         try:
             cursor = self.conn.cursor()
-            cursor.execute('SELECT SUM(amount) as total FROM expenses WHERE user_id = ?', (user_id,))
+            self._execute(cursor, 'SELECT SUM(amount) as total FROM expenses WHERE user_id = ?', (user_id,))
             result = cursor.fetchone()
             return result['total'] if result['total'] else 0
         except Exception as e:
