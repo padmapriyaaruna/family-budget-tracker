@@ -824,6 +824,49 @@ class MultiUserDB:
             print(f"Error fetching categories: {str(e)}")
             return []
     
+    def get_allocations_with_ids(self, user_id):
+        """Get all allocations with IDs for editing"""
+        try:
+            query = 'SELECT id, category, allocated_amount, spent_amount, balance FROM allocations WHERE user_id = ? ORDER BY category'
+            df = pd.read_sql_query(query, self.conn, params=(user_id,))
+            return df
+        except Exception as e:
+            print(f"Error fetching allocations with IDs: {str(e)}")
+            return pd.DataFrame(columns=["id", "category", "allocated_amount", "spent_amount", "balance"])
+    
+    def update_allocation(self, allocation_id, user_id, category, allocated_amount):
+        """Update an allocation entry by ID"""
+        try:
+            cursor = self.conn.cursor()
+            
+            # Get current spent amount
+            self._execute(cursor,
+                'SELECT spent_amount FROM allocations WHERE id = ? AND user_id = ?',
+                (allocation_id, user_id)
+            )
+            row = cursor.fetchone()
+            
+            if not row:
+                print(f"Allocation with ID {allocation_id} not found")
+                return False
+            
+            current_spent = row['spent_amount']
+            new_balance = float(allocated_amount) - current_spent
+            
+            # Update allocation
+            self._execute(cursor,
+                'UPDATE allocations SET category = ?, allocated_amount = ?, balance = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+                (category, float(allocated_amount), new_balance, allocation_id, user_id)
+            )
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error updating allocation: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            self.conn.rollback()
+            return False
+    
     def update_allocation_spent(self, user_id, category, expense_amount):
         """Update spent amount and balance for a category when expense is added"""
         try:
@@ -890,6 +933,17 @@ class MultiUserDB:
         try:
             cursor = self.conn.cursor()
             cursor.execute('DELETE FROM allocations WHERE user_id = ? AND category = ?', (user_id, category))
+            self.conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            print(f"Error deleting allocation: {str(e)}")
+            return False
+    
+    def delete_allocation_by_id(self, allocation_id, user_id):
+        """Delete an allocation by ID"""
+        try:
+            cursor = self.conn.cursor()
+            self._execute(cursor, 'DELETE FROM allocations WHERE id = ? AND user_id = ?', (allocation_id, user_id))
             self.conn.commit()
             return cursor.rowcount > 0
         except Exception as e:
