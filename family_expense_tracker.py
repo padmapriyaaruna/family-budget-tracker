@@ -387,11 +387,11 @@ def show_member_expense_tracking(user_id):
         allocations_df = db.get_all_allocations(user_id)
         total_expenses = db.get_total_expenses(user_id)
         
-        # Calculate metrics
-        total_allocated = allocations_df["Allocated Amount"].sum() if not allocations_df.empty else 0
-        total_spent = allocations_df["Spent Amount"].sum() if not allocations_df.empty else 0
-        total_balance = allocations_df["Balance"].sum() if not allocations_df.empty else 0
-        remaining_liquidity = total_income - total_allocated
+        # Calculate metrics - convert to float to handle PostgreSQL Decimal types
+        total_allocated = float(allocations_df["Allocated Amount"].sum()) if not allocations_df.empty else 0.0
+        total_spent = float(allocations_df["Spent Amount"].sum()) if not allocations_df.empty else 0.0
+        total_balance = float(allocations_df["Balance"].sum()) if not allocations_df.empty else 0.0
+        remaining_liquidity = float(total_income) - total_allocated
         
         # Display metrics
         col1, col2, col3, col4 = st.columns(4)
