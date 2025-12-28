@@ -829,7 +829,7 @@ class MultiUserDB:
         try:
             cursor = self.conn.cursor()
             
-            cursor.execute(
+            self._execute(cursor,
                 'SELECT allocated_amount, spent_amount FROM allocations WHERE user_id = ? AND category = ?',
                 (user_id, category)
             )
@@ -845,14 +845,16 @@ class MultiUserDB:
             new_spent = current_spent + float(expense_amount)
             new_balance = allocated - new_spent
             
-            cursor.execute(
-                'UPDATE allocations SET spent_amount = ?, balance = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND category = ?',
+            self._execute(cursor,
+                'UPDATE allocations SET spent_amount = ?, balance = ? WHERE user_id = ? AND category = ?',
                 (new_spent, new_balance, user_id, category)
             )
             self.conn.commit()
             return True
         except Exception as e:
             print(f"Error updating allocation: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def update_allocation_amount(self, user_id, category, new_allocated_amount):
