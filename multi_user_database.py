@@ -431,18 +431,20 @@ class MultiUserDB:
             cursor = self.conn.cursor()
             
             # Delete all member's financial data
-            cursor.execute('DELETE FROM expenses WHERE user_id = ?', (member_id,))
-            cursor.execute('DELETE FROM allocations WHERE user_id = ?', (member_id,))
-            cursor.execute('DELETE FROM income WHERE user_id = ?', (member_id,))
-            cursor.execute('DELETE FROM monthly_settlements WHERE user_id = ?', (member_id,))
+            self._execute(cursor, 'DELETE FROM expenses WHERE user_id = ?', (member_id,))
+            self._execute(cursor, 'DELETE FROM allocations WHERE user_id = ?', (member_id,))
+            self._execute(cursor, 'DELETE FROM income WHERE user_id = ?', (member_id,))
+            self._execute(cursor, 'DELETE FROM monthly_settlements WHERE user_id = ?', (member_id,))
             
             # Finally, delete the user account (this also invalidates the invite token)
-            cursor.execute('DELETE FROM users WHERE id = ? AND role != ?', (member_id, 'admin'))
+            self._execute(cursor, 'DELETE FROM users WHERE id = ? AND role != ?', (member_id, 'admin'))
             
             self.conn.commit()
             return True
         except Exception as e:
             print(f"Error deleting member: {str(e)}")
+            import traceback
+            traceback.print_exc()
             self.conn.rollback()
             return False
     
