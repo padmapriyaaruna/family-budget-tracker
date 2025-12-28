@@ -448,8 +448,52 @@ def show_member_expense_tracking(user_id):
             display_df["Balance"] = display_df["Balance"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
             
             st.dataframe(display_df, use_container_width=True, hide_index=True)
+            
+            # Add recalculate button
+            st.caption("💡 If spent amounts show as zero, click below to recalculate from expense data")
+            if st.button("🔄 Recalculate Spent Amounts", help="Recalculate spent amounts from actual expenses"):
+                with st.spinner("Recalculating..."):
+                    try:
+                        # Get all allocations for this user
+                        cursor = db.conn.cursor()
+                        db._execute(cursor, 'SELECT id, category, allocated_amount FROM allocations WHERE user_id = ?', (user_id,))
+                        user_allocations = cursor.fetchall()
+                        
+                        fixed_count = 0
+                        for alloc in user_allocations:
+                            alloc_id = alloc['id']
+                            category = alloc['category']
+                            allocated_amount = float(alloc['allocated_amount'])
+                            
+                            # Calculate total spent for this category
+                            db._execute(cursor, 
+                                'SELECT SUM(amount) as total_spent FROM expenses WHERE user_id = ? AND category = ?',
+                                (user_id, category)
+                            )
+                            result = cursor.fetchone()
+                            total_spent = float(result['total_spent']) if result['total_spent'] else 0.0
+                            
+                            # Calculate new balance
+                            new_balance = allocated_amount - total_spent
+                            
+                            # Update allocation
+                            db._execute(cursor,
+                                'UPDATE allocations SET spent_amount = ?, balance = ? WHERE id = ?',
+                                (total_spent, new_balance, alloc_id)
+                            )
+                            fixed_count += 1
+                        
+                        # Commit changes
+                        db.conn.commit()
+                        st.success(f"✅ Successfully recalculated {fixed_count} allocations! Refreshing...")
+                        st.cache_resource.clear()
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Error recalculating: {str(e)}")
+                        db.conn.rollback()
         else:
             st.info("No allocations yet. Add some in the Allocations tab!")
+
     
     # TAB 2: Income
     with tab2:
