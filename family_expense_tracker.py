@@ -857,124 +857,6 @@ def show_member_expense_tracking(user_id):
     with tab3:
         st.header("💸 Daily Expenses")
         
-        # Show current budget period (read-only indicator)
-        import calendar
-        period_display = f"{calendar.month_name[st.session_state.budget_month]} {st.session_state.budget_year}"
-        
-        col1, col2 = st.columns([1, 2])
-        
-        with col1:
-            st.subheader("Add Allocation")
-            
-            # Display read-only Year and Month
-            st.markdown("**📅 Budget Period** *(readonly)*")
-            col_y, col_m = st.columns(2)
-            with col_y:
-                st.text_input("Year",value=str(st.session_state.budget_year), disabled=True, key="alloc_year_display")
-            with col_m:
-                st.text_input("Month", value=calendar.month_name[st.session_state.budget_month], disabled=True, key="alloc_month_display")
-            
-            st.caption("💡 Change period in Income tab to budget for different months")
-            st.divider()
-            
-            with st.form("allocation_form", clear_on_submit=True):
-                alloc_category = st.text_input("Category", placeholder="e.g., Groceries, Rent")
-                alloc_amount = st.number_input(f"Amount ({config.CURRENCY_SYMBOL})", min_value=0.0, step=100.0)
-                
-                submit_alloc = st.form_submit_button("➕ Add Allocation", use_container_width=True)
-                
-                if submit_alloc and alloc_category and alloc_amount > 0:
-                    # Get year and month from session state
-                    year = st.session_state.budget_year
-                    month = st.session_state.budget_month
-                    
-                    if db.add_allocation(user_id, alloc_category, alloc_amount, year, month):
-                        st.success(f"✅ Created allocation: {alloc_category} for {period_display}")
-                        st.cache_resource.clear()
-                        st.rerun()
-                    else:
-                        st.error(f"Category '{alloc_category}' already exists for {period_display}!")
-        
-        with col2:
-            st.subheader(f"Allocations for {period_display}")
-            
-            # Get allocations filtered by period
-            allocations_df = db.get_allocations_with_ids(user_id, st.session_state.budget_year, st.session_state.budget_month)
-            
-            if not allocations_df.empty:
-                # Prepare display dataframe
-                display_df = allocations_df.copy()
-                display_df['Allocated'] = display_df['allocated_amount'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
-                display_df['Spent'] = display_df['spent_amount'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
-                display_df['Balance'] = display_df['balance'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
-                display_df = display_df.rename(columns={'category': 'Category'})
-                
-                # Show as dataframe (Excel-like)
-                st.dataframe(
-                    display_df[['Category', 'Allocated', 'Spent', 'Balance']],
-                    use_container_width=True,
-                    hide_index=True
-                )
-                
-                # Edit/Delete controls below table
-                st.caption("Select a category to edit or delete:")
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    if len(allocations_df) > 0:
-                        options = [f"{row['category']} - Allocated: {config.CURRENCY_SYMBOL}{float(row['allocated_amount']):,.2f}" 
-                                 for _, row in allocations_df.iterrows()]
-                        selected_idx = st.selectbox("", options, label_visibility="collapsed", key="alloc_select")
-                        
-                        if selected_idx:
-                            idx = options.index(selected_idx)
-                            selected_row = allocations_df.iloc[idx]
-                            alloc_id = int(selected_row['id'])
-                            
-                            # Show edit form in expander
-                            with st.expander("✏️ Edit Selected Allocation", expanded=False):
-                                new_category = st.text_input("Category", value=selected_row['category'], key=f"edit_cat_{alloc_id}")
-                                new_allocated = st.number_input("Allocated Amount", value=float(selected_row['allocated_amount']), 
-                                                               min_value=0.0, step=100.0, key=f"edit_alloc_{alloc_id}")
-                                st.caption(f"Spent: {config.CURRENCY_SYMBOL}{float(selected_row['spent_amount']):,.2f} (read-only)")
-                                st.caption(f"New Balance: {config.CURRENCY_SYMBOL}{new_allocated - float(selected_row['spent_amount']):,.2f}")
-                                
-                                col_a, col_b = st.columns(2)
-                                if col_a.button("💾 Save Changes", key=f"save_alloc_{alloc_id}"):
-                                    if not new_category or new_category.strip() == "":
-                                        st.error("Category cannot be empty")
-                                    elif new_allocated <= 0:
-                                        st.error("Allocated amount must be greater than 0")
-                                    else:
-                                        # Use year/month from the selected row
-                                        year = int(selected_row['year'])
-                                        month = int(selected_row['month'])
-                                        if db.update_allocation(alloc_id, user_id, new_category, new_allocated, year, month):
-                                            st.success("✅ Updated successfully!")
-                                            st.cache_resource.clear()
-                                            st.rerun()
-                                        else:
-                                            st.error("Failed to update")
-                                
-                                if col_b.button("🗑️ Delete Allocation", key=f"del_alloc_{alloc_id}"):
-                                    if db.delete_allocation_by_id(alloc_id, user_id):
-                                        st.success("✅ Deleted successfully!")
-                                        st.cache_resource.clear()
-                                        st.rerun()
-                                    else:
-                                        st.error("Failed to delete")
-
-            else:
-                st.warning(f"No allocations found for {period_display}")
-                st.caption("💡 Use the form on the left to create allocations for this period")
-
-
-
-
-    
-    # TAB 4: Review (formerly Dashboard)
-    with tab4:
-        st.header("📊 Financial Review")
-        
         # Show current budget period
         import calendar
         period_display = f"{calendar.month_name[st.session_state.budget_month]} {st.session_state.budget_year}"
@@ -1024,8 +906,6 @@ def show_member_expense_tracking(user_id):
                     submit_expense = st.form_submit_button("➕ Add Expense", use_container_width=True)
                     
                     if submit_expense and expense_category and expense_amount > 0 and expense_comment:
-                        # Note: Assuming db.add_expense will be updated to accept year/month parameters
-                        # For now, the date string contains the info, but ideally pass year/month explicitly
                         if db.add_expense(user_id, expense_date.strftime(config.DATE_FORMAT), 
                                         expense_category, expense_amount, expense_comment):
                             st.success(f"✅ Added expense: {config.CURRENCY_SYMBOL}{expense_amount:,.2f}")
@@ -1035,7 +915,7 @@ def show_member_expense_tracking(user_id):
         with col2:
             st.subheader(f"Expense History for {period_display}")
             
-            # Get all expenses and filter by period (assuming db method returns all)
+            # Get all expenses and filter by period
             expenses_df = db.get_expenses_with_ids(user_id)
             
             if not expenses_df.empty:
@@ -1138,6 +1018,90 @@ def show_member_expense_tracking(user_id):
             else:
                 st.info("No expenses recorded yet")
                 st.caption("💡 Create allocations first, then add expenses")
+
+
+
+
+    
+    # TAB 4: Review (Dashboard)
+    with tab4:
+        st.header("📊 Financial Review")
+        
+        # Get data for current budget period
+        import calendar
+        period_display = f"{calendar.month_name[st.session_state.budget_month]} {st.session_state.budget_year}"
+        
+        st.caption(f"📅 Reviewing: **{period_display}**")
+        st.caption("💡 Change period in Income tab to review different months")
+        
+        # Get period-specific data
+        total_income = db.get_total_income(user_id)
+        allocations_df = db.get_all_allocations(user_id, st.session_state.budget_year, st.session_state.budget_month)
+        total_expenses = db.get_total_expenses(user_id)
+        
+        # Calculate metrics - convert to float to handle PostgreSQL Decimal types
+        total_allocated = float(allocations_df["Allocated Amount"].sum()) if not allocations_df.empty else 0.0
+        total_spent = float(allocations_df["Spent Amount"].sum()) if not allocations_df.empty else 0.0
+        total_balance = float(allocations_df["Balance"].sum()) if not allocations_df.empty else 0.0
+        remaining_liquidity = float(total_income) - total_allocated
+        
+        # Display metrics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("💰 Total Income", f"{config.CURRENCY_SYMBOL}{total_income:,.2f}")
+        with col2:
+            st.metric("🎯 Total Allocated", f"{config.CURRENCY_SYMBOL}{total_allocated:,.2f}")
+        with col3:
+            st.metric("💸 Total Spent", f"{config.CURRENCY_SYMBOL}{total_spent:,.2f}")
+        with col4:
+            st.metric("💵 Liquidity", f"{config.CURRENCY_SYMBOL}{remaining_liquidity:,.2f}")
+        
+        st.divider()
+        
+        # Charts
+        if not allocations_df.empty:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.subheader("Allocation Breakdown")
+                fig_pie = px.pie(
+                    allocations_df,
+                    values="Allocated Amount",
+                    names="Category",
+                    hole=0.4
+                )
+                fig_pie.update_layout(height=350)
+                st.plotly_chart(fig_pie, use_container_width=True)
+            
+            with col2:
+                st.subheader("Spent vs Allocated")
+                fig_bar = go.Figure()
+                fig_bar.add_trace(go.Bar(
+                    name="Allocated",
+                    x=allocations_df["Category"],
+                    y=allocations_df["Allocated Amount"],
+                    marker_color='lightblue'
+                ))
+                fig_bar.add_trace(go.Bar(
+                    name="Spent",
+                    x=allocations_df["Category"],
+                    y=allocations_df["Spent Amount"],
+                    marker_color='coral'
+                ))
+                fig_bar.update_layout(barmode='group', height=350)
+                st.plotly_chart(fig_bar, use_container_width=True)
+        
+        # Allocation status table
+        st.subheader(f"📋 Allocation Status for {period_display}")
+        if not allocations_df.empty:
+            display_df = allocations_df.copy()
+            display_df["Allocated Amount"] = display_df["Allocated Amount"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
+            display_df["Spent Amount"] = display_df["Spent Amount"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
+            display_df["Balance"] = display_df["Balance"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
+            
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+        else:
+            st.info(f"No allocations for {period_display}. Create some in the Allocations tab!")
 
 
 
