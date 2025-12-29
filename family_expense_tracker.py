@@ -565,10 +565,15 @@ def show_member_expense_tracking(user_id):
     with tab1:
         st.header("📊 Financial Dashboard")
         
-        # Get data
+        # Get data for current budget period
         total_income = db.get_total_income(user_id)
-        allocations_df = db.get_all_allocations(user_id)
+        allocations_df = db.get_all_allocations(user_id, st.session_state.budget_year, st.session_state.budget_month)
         total_expenses = db.get_total_expenses(user_id)
+        
+        # Show period for context
+        import calendar
+        period_display = f"{calendar.month_name[st.session_state.budget_month]} {st.session_state.budget_year}"
+        st.caption(f"📅 Showing data for: **{period_display}**")
         
         # Calculate metrics - convert to float to handle PostgreSQL Decimal types
         total_allocated = float(allocations_df["Allocated Amount"].sum()) if not allocations_df.empty else 0.0
@@ -861,12 +866,23 @@ def show_member_expense_tracking(user_id):
         # Show current budget period (read-only indicator)
         import calendar
         period_display = f"{calendar.month_name[st.session_state.budget_month]} {st.session_state.budget_year}"
-        st.caption(f"📅 Current Budget Period: **{period_display}** (set in Income tab)")
-        st.divider()
+        
         col1, col2 = st.columns([1, 2])
         
         with col1:
             st.subheader("Add Allocation")
+            
+            # Display read-only Year and Month
+            st.markdown("**📅 Budget Period** *(readonly)*")
+            col_y, col_m = st.columns(2)
+            with col_y:
+                st.text_input("Year",value=str(st.session_state.budget_year), disabled=True, key="alloc_year_display")
+            with col_m:
+                st.text_input("Month", value=calendar.month_name[st.session_state.budget_month], disabled=True, key="alloc_month_display")
+            
+            st.caption("💡 Change period in Income tab to budget for different months")
+            st.divider()
+            
             with st.form("allocation_form", clear_on_submit=True):
                 alloc_category = st.text_input("Category", placeholder="e.g., Groceries, Rent")
                 alloc_amount = st.number_input(f"Amount ({config.CURRENCY_SYMBOL})", min_value=0.0, step=100.0)
@@ -874,17 +890,23 @@ def show_member_expense_tracking(user_id):
                 submit_alloc = st.form_submit_button("➕ Add Allocation", use_container_width=True)
                 
                 if submit_alloc and alloc_category and alloc_amount > 0:
-                    if db.add_allocation(user_id, alloc_category, alloc_amount):
-                        st.success(f"✅ Created allocation: {alloc_category}")
+                    # Get year and month from session state
+                    year = st.session_state.budget_year
+                    month = st.session_state.budget_month
+                    
+                    if db.add_allocation(user_id, alloc_category, alloc_amount, year, month):
+                        st.success(f"✅ Created allocation: {alloc_category} for {period_display}")
                         st.cache_resource.clear()
                         st.rerun()
                     else:
-                        st.error("Category already exists!")
+                        st.error(f"Category '{alloc_category}' already exists for {period_display}!")
         
         with col2:
-            st.subheader("Current Allocations")
+            st.subheader(f"Allocations for {period_display}")
             
-            allocations_df = db.get_allocations_with_ids(user_id)
+            # Get allocations filtered by period
+            allocations_df = db.get_allocations_with_ids(user_id, st.session_state.budget_year, st.session_state.budget_month)
+            
             if not allocations_df.empty:
                 # Prepare display dataframe
                 display_df = allocations_df.copy()
@@ -929,7 +951,10 @@ def show_member_expense_tracking(user_id):
                                     elif new_allocated <= 0:
                                         st.error("Allocated amount must be greater than 0")
                                     else:
-                                        if db.update_allocation(alloc_id, user_id, new_category, new_allocated):
+                                        # Use year/month from the selected row
+                                        year = int(selected_row['year'])
+                                        month = int(selected_row['month'])
+                                        if db.update_allocation(alloc_id, user_id, new_category, new_allocated, year, month):
                                             st.success("✅ Updated successfully!")
                                             st.cache_resource.clear()
                                             st.rerun()
@@ -945,7 +970,10 @@ def show_member_expense_tracking(user_id):
                                         st.error("Failed to delete")
 
             else:
-                st.info("No allocations yet")
+                st.warning(f"No allocations found for {period_display}")
+                st.caption("💡 Use the form on the left to create allocations for this period")
+
+
 
 
     
@@ -953,23 +981,48 @@ def show_member_expense_tracking(user_id):
     with tab4:
         st.header("💸 Daily Expenses")
         
-        # Show current budget period (read-only indicator)
+        # Show current budget period
         import calendar
         period_display = f"{calendar.month_name[st.session_state.budget_month]} {st.session_state.budget_year}"
-        st.caption(f"📅 Current Budget Period: **{period_display}** (set in Income tab)")
-        st.divider()
+        
         col1, col2 = st.columns([1, 2])
         
-        categories = db.get_categories(user_id)
+        # Get categories for the current period
+        categories = db.get_categories(user_id, st.session_state.budget_year, st.session_state.budget_month)
         
         with col1:
             st.subheader("Add New Expense")
             
+            # Display read-only Year and Month
+            st.markdown("**📅 Budget Period** *(readonly)*")
+            col_y, col_m = st.columns(2)
+            with col_y:
+                st.text_input("Year", value=str(st.session_state.budget_year), disabled=True, key="expense_year_display")
+            with col_m:
+                st.text_input("Month", value=calendar.month_name[st.session_state.budget_month], disabled=True, key="expense_month_display")
+            
+            st.caption("💡 Change period in Income tab to log expenses for different months")
+            st.divider()
+            
             if not categories:
-                st.warning("⚠️ Create allocation categories first!")
+                st.warning("⚠️ Create allocation categories first in the Allocations tab!")
             else:
                 with st.form("expense_form", clear_on_submit=True):
-                    expense_date = st.date_input("Date", value=date.today())
+                    # Calculate min/max dates for the selected month
+                    _, last_day = calendar.monthrange(st.session_state.budget_year, st.session_state.budget_month)
+                    min_date = date(st.session_state.budget_year, st.session_state.budget_month, 1)
+                    max_date = date(st.session_state.budget_year, st.session_state.budget_month, last_day)
+                    
+                    # Default to today if within range, otherwise first day of month
+                    default_date = date.today() if min_date <= date.today() <= max_date else min_date
+                    
+                    expense_date = st.date_input(
+                        "Date",
+                        value=default_date,
+                        min_value=min_date,
+                        max_value=max_date,
+                        help=f"Select a date within {calendar.month_name[st.session_state.budget_month]} {st.session_state.budget_year}"
+                    )
                     expense_category = st.selectbox("Category", options=categories)
                     expense_amount = st.number_input(f"Amount ({config.CURRENCY_SYMBOL})", min_value=0.0, step=10.0)
                     expense_comment = st.text_area("Comment", placeholder="Brief description")
@@ -977,6 +1030,8 @@ def show_member_expense_tracking(user_id):
                     submit_expense = st.form_submit_button("➕ Add Expense", use_container_width=True)
                     
                     if submit_expense and expense_category and expense_amount > 0 and expense_comment:
+                        # Note: Assuming db.add_expense will be updated to accept year/month parameters
+                        # For now, the date string contains the info, but ideally pass year/month explicitly
                         if db.add_expense(user_id, expense_date.strftime(config.DATE_FORMAT), 
                                         expense_category, expense_amount, expense_comment):
                             st.success(f"✅ Added expense: {config.CURRENCY_SYMBOL}{expense_amount:,.2f}")
@@ -984,78 +1039,111 @@ def show_member_expense_tracking(user_id):
                             st.rerun()
         
         with col2:
-            st.subheader("Expense History")
+            st.subheader(f"Expense History for {period_display}")
             
+            # Get all expenses and filter by period (assuming db method returns all)
             expenses_df = db.get_expenses_with_ids(user_id)
+            
             if not expenses_df.empty:
-                total_exp = expenses_df["amount"].sum()
-                st.metric("💸 Total Expenses", f"{config.CURRENCY_SYMBOL}{total_exp:,.2f}")
+                # Filter by year and month
+                expenses_df['date_parsed'] = pd.to_datetime(expenses_df['date'])
+                filtered_df = expenses_df[
+                    (expenses_df['date_parsed'].dt.year == st.session_state.budget_year) &
+                    (expenses_df['date_parsed'].dt.month == st.session_state.budget_month)
+                ].copy()
                 
-                # Prepare display dataframe (show first 20 for performance)
-                display_df = expenses_df.head(20).copy()
-                display_df['Amount'] = display_df['amount'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
-                display_df = display_df.rename(columns={
-                    'date': 'Date',
-                    'category': 'Category',
-                    'comment': 'Comment'
-                })
-                
-                # Show as dataframe (Excel-like)
-                st.dataframe(
-                    display_df[['Date', 'Category', 'Amount', 'Comment']],
-                    use_container_width=True,
-                    hide_index=True
-                )
-                
-                # Edit/Delete controls below table
-                st.caption("Select an expense to edit or delete:")
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    if len(expenses_df.head(20)) > 0:
-                        options = [f"{row['date']} - {row['category']} - {config.CURRENCY_SYMBOL}{float(row['amount']):,.2f}" 
-                                 for _, row in expenses_df.head(20).iterrows()]
-                        selected_idx = st.selectbox("", options, label_visibility="collapsed", key="expense_select")
-                        
-                        if selected_idx:
-                            idx = options.index(selected_idx)
-                            selected_row = expenses_df.head(20).iloc[idx]
-                            expense_id = int(selected_row['id'])
+                if not filtered_df.empty:
+                    total_exp = filtered_df["amount"].apply(lambda x: float(x)).sum()
+                    st.metric(f"💸 Total for {period_display}", f"{config.CURRENCY_SYMBOL}{total_exp:,.2f}")
+                    
+                    # Prepare display dataframe
+                    display_df = filtered_df.copy()
+                    display_df['Amount'] = display_df['amount'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
+                    display_df = display_df.rename(columns={
+                        'date': 'Date',
+                        'category': 'Category',
+                        'comment': 'Comment'
+                    })
+                    
+                    # Show as dataframe (Excel-like)
+                    st.dataframe(
+                        display_df[['Date', 'Category', 'Amount', 'Comment']],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                    
+                    # Edit/Delete controls below table
+                    st.caption("Select an expense to edit or delete:")
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        if len(filtered_df) > 0:
+                            options = [f"{row['date']} - {row['category']} - {config.CURRENCY_SYMBOL}{float(row['amount']):,.2f}" 
+                                     for _, row in filtered_df.iterrows()]
+                            selected_idx = st.selectbox("", options, label_visibility="collapsed", key="expense_select")
                             
-                            # Show edit form in expander
-                            with st.expander("✏️ Edit Selected Expense", expanded=False):
-                                new_date = st.date_input("Date", value=pd.to_datetime(selected_row['date']).date(), key=f"edit_exp_date_{expense_id}")
-                                cat_options = categories if categories else [selected_row['category']]
-                                cat_index = cat_options.index(selected_row['category']) if selected_row['category'] in cat_options else 0
-                                new_category = st.selectbox("Category", options=cat_options, index=cat_index, key=f"edit_exp_cat_{expense_id}")
-                                new_amount = st.number_input("Amount", value=float(selected_row['amount']), min_value=0.0, step=10.0, key=f"edit_exp_amt_{expense_id}")
-                                new_comment = st.text_input("Comment", value=selected_row['comment'], key=f"edit_exp_cmt_{expense_id}")
+                            if selected_idx:
+                                idx = options.index(selected_idx)
+                                selected_row = filtered_df.iloc[idx]
+                                expense_id = int(selected_row['id'])
                                 
-                                col_a, col_b = st.columns(2)
-                                if col_a.button("💾 Save Changes", key=f"save_exp_{expense_id}"):
-                                    if not new_comment or new_comment.strip() == "":
-                                        st.error("Comment cannot be empty")
-                                    elif new_amount <= 0:
-                                        st.error("Amount must be greater than 0")
-                                    elif new_category not in categories:
-                                        st.error("Invalid category")
-                                    else:
-                                        old_category = selected_row['category']
-                                        old_amount = float(selected_row['amount'])
-                                        if db.update_expense(expense_id, user_id, new_date.strftime(config.DATE_FORMAT), 
-                                                           new_category, new_amount, old_category, old_amount, new_comment):
-                                            st.success("✅ Updated successfully!")
+                                # Show edit form in expander
+                                with st.expander("✏️ Edit Selected Expense", expanded=False):
+                                    # Parse the date from the selected row
+                                    edit_date_parsed = pd.to_datetime(selected_row['date']).date()
+                                    edit_year = edit_date_parsed.year
+                                    edit_month = edit_date_parsed.month
+                                    
+                                    # Calculate min/max for edit month
+                                    _, edit_last_day = calendar.monthrange(edit_year, edit_month)
+                                    edit_min_date = date(edit_year, edit_month, 1)
+                                    edit_max_date = date(edit_year, edit_month, edit_last_day)
+                                    
+                                    new_date = st.date_input(
+                                        "Date",
+                                        value=edit_date_parsed,
+                                        min_value=edit_min_date,
+                                        max_value=edit_max_date,
+                                        key=f"edit_exp_date_{expense_id}"
+                                    )
+                                    cat_options = categories if categories else [selected_row['category']]
+                                    cat_index = cat_options.index(selected_row['category']) if selected_row['category'] in cat_options else 0
+                                    new_category = st.selectbox("Category", options=cat_options, index=cat_index, key=f"edit_exp_cat_{expense_id}")
+                                    new_amount = st.number_input("Amount", value=float(selected_row['amount']), min_value=0.0, step=10.0, key=f"edit_exp_amt_{expense_id}")
+                                    new_comment = st.text_input("Comment", value=selected_row['comment'], key=f"edit_exp_cmt_{expense_id}")
+                                    
+                                    col_a, col_b = st.columns(2)
+                                    if col_a.button("💾 Save Changes", key=f"save_exp_{expense_id}"):
+                                        if not new_comment or new_comment.strip() == "":
+                                            st.error("Comment cannot be empty")
+                                        elif new_amount <= 0:
+                                            st.error("Amount must be greater than 0")
+                                        elif new_category not in categories:
+                                            st.error("Invalid category")
+                                        else:
+                                            old_category = selected_row['category']
+                                            old_amount = float(selected_row['amount'])
+                                            if db.update_expense(expense_id, user_id, new_date.strftime(config.DATE_FORMAT), 
+                                                               new_category, new_amount, old_category, old_amount, new_comment):
+                                                st.success("✅ Updated successfully!")
+                                                st.cache_resource.clear()
+                                                st.rerun()
+                                            else:
+                                                st.error("Failed to update")
+                                    
+                                    if col_b.button("🗑️ Delete Expense", key=f"del_exp_{expense_id}"):
+                                        if db.delete_expense(expense_id, user_id, selected_row['category'], float(selected_row['amount'])):
+                                            st.success("✅ Deleted successfully!")
                                             st.cache_resource.clear()
                                             st.rerun()
                                         else:
-                                            st.error("Failed to update")
-                                
-                                if col_b.button("🗑️ Delete Expense", key=f"del_exp_{expense_id}"):
-                                    if db.delete_expense(expense_id, user_id, selected_row['category'], float(selected_row['amount'])):
-                                        st.success("✅ Deleted successfully!")
-                                        st.cache_resource.clear()
-                                        st.rerun()
-                                    else:
-                                        st.error("Failed to delete")
+                                            st.error("Failed to delete")
+                else:
+                    st.warning(f"No expenses found for {period_display}")
+                    st.caption("💡 Use the form on the left to add expenses for this period")
+
+            else:
+                st.info("No expenses recorded yet")
+                st.caption("💡 Create allocations first, then add expenses")
                 
                 if len(expenses_df) > 20:
                     st.caption(f"Showing 20 of {len(expenses_df)} expenses")

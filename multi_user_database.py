@@ -141,7 +141,7 @@ class MultiUserDB:
             )
         ''')
         
-        # Allocations table (with user_id)
+        # Allocations table (with user_id and period support)
         cursor.execute(f'''
             CREATE TABLE IF NOT EXISTS allocations (
                 id {id_type},
@@ -190,8 +190,148 @@ class MultiUserDB:
         
         self.conn.commit()
         
+        # Run migrations to add period columns
+        self._migrate_add_period_columns()
+        
         # Create super admin if it doesn't exist
         self._create_super_admin()
+    
+    def _migrate_add_period_columns(self):
+        """Migrate existing tables to add year/month columns for period-based budgeting"""
+        try:
+            cursor = self.conn.cursor()
+            from datetime import datetime
+            current_year = datetime.now().year
+            current_month = datetime.now().month
+            
+            # Check and add columns to allocations table
+            if self.use_postgres:
+                # PostgreSQL: Check if columns exist
+                self._execute(cursor, """
+                    SELECT column_name FROM information_schema.columns 
+                    WHERE table_name = 'allocations' AND column_name IN ('year', 'month')
+                """)
+                existing_cols = [row['column_name'] for row in cursor.fetchall()]
+                
+                if 'year' not in existing_cols:
+                    print("🔄 Adding year column to allocations table...")
+                    self._execute(cursor, f'ALTER TABLE allocations ADD COLUMN year INTEGER DEFAULT {current_year}')
+                    self._execute(cursor, f'UPDATE allocations SET year = {current_year} WHERE year IS NULL')
+                    self._execute(cursor, 'ALTER TABLE allocations ALTER COLUMN year SET NOT NULL')
+                
+                if 'month' not in existing_cols:
+                    print("🔄 Adding month column to allocations table...")
+                    self._execute(cursor, f'ALTER TABLE allocations ADD COLUMN month INTEGER DEFAULT {current_month}')
+                    self._execute(cursor, f'UPDATE allocations SET month = {current_month} WHERE month IS NULL')
+                    self._execute(cursor, 'ALTER TABLE allocations ALTER COLUMN month SET NOT NULL')
+                
+                # Update constraint if columns were added
+                if 'year' not in existing_cols or 'month' not in existing_cols:
+                    print("🔄 Updating allocations UNIQUE constraint for period-based budgeting...")
+                    # Drop old constraint and create new one
+                    try:
+                        self._execute(cursor, 'ALTER TABLE allocations DROP CONSTRAINT IF EXISTS allocations_user_id_category_key')
+                        self._execute(cursor, 'ALTER TABLE allocations DROP CONSTRAINT IF EXISTS allocations_user_id_category_year_month_key')
+                    except:
+                        pass  # Constraint might not exist
+                    self._execute(cursor, 'ALTER TABLE allocations ADD CONSTRAINT allocations_user_id_category_year_month_key UNIQUE(user_id, category, year, month)')
+            else:
+                # SQLite: Check if columns exist
+                cursor.execute("PRAGMA table_info(allocations)")
+                columns = [column[1] for column in cursor.fetchall()]
+                
+                if 'year' not in columns or 'month' not in columns:
+                    print("🔄 Migrating allocations table to add period columns...")
+                    # SQLite doesn't support dropping constraints, so we need to recreate the table
+                    cursor.execute('''
+                        CREATE TABLE IF NOT EXISTS allocations_new (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            user_id INTEGER NOT NULL,
+                            category TEXT NOT NULL,
+                            year INTEGER NOT NULL,
+                            month INTEGER NOT NULL,
+                            allocated_amount REAL NOT NULL,
+                            spent_amount REAL DEFAULT 0,
+                            balance REAL NOT NULL,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            FOREIGN KEY (user_id) REFERENCES users(id),
+                            UNIQUE(user_id, category, year, month)
+                        )
+                    ''')
+                    
+                    # Copy data with default year/month
+                    cursor.execute(f'''
+                        INSERT INTO allocations_new (id, user_id, category, year, month, allocated_amount, spent_amount, balance, created_at, updated_at)
+                        SELECT id, user_id, category, {current_year}, {current_month}, allocated_amount, spent_amount, balance, created_at, updated_at
+                        FROM allocations
+                    ''')
+                    
+                    # Replace old table
+                    cursor.execute('DROP TABLE allocations')
+                    cursor.execute('ALTER TABLE allocations_new RENAME TO allocations')
+                    print("✅ Migrated allocations table successfully")
+            
+            # Check and add columns to expenses table
+            if self.use_postgres:
+                self._execute(cursor, """
+                    SELECT column_name FROM information_schema.columns 
+                    WHERE table_name = 'expenses' AND column_name IN ('year', 'month')
+                """)
+                existing_cols = [row['column_name'] for row in cursor.fetchall()]
+                
+                if 'year' not in existing_cols:
+                    print("🔄 Adding year column to expenses table...")
+                    self._execute(cursor, f'ALTER TABLE expenses ADD COLUMN year INTEGER DEFAULT {current_year}')
+                    self._execute(cursor, f'UPDATE expenses SET year = {current_year} WHERE year IS NULL')
+                    self._execute(cursor, 'ALTER TABLE expenses ALTER COLUMN year SET NOT NULL')
+                
+                if 'month' not in existing_cols:
+                    print("🔄 Adding month column to expenses table...")
+                    self._execute(cursor, f'ALTER TABLE expenses ADD COLUMN month INTEGER DEFAULT {current_month}')
+                    self._execute(cursor, f'UPDATE expenses SET month = {current_month} WHERE month IS NULL')
+                    self._execute(cursor, 'ALTER TABLE expenses ALTER COLUMN month SET NOT NULL')
+            else:
+                # SQLite: Check if columns exist
+                cursor.execute("PRAGMA table_info(expenses)")
+                columns = [column[1] for column in cursor.fetchall()]
+                
+                if 'year' not in columns or 'month' not in columns:
+                    print("🔄 Migrating expenses table to add period columns...")
+                    cursor.execute('''
+                        CREATE TABLE IF NOT EXISTS expenses_new (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            user_id INTEGER NOT NULL,
+                            year INTEGER NOT NULL,
+                            month INTEGER NOT NULL,
+                            date TEXT NOT NULL,
+                            category TEXT NOT NULL,
+                            amount REAL NOT NULL,
+                            comment TEXT,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            FOREIGN KEY (user_id) REFERENCES users(id)
+                        )
+                    ''')
+                    
+                    # Copy data with default year/month
+                    cursor.execute(f'''
+                        INSERT INTO expenses_new (id, user_id, year, month, date, category, amount, comment, created_at, updated_at)
+                        SELECT id, user_id, {current_year}, {current_month}, date, category, amount, comment, created_at, updated_at
+                        FROM expenses
+                    ''')
+                    
+                    # Replace old table
+                    cursor.execute('DROP TABLE expenses')
+                    cursor.execute('ALTER TABLE expenses_new RENAME TO expenses')
+                    print("✅ Migrated expenses table successfully")
+            
+            self.conn.commit()
+            print("✅ Period columns migration completed successfully")
+            
+        except Exception as e:
+            print(f"⚠️ Migration error (might be already migrated): {str(e)}")
+            self.conn.rollback()
     
     # ==================== AUTHENTICATION & USER MANAGEMENT ====================
     
@@ -778,14 +918,14 @@ class MultiUserDB:
     
     # ==================== ALLOCATION OPERATIONS (USER-SCOPED) ====================
     
-    def add_allocation(self, user_id, category, allocated_amount):
-        """Add a new allocation for a category"""
+    def add_allocation(self, user_id, category, allocated_amount, year, month):
+        """Add a new allocation for a category with period"""
         try:
             cursor = self.conn.cursor()
             balance = allocated_amount
             self._execute(cursor,
-                'INSERT INTO allocations (user_id, category, allocated_amount, spent_amount, balance) VALUES (?, ?, ?, 0, ?)',
-                (user_id, category, float(allocated_amount), float(balance))
+                'INSERT INTO allocations (user_id, category, year, month, allocated_amount, spent_amount, balance) VALUES (?, ?, ?, ?, ?, 0, ?)',
+                (user_id, category, year, month, float(allocated_amount), float(balance))
             )
             self.conn.commit()
             return True
@@ -796,24 +936,39 @@ class MultiUserDB:
             self.conn.rollback()
             return False
     
-    def get_all_allocations(self, user_id):
-        """Get all allocations for a user"""
+    def get_all_allocations(self, user_id, year=None, month=None):
+        """Get all allocations for a user, optionally filtered by period"""
         try:
-            query = '''
-                SELECT 
-                    category as "Category", 
-                    allocated_amount as "Allocated Amount", 
-                    spent_amount as "Spent Amount", 
-                    balance as "Balance" 
-                FROM allocations 
-                WHERE user_id = ?
-                ORDER BY category
-            '''
+            if year and month:
+                query = '''
+                    SELECT 
+                        category as "Category", 
+                        allocated_amount as "Allocated Amount", 
+                        spent_amount as "Spent Amount", 
+                        balance as "Balance" 
+                    FROM allocations 
+                    WHERE user_id = ? AND year = ? AND month = ?
+                    ORDER BY category
+                '''
+                params = (user_id, year, month)
+            else:
+                query = '''
+                    SELECT 
+                        category as "Category", 
+                        allocated_amount as "Allocated Amount", 
+                        spent_amount as "Spent Amount", 
+                        balance as "Balance" 
+                    FROM allocations 
+                    WHERE user_id = ?
+                    ORDER BY category
+                '''
+                params = (user_id,)
+            
             # Use engine for pandas queries if PostgreSQL
             conn_to_use = self.engine if (self.use_postgres and self.engine) else self.conn
             if self.use_postgres and self.engine:
                 query = query.replace('?', '%s')
-            df = pd.read_sql_query(query, conn_to_use, params=(user_id,))
+            df = pd.read_sql_query(query, conn_to_use, params=params)
             return df
         except Exception as e:
             print(f"Error fetching allocations: {str(e)}")
@@ -821,37 +976,45 @@ class MultiUserDB:
             traceback.print_exc()
             return pd.DataFrame(columns=["Category", "Allocated Amount", "Spent Amount", "Balance"])
     
-    def get_categories(self, user_id):
-        """Get list of all allocation categories for a user"""
+    def get_categories(self, user_id, year=None, month=None):
+        """Get list of all allocation categories for a user, optionally filtered by period"""
         try:
             cursor = self.conn.cursor()
-            self._execute(cursor, 'SELECT category FROM allocations WHERE user_id = ? ORDER BY category', (user_id,))
+            if year and month:
+                self._execute(cursor, 'SELECT DISTINCT category FROM allocations WHERE user_id = ? AND year = ? AND month = ? ORDER BY category', (user_id, year, month))
+            else:
+                self._execute(cursor, 'SELECT DISTINCT category FROM allocations WHERE user_id = ? ORDER BY category', (user_id,))
             rows = cursor.fetchall()
             return [row['category'] for row in rows]
         except Exception as e:
             print(f"Error fetching categories: {str(e)}")
             return []
     
-    def get_allocations_with_ids(self, user_id):
-        """Get all allocations with IDs for editing"""
+    def get_allocations_with_ids(self, user_id, year=None, month=None):
+        """Get all allocations with IDs for editing, optionally filtered by period"""
         try:
-            query = 'SELECT id, category, allocated_amount, spent_amount, balance FROM allocations WHERE user_id = ? ORDER BY category'
+            if year and month:
+                query = 'SELECT id, category, year, month, allocated_amount, spent_amount, balance FROM allocations WHERE user_id = ? AND year = ? AND month = ? ORDER BY category'
+                params = (user_id, year, month)
+            else:
+                query = 'SELECT id, category, year, month, allocated_amount, spent_amount, balance FROM allocations WHERE user_id = ? ORDER BY category'
+                params = (user_id,)
+            
             # Use engine for pandas queries if PostgreSQL
             conn_to_use = self.engine if (self.use_postgres and self.engine) else self.conn
             if self.use_postgres and self.engine:
-                # For PostgreSQL, replace ? with parameter placeholder
-                query = 'SELECT id, category, allocated_amount, spent_amount, balance FROM allocations WHERE user_id = %s ORDER BY category'
-            df = pd.read_sql_query(query, conn_to_use, params=(user_id,))
+                query = query.replace('?', '%s')
+            df = pd.read_sql_query(query, conn_to_use, params=params)
             return df
         except Exception as e:
             print(f"Error fetching allocations with IDs: {str(e)}")
             import traceback
             traceback.print_exc()
-            return pd.DataFrame(columns=["id", "category", "allocated_amount", "spent_amount", "balance"])
+            return pd.DataFrame(columns=["id", "category", "year", "month", "allocated_amount", "spent_amount", "balance"])
 
     
-    def update_allocation(self, allocation_id, user_id, category, allocated_amount):
-        """Update an allocation entry by ID"""
+    def update_allocation(self, allocation_id, user_id, category, allocated_amount, year, month):
+        """Update an allocation entry by ID with period"""
         try:
             cursor = self.conn.cursor()
             
@@ -860,19 +1023,17 @@ class MultiUserDB:
                 'SELECT spent_amount FROM allocations WHERE id = ? AND user_id = ?',
                 (allocation_id, user_id)
             )
-            row = cursor.fetchone()
-            
-            if not row:
-                print(f"Allocation with ID {allocation_id} not found")
+            result = cursor.fetchone()
+            if not result:
                 return False
+                
+            spent_amount = float(result['spent_amount'])
+            new_balance = float(allocated_amount) - spent_amount
             
-            current_spent = float(row['spent_amount'])
-            new_balance = float(allocated_amount) - current_spent
-            
-            # Update allocation
+            # Update the allocation with year/month
             self._execute(cursor,
-                'UPDATE allocations SET category = ?, allocated_amount = ?, balance = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
-                (category, float(allocated_amount), new_balance, allocation_id, user_id)
+                'UPDATE allocations SET category = ?, year = ?, month = ?, allocated_amount = ?, balance = ? WHERE id = ? AND user_id = ?',
+                (category, year, month, float(allocated_amount), new_balance, allocation_id, user_id)
             )
             self.conn.commit()
             return True
