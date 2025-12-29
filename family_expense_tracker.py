@@ -1144,12 +1144,7 @@ def show_member_expense_tracking(user_id):
             else:
                 st.info("No expenses recorded yet")
                 st.caption("💡 Create allocations first, then add expenses")
-                
-                if len(expenses_df) > 20:
-                    st.caption(f"Showing 20 of {len(expenses_df)} expenses")
 
-            else:
-                st.markdown("**No expenses recorded yet**")
 
 
 # ==================== SUPER ADMIN DASHBOARD ====================
