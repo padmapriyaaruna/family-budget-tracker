@@ -122,11 +122,10 @@ def show_landing_page():
     </style>
     """, unsafe_allow_html=True)
     
-    # Landing page content
+    # Landing page content - title and logo INSIDE the gradient box
     st.markdown('<div class="landing-container">', unsafe_allow_html=True)
     st.markdown('<div class="landing-title">👨‍👩‍👧‍👦 Family Budget Tracker</div>', unsafe_allow_html=True)
     st.markdown('<div class="landing-subtitle">Multi-Family Budget Management System</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
     
     # Center the buttons
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -149,14 +148,21 @@ def show_landing_page():
         if st.button("🔑 Member Password Setup", use_container_width=True, key="btn_setup"):
             st.session_state.login_page = 'setup'
             st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)  # Close landing container
 
 
 def show_master_login():
     """Display Master login (password-only for superadmin)"""
+    # Add spacing for visibility
+    st.markdown("<br>", unsafe_allow_html=True)
+    
     # Back button
     if st.button("← Back to Home"):
         st.session_state.login_page = None
         st.rerun()
+    
+    st.markdown("<br>", unsafe_allow_html=True)
     
     st.title("🔱 Master Login")
     st.info("For system administrators only. Manage multiple families and users.")
@@ -183,10 +189,15 @@ def show_master_login():
 
 def show_admin_login():
     """Display Family Admin login"""
+    # Add spacing for visibility
+    st.markdown("<br>", unsafe_allow_html=True)
+    
     # Back button
     if st.button("← Back to Home"):
         st.session_state.login_page = None
         st.rerun()
+    
+    st.markdown("<br>", unsafe_allow_html=True)
     
     st.title("👨‍👩‍👧 Family Admin Login")
     st.info("Login to manage your family household. Contact super admin if you don't have an account.")
@@ -213,10 +224,15 @@ def show_admin_login():
 
 def show_member_login():
     """Display Family Member login"""
+    # Add spacing for visibility
+    st.markdown("<br>", unsafe_allow_html=True)
+    
     # Back button
     if st.button("← Back to Home"):
         st.session_state.login_page = None
         st.rerun()
+    
+    st.markdown("<br>", unsafe_allow_html=True)
     
     st.title("👤 Family Member Login")
     st.info("Login to track your personal expenses. Use the invite token to set up your account first.")
@@ -243,10 +259,15 @@ def show_member_login():
 
 def show_password_setup():
     """Display password setup for new members"""
+    # Add spacing for visibility
+    st.markdown("<br>", unsafe_allow_html=True)
+    
     # Back button
     if st.button("← Back to Home"):
         st.session_state.login_page = None
         st.rerun()
+    
+    st.markdown("<br>", unsafe_allow_html=True)
     
     st.title("🔑 Setup Your Password")
     st.info("If you were invited as a family member, use your invite token to set up your password")
