@@ -29,6 +29,21 @@ st.markdown("""
         font-size: 24px;
     }
     
+    /* Hide default Streamlit header */
+    header[data-testid="stHeader"] {
+        display: none;
+    }
+    
+    /* Hide Streamlit menu button */
+    #MainMenu {
+        visibility: hidden;
+    }
+    
+    /* Hide footer */
+    footer {
+        visibility: hidden;
+    }
+    
     /* Excel-like table styling - minimal and clean */
     [data-testid="column"] {
         border-right: 1px solid #e0e0e0;
