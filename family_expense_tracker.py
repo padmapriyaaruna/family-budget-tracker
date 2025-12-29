@@ -73,113 +73,207 @@ if 'user' not in st.session_state:
 
 # ==================== AUTHENTICATION PAGES ====================
 
+
 def show_login_page():
-    """Display login page with separate tabs for different user types"""
-    st.title("👨‍👩‍👧‍👦 Family Budget Tracker")
-    st.caption("Multi-Family Budget Management System")
+    """Display landing page with role-based navigation or specific login screen"""
     
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "🔱 Super Admin Login", 
-        "👨‍👩‍👧 Family Admin Login", 
-        "👤 Member Login",
-        "🔑 Setup Password"
-    ])
+    # Initialize navigation state
+    if 'login_page' not in st.session_state:
+        st.session_state.login_page = None
     
-    # TAB 1: Super Admin Login
-    with tab1:
-        st.subheader("🔱 Super Admin Login")
-        st.info("For system administrators only. Manage multiple families and users.")
+    # Show appropriate page based on navigation state
+    if st.session_state.login_page is None:
+        show_landing_page()
+    elif st.session_state.login_page == 'master':
+        show_master_login()
+    elif st.session_state.login_page == 'admin':
+        show_admin_login()
+    elif st.session_state.login_page == 'member':
+        show_member_login()
+    elif st.session_state.login_page == 'setup':
+        show_password_setup()
+
+
+def show_landing_page():
+    """Display main landing page with 4 navigation buttons"""
+    
+    # Add custom styling for landing page
+    st.markdown("""
+    <style>
+        .landing-container {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 3rem 2rem;
+            border-radius: 15px;
+            text-align: center;
+            margin: 2rem auto;
+            max-width: 600px;
+        }
+        .landing-title {
+            color: white;
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        .landing-subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Landing page content
+    st.markdown('<div class="landing-container">', unsafe_allow_html=True)
+    st.markdown('<div class="landing-title">👨‍👩‍👧‍👦 Family Budget Tracker</div>', unsafe_allow_html=True)
+    st.markdown('<div class="landing-subtitle">Multi-Family Budget Management System</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Center the buttons
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("### Choose Your Role")
+        st.markdown("")
         
-        with st.form("superadmin_login_form"):
-            super_email = st.text_input("Email", placeholder="superadmin", key="super_email")
-            super_password = st.text_input("Password", type="password", key="super_password")
-            super_submit = st.form_submit_button("Login as Super Admin", use_container_width=True)
-            
-            if super_submit:
-                if super_email and super_password:
-                    success, user_data = db.authenticate_user(super_email, super_password)
-                    if success and user_data.get('role') == 'superadmin':
-                        st.session_state.logged_in = True
-                        st.session_state.user = user_data
-                        st.success(f"Welcome, {user_data['full_name']}!")
-                        st.rerun()
-                    else:
-                        st.error("Invalid super admin credentials or account not found")
-                else:
-                    st.error("Please enter both email and password")
-    
-    # TAB 2: Family Admin Login
-    with tab2:
-        st.subheader("👨‍👩‍👧 Family Admin Login")
-        st.info("Login to manage your family household. Contact super admin if you don't have an account.")
+        if st.button("🔱 Master", use_container_width=True, key="btn_master"):
+            st.session_state.login_page = 'master'
+            st.rerun()
         
-        with st.form("admin_login_form"):
-            admin_email = st.text_input("Email", placeholder="your.email@example.com", key="admin_email")
-            admin_password = st.text_input("Password", type="password", key="admin_password")
-            admin_submit = st.form_submit_button("Login as Family Admin", use_container_width=True)
-            
-            if admin_submit:
-                if admin_email and admin_password:
-                    success, user_data = db.authenticate_user(admin_email, admin_password)
-                    if success and user_data.get('role') == 'admin':
-                        st.session_state.logged_in = True
-                        st.session_state.user = user_data
-                        st.success(f"Welcome, {user_data['full_name']}!")
-                        st.rerun()
-                    else:
-                        st.error("Invalid credentials or not a family admin account")
-                else:
-                    st.error("Please enter both email and password")
-    
-    # TAB 3: Member Login
-    with tab3:
-        st.subheader("👤 Family Member Login")
-        st.info("Login to track your personal expenses. Use the invite token to set up your account first.")
+        if st.button("👨‍👩‍👧 Family Admin", use_container_width=True, key="btn_admin"):
+            st.session_state.login_page = 'admin'
+            st.rerun()
         
-        with st.form("member_login_form"):
-            member_email = st.text_input("Email", placeholder="your.email@example.com", key="member_email")
-            member_password = st.text_input("Password", type="password", key="member_password")
-            member_submit = st.form_submit_button("Login as Member", use_container_width=True)
-            
-            if member_submit:
-                if member_email and member_password:
-                    success, user_data = db.authenticate_user(member_email, member_password)
-                    if success and user_data.get('role') == 'member':
-                        st.session_state.logged_in = True
-                        st.session_state.user = user_data
-                        st.success(f"Welcome, {user_data['full_name']}!")
-                        st.rerun()
-                    else:
-                        st.error("Invalid credentials or not a member account")
-                else:
-                    st.error("Please enter both email and password")
-    
-    # TAB 4: Setup Password (for new members)
-    with tab4:
-        st.subheader("🔑 Setup Your Password")
-        st.info("If you were invited as a family member, use your invite token to set up your password")
+        if st.button("👤 Family Member", use_container_width=True, key="btn_member"):
+            st.session_state.login_page = 'member'
+            st.rerun()
         
-        with st.form("password_setup_form"):
-            invite_token = st.text_input("Invite Token", placeholder="Paste the token shared by your family admin")
-            new_password = st.text_input("New Password", type="password")
-            confirm_new_password = st.text_input("Confirm Password", type="password")
-            
-            submit_password = st.form_submit_button("Set Password", use_container_width=True)
-            
-            if submit_password:
-                if not all([invite_token, new_password, confirm_new_password]):
-                    st.error("Please fill all fields")
-                elif new_password != confirm_new_password:
-                    st.error("Passwords do not match")
-                elif len(new_password) < 6:
-                    st.error("Password must be at least 6 characters")
+        if st.button("🔑 Member Password Setup", use_container_width=True, key="btn_setup"):
+            st.session_state.login_page = 'setup'
+            st.rerun()
+
+
+def show_master_login():
+    """Display Master login (password-only for superadmin)"""
+    # Back button
+    if st.button("← Back to Home"):
+        st.session_state.login_page = None
+        st.rerun()
+    
+    st.title("🔱 Master Login")
+    st.info("For system administrators only. Manage multiple families and users.")
+    
+    with st.form("master_login_form"):
+        master_password = st.text_input("Password", type="password", key="master_password")
+        master_submit = st.form_submit_button("Login", use_container_width=True)
+        
+        if master_submit:
+            if master_password:
+                # Automatically use 'superadmin' as username
+                success, user_data = db.authenticate_user('superadmin', master_password)
+                if success and user_data.get('role') == 'superadmin':
+                    st.session_state.logged_in = True
+                    st.session_state.user = user_data
+                    st.session_state.login_page = None  # Reset navigation
+                    st.success(f"Welcome, {user_data['full_name']}!")
+                    st.rerun()
                 else:
-                    success, message = db.accept_invite(invite_token, new_password)
-                    if success:
-                        st.success(f"✅ {message}")
-                        st.info("You can now login with your email using the 'Member Login' tab!")
-                    else:
-                        st.error(f"❌ {message}")
+                    st.error("Invalid master password or account not found")
+            else:
+                st.error("Please enter the master password")
+
+
+def show_admin_login():
+    """Display Family Admin login"""
+    # Back button
+    if st.button("← Back to Home"):
+        st.session_state.login_page = None
+        st.rerun()
+    
+    st.title("👨‍👩‍👧 Family Admin Login")
+    st.info("Login to manage your family household. Contact super admin if you don't have an account.")
+    
+    with st.form("admin_login_form"):
+        admin_email = st.text_input("Email", placeholder="your.email@example.com", key="admin_email")
+        admin_password = st.text_input("Password", type="password", key="admin_password")
+        admin_submit = st.form_submit_button("Login as Family Admin", use_container_width=True)
+        
+        if admin_submit:
+            if admin_email and admin_password:
+                success, user_data = db.authenticate_user(admin_email, admin_password)
+                if success and user_data.get('role') == 'admin':
+                    st.session_state.logged_in = True
+                    st.session_state.user = user_data
+                    st.session_state.login_page = None  # Reset navigation
+                    st.success(f"Welcome, {user_data['full_name']}!")
+                    st.rerun()
+                else:
+                    st.error("Invalid credentials or not a family admin account")
+            else:
+                st.error("Please enter both email and password")
+
+
+def show_member_login():
+    """Display Family Member login"""
+    # Back button
+    if st.button("← Back to Home"):
+        st.session_state.login_page = None
+        st.rerun()
+    
+    st.title("👤 Family Member Login")
+    st.info("Login to track your personal expenses. Use the invite token to set up your account first.")
+    
+    with st.form("member_login_form"):
+        member_email = st.text_input("Email", placeholder="your.email@example.com", key="member_email")
+        member_password = st.text_input("Password", type="password", key="member_password")
+        member_submit = st.form_submit_button("Login as Member", use_container_width=True)
+        
+        if member_submit:
+            if member_email and member_password:
+                success, user_data = db.authenticate_user(member_email, member_password)
+                if success and user_data.get('role') == 'member':
+                    st.session_state.logged_in = True
+                    st.session_state.user = user_data
+                    st.session_state.login_page = None  # Reset navigation
+                    st.success(f"Welcome, {user_data['full_name']}!")
+                    st.rerun()
+                else:
+                    st.error("Invalid credentials or not a member account")
+            else:
+                st.error("Please enter both email and password")
+
+
+def show_password_setup():
+    """Display password setup for new members"""
+    # Back button
+    if st.button("← Back to Home"):
+        st.session_state.login_page = None
+        st.rerun()
+    
+    st.title("🔑 Setup Your Password")
+    st.info("If you were invited as a family member, use your invite token to set up your password")
+    
+    with st.form("password_setup_form"):
+        invite_token = st.text_input("Invite Token", placeholder="Paste the token shared by your family admin")
+        new_password = st.text_input("New Password", type="password")
+        confirm_new_password = st.text_input("Confirm Password", type="password")
+        
+        submit_password = st.form_submit_button("Set Password", use_container_width=True)
+        
+        if submit_password:
+            if not all([invite_token, new_password, confirm_new_password]):
+                st.error("Please fill all fields")
+            elif new_password != confirm_new_password:
+                st.error("Passwords do not match")
+            elif len(new_password) < 6:
+                st.error("Password must be at least 6 characters")
+            else:
+                success, message = db.accept_invite(invite_token, new_password)
+                if success:
+                    st.success(f"✅ {message}")
+                    st.info("You can now login with your email using the 'Family Member' button!")
+                else:
+                    st.error(f"❌ {message}")
+
+
 
 
 # ==================== ADMIN DASHBOARD ====================
