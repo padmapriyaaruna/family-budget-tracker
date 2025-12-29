@@ -558,134 +558,187 @@ def show_member_dashboard():
 def show_member_expense_tracking(user_id):
     """Shared expense tracking UI for both admin and members"""
     
-    # Create tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "💵 Income", "🎯 Allocations", "💸 Expenses"])
+    # Create tabs - Review (Dashboard) moved to end
+    tab1, tab2, tab3, tab4 = st.tabs(["💵 Income", "🎯 Allocations", "💸 Expenses", "📊 Review"])
     
-    # TAB 1: Dashboard
+    # TAB 1: Income
     with tab1:
-        st.header("📊 Financial Dashboard")
+        st.header("💵 Income Management")
         
-        # Get data for current budget period
-        total_income = db.get_total_income(user_id)
-        allocations_df = db.get_all_allocations(user_id, st.session_state.budget_year, st.session_state.budget_month)
-        total_expenses = db.get_total_expenses(user_id)
+        col1, col2 = st.columns([1, 2])
         
-        # Show period for context
-        import calendar
-        period_display = f"{calendar.month_name[st.session_state.budget_month]} {st.session_state.budget_year}"
-        st.caption(f"📅 Showing data for: **{period_display}**")
-        
-        # Calculate metrics - convert to float to handle PostgreSQL Decimal types
-        total_allocated = float(allocations_df["Allocated Amount"].sum()) if not allocations_df.empty else 0.0
-        total_spent = float(allocations_df["Spent Amount"].sum()) if not allocations_df.empty else 0.0
-        total_balance = float(allocations_df["Balance"].sum()) if not allocations_df.empty else 0.0
-        remaining_liquidity = float(total_income) - total_allocated
-        
-        # Display metrics
-        col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("💰 Total Income", f"{config.CURRENCY_SYMBOL}{total_income:,.2f}")
-        with col2:
-            st.metric("🎯 Total Allocated", f"{config.CURRENCY_SYMBOL}{total_allocated:,.2f}")
-        with col3:
-            st.metric("💸 Total Spent", f"{config.CURRENCY_SYMBOL}{total_spent:,.2f}")
-        with col4:
-            st.metric("💵 Liquidity", f"{config.CURRENCY_SYMBOL}{remaining_liquidity:,.2f}")
-        
-        st.divider()
-        
-        # Charts
-        if not allocations_df.empty:
-            col1, col2 = st.columns(2)
+            st.subheader("Add New Income")
             
-            with col1:
-                st.subheader("Allocation Breakdown")
-                fig_pie = px.pie(
-                    allocations_df,
-                    values="Allocated Amount",
-                    names="Category",
-                    hole=0.4
+            # Budget Period Selection (Year -> Month -> Date)
+            st.markdown("**📅 Select Budget Period**")
+            
+            # Year selection
+            current_year = datetime.now().year
+            year_options = list(range(current_year - 4, current_year + 2))  # Last 5 years + next year
+            selected_year = st.selectbox(
+                "Year",
+                options=year_options,
+                index=year_options.index(st.session_state.budget_year) if st.session_state.budget_year in year_options else len(year_options) - 2,
+                key="income_year_select"
+            )
+            
+            # Month selection
+            import calendar
+            month_names = [calendar.month_name[i] for i in range(1, 13)]
+            month_options = list(range(1, 13))
+            selected_month = st.selectbox(
+                "Month",
+                options=month_options,
+                format_func=lambda x: month_names[x-1],
+                index=st.session_state.budget_month - 1,
+                key="income_month_select"
+            )
+            
+            # Update session state when year/month changes
+            if selected_year != st.session_state.budget_year or selected_month != st.session_state.budget_month:
+                st.session_state.budget_year = selected_year
+                st.session_state.budget_month = selected_month
+                st.rerun()
+            
+            st.divider()
+            
+            # Add Income Form
+            with st.form("income_form", clear_on_submit=True):
+                # Calculate min/max dates for the selected month
+                import calendar
+                _, last_day = calendar.monthrange(selected_year, selected_month)
+                min_date = date(selected_year, selected_month, 1)
+                max_date = date(selected_year, selected_month, last_day)
+                
+                # Default to today if within range, otherwise first day of month
+                default_date = date.today() if min_date <= date.today() <= max_date else min_date
+                
+                income_date = st.date_input(
+                    "Date",
+                    value=default_date,
+                    min_value=min_date,
+                    max_value=max_date,
+                    help=f"Select a date within {month_names[selected_month-1]} {selected_year}"
                 )
-                fig_pie.update_layout(height=350)
-                st.plotly_chart(fig_pie, use_container_width=True)
-            
-            with col2:
-                st.subheader("Spent vs Allocated")
-                fig_bar = go.Figure()
-                fig_bar.add_trace(go.Bar(
-                    name="Allocated",
-                    x=allocations_df["Category"],
-                    y=allocations_df["Allocated Amount"],
-                    marker_color='lightblue'
-                ))
-                fig_bar.add_trace(go.Bar(
-                    name="Spent",
-                    x=allocations_df["Category"],
-                    y=allocations_df["Spent Amount"],
-                    marker_color='coral'
-                ))
-                fig_bar.update_layout(barmode='group', height=350)
-                st.plotly_chart(fig_bar, use_container_width=True)
-        
-        # Allocation status table
-        st.subheader("📋 Allocation Status")
-        if not allocations_df.empty:
-            display_df = allocations_df.copy()
-            display_df["Allocated Amount"] = display_df["Allocated Amount"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
-            display_df["Spent Amount"] = display_df["Spent Amount"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
-            display_df["Balance"] = display_df["Balance"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
-            
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
-            
-            # Add recalculate button
-            st.caption("💡 If spent amounts show as zero, click below to recalculate from expense data")
-            if st.button("🔄 Recalculate Spent Amounts", help="Recalculate spent amounts from actual expenses"):
-                with st.spinner("Recalculating..."):
-                    try:
-                        # Get all allocations for this user
-                        cursor = db.conn.cursor()
-                        db._execute(cursor, 'SELECT id, category, allocated_amount FROM allocations WHERE user_id = ?', (user_id,))
-                        user_allocations = cursor.fetchall()
-                        
-                        fixed_count = 0
-                        for alloc in user_allocations:
-                            alloc_id = alloc['id']
-                            category = alloc['category']
-                            allocated_amount = float(alloc['allocated_amount'])
-                            
-                            # Calculate total spent for this category
-                            db._execute(cursor, 
-                                'SELECT SUM(amount) as total_spent FROM expenses WHERE user_id = ? AND category = ?',
-                                (user_id, category)
-                            )
-                            result = cursor.fetchone()
-                            total_spent = float(result['total_spent']) if result['total_spent'] else 0.0
-                            
-                            # Calculate new balance
-                            new_balance = allocated_amount - total_spent
-                            
-                            # Update allocation
-                            db._execute(cursor,
-                                'UPDATE allocations SET spent_amount = ?, balance = ? WHERE id = ?',
-                                (total_spent, new_balance, alloc_id)
-                            )
-                            fixed_count += 1
-                        
-                        # Commit changes
-                        db.conn.commit()
-                        st.success(f"✅ Successfully recalculated {fixed_count} allocations! Refreshing...")
+                income_source = st.text_input("Source", placeholder="e.g., Salary, Bonus")
+                income_amount = st.number_input(f"Amount ({config.CURRENCY_SYMBOL})", min_value=0.0, step=100.0)
+                
+                submit_income = st.form_submit_button("➕ Add Income", use_container_width=True)
+                
+                if submit_income and income_source and income_amount > 0:
+                    if db.add_income(user_id, income_date.strftime(config.DATE_FORMAT), income_source, income_amount):
+                        st.success(f"✅ Added {config.CURRENCY_SYMBOL}{income_amount:,.2f}")
                         st.cache_resource.clear()
                         st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Error recalculating: {str(e)}")
-                        db.conn.rollback()
-        else:
-            st.info("No allocations yet. Add some in the Allocations tab!")
+        
+        with col2:
+            st.subheader("Income History")
+            
+            # Display selected period prominently
+            period_display = f"{month_names[st.session_state.budget_month-1]} {st.session_state.budget_year}"
+            st.info(f"📅 **Showing:** {period_display}")
+            
+            # Get all income and filter by selected period
+            income_df = db.get_income_with_ids(user_id)
+            
+            if not income_df.empty:
+                # Filter by year and month
+                income_df['date_parsed'] = pd.to_datetime(income_df['date'])
+                filtered_df = income_df[
+                    (income_df['date_parsed'].dt.year == st.session_state.budget_year) &
+                    (income_df['date_parsed'].dt.month == st.session_state.budget_month)
+                ].copy()
+                
+                # Calculate period-specific total
+                period_total = filtered_df['amount'].apply(lambda x: float(x)).sum() if not filtered_df.empty else 0.0
+                st.metric(f"💰 Total for {period_display}", f"{config.CURRENCY_SYMBOL}{period_total:,.2f}")
+                
+                if not filtered_df.empty:
+                    # Prepare display dataframe
+                    display_df = filtered_df.copy()
+                    display_df['Amount'] = display_df['amount'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
+                    display_df = display_df.rename(columns={
+                        'date': 'Date',
+                        'source': 'Source'
+                    })
+                    
+                    # Show as dataframe (Excel-like)
+                    st.dataframe(
+                        display_df[['Date', 'Source', 'Amount']],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                    
+                    # Edit/Delete controls below table
+                    st.caption("Select an entry to edit or delete:")
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        if len(filtered_df) > 0:
+                            options = [f"{row['date']} - {row['source']} - {config.CURRENCY_SYMBOL}{float(row['amount']):,.2f}" 
+                                     for _, row in filtered_df.iterrows()]
+                            selected_idx = st.selectbox("", options, label_visibility="collapsed", key="income_select")
+                            
+                            if selected_idx:
+                                idx = options.index(selected_idx)
+                                selected_row = filtered_df.iloc[idx]
+                                income_id = int(selected_row['id'])
+                                
+                                # Show edit form in expander
+                                with st.expander("✏️ Edit Selected Entry", expanded=False):
+                                    # Parse the date from the selected row
+                                    edit_date_parsed = pd.to_datetime(selected_row['date']).date()
+                                    edit_year = edit_date_parsed.year
+                                    edit_month = edit_date_parsed.month
+                                    
+                                    # Calculate min/max for edit month
+                                    _, edit_last_day = calendar.monthrange(edit_year, edit_month)
+                                    edit_min_date = date(edit_year, edit_month, 1)
+                                    edit_max_date = date(edit_year, edit_month, edit_last_day)
+                                    
+                                    new_date = st.date_input(
+                                        "Date",
+                                        value=edit_date_parsed,
+                                        min_value=edit_min_date,
+                                        max_value=edit_max_date,
+                                        key=f"edit_date_{income_id}"
+                                    )
+                                    new_source = st.text_input("Source", value=selected_row['source'], key=f"edit_source_{income_id}")
+                                    new_amount = st.number_input("Amount", value=float(selected_row['amount']), min_value=0.0, step=100.0, key=f"edit_amount_{income_id}")
+                                    
+                                    col_a, col_b = st.columns(2)
+                                    if col_a.button("💾 Save Changes", key=f"save_{income_id}"):
+                                        if not new_source or new_source.strip() == "":
+                                            st.error("Source cannot be empty")
+                                        elif new_amount <= 0:
+                                            st.error("Amount must be greater than 0")
+                                        else:
+                                            if db.update_income(income_id, user_id, new_date.strftime(config.DATE_FORMAT), new_source, new_amount):
+                                                st.success("✅ Updated successfully!")
+                                                st.cache_resource.clear()
+                                                st.rerun()
+                                            else:
+                                                st.error("Failed to update")
+                                    
+                                    if col_b.button("🗑️ Delete Entry", key=f"del_{income_id}"):
+                                        if db.delete_income(income_id, user_id):
+                                            st.success("✅ Deleted successfully!")
+                                            st.cache_resource.clear()
+                                            st.rerun()
+                                        else:
+                                            st.error("Failed to delete")
+                else:
+                    st.warning(f"No income entries found for {period_display}")
+                    st.caption("💡 Use the form on the left to add income for this period")
+
+            else:
+                st.info("No income entries yet")
+                st.caption("💡 Use the form on the left to add your first income entry")
 
     
-    # TAB 2: Income
+    # TAB 2: Allocations
     with tab2:
-        st.header("💵 Income Management")
+        st.header("🎯 Budget Allocations")
         
         col1, col2 = st.columns([1, 2])
         
@@ -859,9 +912,9 @@ def show_member_expense_tracking(user_id):
 
 
     
-    # TAB 3: Allocations
+    # TAB 3: Expenses
     with tab3:
-        st.header("🎯 Budget Allocations")
+        st.header("💸 Daily Expenses")
         
         # Show current budget period (read-only indicator)
         import calendar
@@ -977,9 +1030,9 @@ def show_member_expense_tracking(user_id):
 
 
     
-    # TAB 4: Expenses
+    # TAB 4: Review (formerly Dashboard)
     with tab4:
-        st.header("💸 Daily Expenses")
+        st.header("📊 Financial Review")
         
         # Show current budget period
         import calendar
