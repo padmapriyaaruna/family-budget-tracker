@@ -541,80 +541,63 @@ def show_member_expense_tracking(user_id):
             
             income_df = db.get_income_with_ids(user_id)
             if not income_df.empty:
-                # Header row
-                header_cols = st.columns([2, 3, 2, 2])
-                header_cols[0].markdown("**Date**")
-                header_cols[1].markdown("**Source**")
-                header_cols[2].markdown("**Amount**")
-                header_cols[3].markdown("**Actions**")
-                st.markdown("---")
+                # Prepare display dataframe
+                display_df = income_df.copy()
+                display_df['Amount'] = display_df['amount'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
+                display_df = display_df.rename(columns={
+                    'date': 'Date',
+                    'source': 'Source'
+                })
                 
-                # Create editable table
-                for idx, row in income_df.iterrows():
-                    income_id = int(row['id'])
-                    edit_key = f'edit_income_{income_id}'
-                    is_editing = st.session_state.get(edit_key, False)
-                    
-                    # Use container for cleaner borders
-                    with st.container():
-                        cols = st.columns([2, 3, 2, 2])
+                # Show as dataframe (Excel-like)
+                st.dataframe(
+                    display_df[['Date', 'Source', 'Amount']],
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                # Edit/Delete controls below table
+                st.caption("Select an entry to edit or delete:")
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    if len(income_df) > 0:
+                        options = [f"{row['date']} - {row['source']} - {config.CURRENCY_SYMBOL}{float(row['amount']):,.2f}" 
+                                 for _, row in income_df.iterrows()]
+                        selected_idx = st.selectbox("", options, label_visibility="collapsed", key="income_select")
                         
-                        if is_editing:
-                            # Edit mode: compact input fields
-                            new_date = cols[0].date_input("", value=pd.to_datetime(row['date']).date(), key=f"date_{income_id}", label_visibility="collapsed")
-                            new_source = cols[1].text_input("", value=row['source'], key=f"source_{income_id}", label_visibility="collapsed")
-                            new_amount = cols[2].number_input("", value=float(row['amount']), min_value=0.0, step=100.0, key=f"amount_{income_id}", label_visibility="collapsed", format="%.2f")
+                        if selected_idx:
+                            idx = options.index(selected_idx)
+                            selected_row = income_df.iloc[idx]
+                            income_id = int(selected_row['id'])
                             
-                            # Compact action buttons
-                            btn_col = cols[3].columns([1, 1, 1])
-                            btn_col[0].button("✏️", key=f"edit_income_btn_{income_id}", disabled=True, help="Edit")
-                            if btn_col[1].button("💾", key=f"update_income_{income_id}", help="Save"):
-                                if not new_source or new_source.strip() == "":
-                                    st.error("Source cannot be empty")
-                                elif new_amount <= 0:
-                                    st.error("Amount must be greater than 0")
-                                else:
-                                    if db.update_income(income_id, user_id, new_date.strftime(config.DATE_FORMAT), new_source, new_amount):
-                                        st.session_state[edit_key] = False
-                                        st.cache_resource.clear()
-                                        st.rerun()
+                            # Show edit form in expander
+                            with st.expander("✏️ Edit Selected Entry", expanded=False):
+                                new_date = st.date_input("Date", value=pd.to_datetime(selected_row['date']).date(), key=f"edit_date_{income_id}")
+                                new_source = st.text_input("Source", value=selected_row['source'], key=f"edit_source_{income_id}")
+                                new_amount = st.number_input("Amount", value=float(selected_row['amount']), min_value=0.0, step=100.0, key=f"edit_amount_{income_id}")
+                                
+                                col_a, col_b = st.columns(2)
+                                if col_a.button("💾 Save Changes", key=f"save_{income_id}"):
+                                    if not new_source or new_source.strip() == "":
+                                        st.error("Source cannot be empty")
+                                    elif new_amount <= 0:
+                                        st.error("Amount must be greater than 0")
                                     else:
-                                        st.error("Failed to update")
-                            btn_col[2].button("🗑️", key=f"delete_income_btn_{income_id}", disabled=True, help="Delete")
-                        else:
-                            # View mode: show as text
-                            cols[0].markdown(f"<small>{row['date']}</small>", unsafe_allow_html=True)
-                            cols[1].markdown(f"<small>{row['source']}</small>", unsafe_allow_html=True)
-                            cols[2].markdown(f"<small>{config.CURRENCY_SYMBOL}{float(row['amount']):,.2f}</small>", unsafe_allow_html=True)
-                            
-                            # Compact action buttons
-                            btn_col = cols[3].columns([1, 1, 1])
-                            if btn_col[0].button("✏️", key=f"edit_income_btn_{income_id}", help="Edit"):
-                                st.session_state[edit_key] = True
-                                st.rerun()
-                            btn_col[1].button("💾", key=f"update_income_{income_id}", disabled=True, help="Save")
-                            
-                            delete_key = f'confirm_delete_income_{income_id}'
-                            if btn_col[2].button("🗑️", key=f"delete_income_btn_{income_id}", help="Delete"):
-                                st.session_state[delete_key] = True
-                                st.rerun()
-                            
-                            # Inline delete confirmation
-                            if st.session_state.get(delete_key, False):
-                                conf_cols = st.columns([3, 1, 1])
-                                conf_cols[0].warning("Delete this entry?")
-                                if conf_cols[1].button("Yes", key=f"yes_del_income_{income_id}"):
+                                        if db.update_income(income_id, user_id, new_date.strftime(config.DATE_FORMAT), new_source, new_amount):
+                                            st.success("✅ Updated successfully!")
+                                            st.cache_resource.clear()
+                                            st.rerun()
+                                        else:
+                                            st.error("Failed to update")
+                                
+                                if col_b.button("🗑️ Delete Entry", key=f"del_{income_id}"):
                                     if db.delete_income(income_id, user_id):
-                                        st.session_state.pop(delete_key, None)
+                                        st.success("✅ Deleted successfully!")
                                         st.cache_resource.clear()
                                         st.rerun()
                                     else:
                                         st.error("Failed to delete")
-                                if conf_cols[2].button("No", key=f"no_del_income_{income_id}"):
-                                    st.session_state.pop(delete_key, None)
-                                    st.rerun()
-                        
-                        st.markdown("---")  # Subtle divider
+
             else:
                 st.info("No income entries yet")
 
@@ -647,84 +630,64 @@ def show_member_expense_tracking(user_id):
             
             allocations_df = db.get_allocations_with_ids(user_id)
             if not allocations_df.empty:
-                # Header row
-                header_cols = st.columns([2, 2, 2, 2, 2])
-                header_cols[0].markdown("**Category**")
-                header_cols[1].markdown("**Allocated**")
-                header_cols[2].markdown("**Spent**")
-                header_cols[3].markdown("**Balance**")
-                header_cols[4].markdown("**Actions**")
-                st.markdown("---")
+                # Prepare display dataframe
+                display_df = allocations_df.copy()
+                display_df['Allocated'] = display_df['allocated_amount'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
+                display_df['Spent'] = display_df['spent_amount'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
+                display_df['Balance'] = display_df['balance'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
+                display_df = display_df.rename(columns={'category': 'Category'})
                 
-                # Create editable table
-                for idx, row in allocations_df.iterrows():
-                    alloc_id = int(row['id'])
-                    edit_key = f'edit_alloc_{alloc_id}'
-                    is_editing = st.session_state.get(edit_key, False)
-                    
-                    with st.container():
-                        cols = st.columns([2, 2, 2, 2, 2])
+                # Show as dataframe (Excel-like)
+                st.dataframe(
+                    display_df[['Category', 'Allocated', 'Spent', 'Balance']],
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                # Edit/Delete controls below table
+                st.caption("Select a category to edit or delete:")
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    if len(allocations_df) > 0:
+                        options = [f"{row['category']} - Allocated: {config.CURRENCY_SYMBOL}{float(row['allocated_amount']):,.2f}" 
+                                 for _, row in allocations_df.iterrows()]
+                        selected_idx = st.selectbox("", options, label_visibility="collapsed", key="alloc_select")
                         
-                        if is_editing:
-                            # Edit mode: compact input fields
-                            new_category = cols[0].text_input("", value=row['category'], key=f"cat_{alloc_id}", label_visibility="collapsed")
-                            new_allocated = cols[1].number_input("", value=float(row['allocated_amount']), min_value=0.0, step=100.0, key=f"alloc_{alloc_id}", label_visibility="collapsed", format="%.2f")
-                            # Spent and Balance are read-only
-                            cols[2].markdown(f"<small>{config.CURRENCY_SYMBOL}{float(row['spent_amount']):,.2f}</small>", unsafe_allow_html=True)
-                            new_balance = new_allocated - float(row['spent_amount'])
-                            cols[3].markdown(f"<small>{config.CURRENCY_SYMBOL}{new_balance:,.2f}</small>", unsafe_allow_html=True)
+                        if selected_idx:
+                            idx = options.index(selected_idx)
+                            selected_row = allocations_df.iloc[idx]
+                            alloc_id = int(selected_row['id'])
                             
-                            # Compact action buttons
-                            btn_col = cols[4].columns([1, 1, 1])
-                            btn_col[0].button("✏️", key=f"edit_alloc_btn_{alloc_id}", disabled=True, help="Edit")
-                            if btn_col[1].button("💾", key=f"update_alloc_{alloc_id}", help="Save"):
-                                if not new_category or new_category.strip() == "":
-                                    st.error("Category cannot be empty")
-                                elif new_allocated <= 0:
-                                    st.error("Allocated amount must be greater than 0")
-                                else:
-                                    if db.update_allocation(alloc_id, user_id, new_category, new_allocated):
-                                        st.session_state[edit_key] = False
-                                        st.cache_resource.clear()
-                                        st.rerun()
+                            # Show edit form in expander
+                            with st.expander("✏️ Edit Selected Allocation", expanded=False):
+                                new_category = st.text_input("Category", value=selected_row['category'], key=f"edit_cat_{alloc_id}")
+                                new_allocated = st.number_input("Allocated Amount", value=float(selected_row['allocated_amount']), 
+                                                               min_value=0.0, step=100.0, key=f"edit_alloc_{alloc_id}")
+                                st.caption(f"Spent: {config.CURRENCY_SYMBOL}{float(selected_row['spent_amount']):,.2f} (read-only)")
+                                st.caption(f"New Balance: {config.CURRENCY_SYMBOL}{new_allocated - float(selected_row['spent_amount']):,.2f}")
+                                
+                                col_a, col_b = st.columns(2)
+                                if col_a.button("💾 Save Changes", key=f"save_alloc_{alloc_id}"):
+                                    if not new_category or new_category.strip() == "":
+                                        st.error("Category cannot be empty")
+                                    elif new_allocated <= 0:
+                                        st.error("Allocated amount must be greater than 0")
                                     else:
-                                        st.error("Failed to update")
-                            btn_col[2].button("🗑️", key=f"delete_alloc_btn_{alloc_id}", disabled=True, help="Delete")
-                        else:
-                            # View mode: show as text
-                            cols[0].markdown(f"<small>{row['category']}</small>", unsafe_allow_html=True)
-                            cols[1].markdown(f"<small>{config.CURRENCY_SYMBOL}{float(row['allocated_amount']):,.2f}</small>", unsafe_allow_html=True)
-                            cols[2].markdown(f"<small>{config.CURRENCY_SYMBOL}{float(row['spent_amount']):,.2f}</small>", unsafe_allow_html=True)
-                            cols[3].markdown(f"<small>{config.CURRENCY_SYMBOL}{float(row['balance']):,.2f}</small>", unsafe_allow_html=True)
-                            
-                            # Compact action buttons
-                            btn_col = cols[4].columns([1, 1, 1])
-                            if btn_col[0].button("✏️", key=f"edit_alloc_btn_{alloc_id}", help="Edit"):
-                                st.session_state[edit_key] = True
-                                st.rerun()
-                            btn_col[1].button("💾", key=f"update_alloc_{alloc_id}", disabled=True, help="Save")
-                            
-                            delete_key = f'confirm_delete_alloc_{alloc_id}'
-                            if btn_col[2].button("🗑️", key=f"delete_alloc_btn_{alloc_id}", help="Delete"):
-                                st.session_state[delete_key] = True
-                                st.rerun()
-                            
-                            # Inline delete confirmation
-                            if st.session_state.get(delete_key, False):
-                                conf_cols = st.columns([3, 1, 1])
-                                conf_cols[0].warning(f"Delete '{row['category']}'?")
-                                if conf_cols[1].button("Yes", key=f"yes_del_alloc_{alloc_id}"):
+                                        if db.update_allocation(alloc_id, user_id, new_category, new_allocated):
+                                            st.success("✅ Updated successfully!")
+                                            st.cache_resource.clear()
+                                            st.rerun()
+                                        else:
+                                            st.error("Failed to update")
+                                
+                                if col_b.button("🗑️ Delete Allocation", key=f"del_alloc_{alloc_id}"):
                                     if db.delete_allocation_by_id(alloc_id, user_id):
-                                        st.session_state.pop(delete_key, None)
+                                        st.success("✅ Deleted successfully!")
                                         st.cache_resource.clear()
                                         st.rerun()
                                     else:
                                         st.error("Failed to delete")
-                                if conf_cols[2].button("No", key=f"no_del_alloc_{alloc_id}"):
-                                    st.session_state.pop(delete_key, None)
-                                    st.rerun()
-                        
-                        st.markdown("---")  # Subtle divider
+
             else:
                 st.info("No allocations yet")
 
@@ -767,107 +730,75 @@ def show_member_expense_tracking(user_id):
                 total_exp = expenses_df["amount"].sum()
                 st.metric("💸 Total Expenses", f"{config.CURRENCY_SYMBOL}{total_exp:,.2f}")
                 
-                # Header row
-                header_cols = st.columns([1.5, 2, 1.5, 3, 1.5])
-                header_cols[0].markdown("**Date**")
-                header_cols[1].markdown("**Category**")
-                header_cols[2].markdown("**Amount**")
-                header_cols[3].markdown("**Comment**")
-                header_cols[4].markdown("**Actions**")
+                # Prepare display dataframe (show first 20 for performance)
+                display_df = expenses_df.head(20).copy()
+                display_df['Amount'] = display_df['amount'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
+                display_df = display_df.rename(columns={
+                    'date': 'Date',
+                    'category': 'Category',
+                    'comment': 'Comment'
+                })
                 
-                st.divider()
+                # Show as dataframe (Excel-like)
+                st.dataframe(
+                    display_df[['Date', 'Category', 'Amount', 'Comment']],
+                    use_container_width=True,
+                    hide_index=True
+                )
                 
-                # Render each row (show first 20 for performance)
-                for idx, row in expenses_df.head(20).iterrows():
-                    expense_id = int(row['id'])
-                    edit_key = f'edit_expense_{expense_id}'
-                    is_editing = st.session_state.get(edit_key, False)
-                    
-                    cols = st.columns([1.5, 2, 1.5, 3, 1.5])
-                    
-                    if is_editing:
-                        # Edit mode: show input fields
-                        with cols[0]:
-                            new_date = st.date_input("", value=pd.to_datetime(row['date']).date(), key=f"exp_date_{expense_id}", label_visibility="collapsed")
-                        with cols[1]:
-                            # Category must be from available categories
-                            cat_options = categories if categories else [row['category']]
-                            cat_index = cat_options.index(row['category']) if row['category'] in cat_options else 0
-                            new_category = st.selectbox("", options=cat_options, index=cat_index, key=f"exp_cat_{expense_id}", label_visibility="collapsed")
-                        with cols[2]:
-                            new_amount = st.number_input("", value=float(row['amount']), min_value=0.0, step=10.0, key=f"exp_amt_{expense_id}", label_visibility="collapsed")
-                        with cols[3]:
-                            new_comment = st.text_input("", value=row['comment'], key=f"exp_cmt_{expense_id}", label_visibility="collapsed")
+                # Edit/Delete controls below table
+                st.caption("Select an expense to edit or delete:")
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    if len(expenses_df.head(20)) > 0:
+                        options = [f"{row['date']} - {row['category']} - {config.CURRENCY_SYMBOL}{float(row['amount']):,.2f}" 
+                                 for _, row in expenses_df.head(20).iterrows()]
+                        selected_idx = st.selectbox("", options, label_visibility="collapsed", key="expense_select")
                         
-                        with cols[4]:
-                            btn_cols = st.columns(3)
-                            with btn_cols[0]:
-                                st.button("✏️", key=f"edit_exp_btn_{expense_id}", disabled=True, help="Edit", use_container_width=True)
-                            with btn_cols[1]:
-                                if st.button("💾", key=f"update_exp_{expense_id}", help="Update", use_container_width=True):
-                                    # Validation
+                        if selected_idx:
+                            idx = options.index(selected_idx)
+                            selected_row = expenses_df.head(20).iloc[idx]
+                            expense_id = int(selected_row['id'])
+                            
+                            # Show edit form in expander
+                            with st.expander("✏️ Edit Selected Expense", expanded=False):
+                                new_date = st.date_input("Date", value=pd.to_datetime(selected_row['date']).date(), key=f"edit_exp_date_{expense_id}")
+                                cat_options = categories if categories else [selected_row['category']]
+                                cat_index = cat_options.index(selected_row['category']) if selected_row['category'] in cat_options else 0
+                                new_category = st.selectbox("Category", options=cat_options, index=cat_index, key=f"edit_exp_cat_{expense_id}")
+                                new_amount = st.number_input("Amount", value=float(selected_row['amount']), min_value=0.0, step=10.0, key=f"edit_exp_amt_{expense_id}")
+                                new_comment = st.text_input("Comment", value=selected_row['comment'], key=f"edit_exp_cmt_{expense_id}")
+                                
+                                col_a, col_b = st.columns(2)
+                                if col_a.button("💾 Save Changes", key=f"save_exp_{expense_id}"):
                                     if not new_comment or new_comment.strip() == "":
                                         st.error("Comment cannot be empty")
                                     elif new_amount <= 0:
                                         st.error("Amount must be greater than 0")
                                     elif new_category not in categories:
-                                        st.error("Invalid category selected")
+                                        st.error("Invalid category")
                                     else:
-                                        # Update in database - need old values for allocation adjustment
-                                        old_category = row['category']
-                                        old_amount = float(row['amount'])
+                                        old_category = selected_row['category']
+                                        old_amount = float(selected_row['amount'])
                                         if db.update_expense(expense_id, user_id, new_date.strftime(config.DATE_FORMAT), 
                                                            new_category, new_amount, old_category, old_amount, new_comment):
-                                            st.session_state[edit_key] = False
+                                            st.success("✅ Updated successfully!")
                                             st.cache_resource.clear()
                                             st.rerun()
                                         else:
-                                            st.error("Failed to update expense")
-                            with btn_cols[2]:
-                                st.button("🗑️", key=f"delete_exp_btn_{expense_id}", disabled=True, help="Delete", use_container_width=True)
-                    else:
-                        # View mode: show text
-                        cols[0].write(row['date'])
-                        cols[1].write(row['category'])
-                        cols[2].write(f"{config.CURRENCY_SYMBOL}{float(row['amount']):,.2f}")
-                        cols[3].write(row['comment'])
-                        
-                        with cols[4]:
-                            btn_cols = st.columns(3)
-                            with btn_cols[0]:
-                                if st.button("✏️", key=f"edit_exp_btn_{expense_id}", help="Edit", use_container_width=True):
-                                    st.session_state[edit_key] = True
-                                    st.rerun()
-                            with btn_cols[1]:
-                                st.button("💾", key=f"update_exp_{expense_id}", disabled=True, help="Update", use_container_width=True)
-                            with btn_cols[2]:
-                                delete_key = f'confirm_delete_expense_{expense_id}'
-                                if st.button("🗑️", key=f"delete_exp_btn_{expense_id}", help="Delete", use_container_width=True):
-                                    st.session_state[delete_key] = True
-                                    st.rerun()
+                                            st.error("Failed to update")
                                 
-                                # Confirmation dialog
-                                if st.session_state.get(delete_key, False):
-                                    st.warning(f"Delete this expense?")
-                                    conf_cols = st.columns(2)
-                                    with conf_cols[0]:
-                                        if st.button("Yes", key=f"yes_del_exp_{expense_id}"):
-                                            # Need category and amount for allocation adjustment
-                                            if db.delete_expense(expense_id, user_id, row['category'], float(row['amount'])):
-                                                st.session_state.pop(delete_key, None)
-                                                st.cache_resource.clear()
-                                                st.rerun()
-                                            else:
-                                                st.error("Failed to delete")
-                                    with conf_cols[1]:
-                                        if st.button("No", key=f"no_del_exp_{expense_id}"):
-                                            st.session_state.pop(delete_key, None)
-                                            st.rerun()
-                    
-                    st.divider()
+                                if col_b.button("🗑️ Delete Expense", key=f"del_exp_{expense_id}"):
+                                    if db.delete_expense(expense_id, user_id, selected_row['category'], float(selected_row['amount'])):
+                                        st.success("✅ Deleted successfully!")
+                                        st.cache_resource.clear()
+                                        st.rerun()
+                                    else:
+                                        st.error("Failed to delete")
                 
                 if len(expenses_df) > 20:
                     st.caption(f"Showing 20 of {len(expenses_df)} expenses")
+
             else:
                 st.markdown("**No expenses recorded yet**")
 
