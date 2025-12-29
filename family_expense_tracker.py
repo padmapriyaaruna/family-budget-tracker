@@ -1035,15 +1035,25 @@ def show_member_expense_tracking(user_id):
         st.caption("💡 Change period in Income tab to review different months")
         
         # Get period-specific data
-        total_income = db.get_total_income(user_id)
+        # Calculate period-specific total income by filtering
+        income_df = db.get_income_with_ids(user_id)
+        if not income_df.empty:
+            income_df['date_parsed'] = pd.to_datetime(income_df['date'])
+            period_income_df = income_df[
+                (income_df['date_parsed'].dt.year == st.session_state.budget_year) &
+                (income_df['date_parsed'].dt.month == st.session_state.budget_month)
+            ]
+            total_income = float(period_income_df['amount'].apply(lambda x: float(x)).sum()) if not period_income_df.empty else 0.0
+        else:
+            total_income = 0.0
+            
         allocations_df = db.get_all_allocations(user_id, st.session_state.budget_year, st.session_state.budget_month)
-        total_expenses = db.get_total_expenses(user_id)
         
         # Calculate metrics - convert to float to handle PostgreSQL Decimal types
         total_allocated = float(allocations_df["Allocated Amount"].sum()) if not allocations_df.empty else 0.0
         total_spent = float(allocations_df["Spent Amount"].sum()) if not allocations_df.empty else 0.0
         total_balance = float(allocations_df["Balance"].sum()) if not allocations_df.empty else 0.0
-        remaining_liquidity = float(total_income) - total_allocated
+        remaining_liquidity = total_income - total_allocated
         
         # Display metrics
         col1, col2, col3, col4 = st.columns(4)
