@@ -117,10 +117,10 @@ def show_landing_page():
     <style>
         .landing-container {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 3rem 2rem;
-            border-radius: 15px;
+            padding: 2rem 2rem 3rem 2rem;
+            border-radius: 0 0 15px 15px;
             text-align: center;
-            margin: 2rem auto;
+            margin: 0 auto 2rem auto;
             max-width: 600px;
         }
         .landing-title {
@@ -137,12 +137,13 @@ def show_landing_page():
     </style>
     """, unsafe_allow_html=True)
     
-    # Landing page content - title and logo INSIDE the gradient box
+    # Landing page content - title and logo at TOP inside the gradient box
     st.markdown('<div class="landing-container">', unsafe_allow_html=True)
     st.markdown('<div class="landing-title">👨‍👩‍👧‍👦 Family Budget Tracker</div>', unsafe_allow_html=True)
     st.markdown('<div class="landing-subtitle">Multi-Family Budget Management System</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     
-    # Center the buttons
+    # Center the buttons BELOW the gradient box
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("### Choose Your Role")
@@ -163,8 +164,7 @@ def show_landing_page():
         if st.button("🔑 Member Password Setup", use_container_width=True, key="btn_setup"):
             st.session_state.login_page = 'setup'
             st.rerun()
-    
-    st.markdown('</div>', unsafe_allow_html=True)  # Close landing container
+
 
 
 def show_master_login():
