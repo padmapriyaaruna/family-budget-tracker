@@ -112,38 +112,67 @@ def show_login_page():
 def show_landing_page():
     """Display main landing page with 4 navigation buttons"""
     
-    # Add custom styling for landing page
+    # Add custom styling for landing page with flexbox header
     st.markdown("""
     <style>
-        .landing-container {
+        /* Landing page header bar */
+        .landing-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 2rem 2rem 3rem 2rem;
+            padding: 1.5rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
             border-radius: 0 0 15px 15px;
-            text-align: center;
             margin: 0 auto 2rem auto;
-            max-width: 600px;
+            max-width: 100%;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        .landing-title {
+        
+        .landing-logo {
+            font-size: 3rem;
+            line-height: 1;
+        }
+        
+        .landing-title-text {
             color: white;
-            font-size: 2.5rem;
+            font-size: 2.2rem;
             font-weight: bold;
-            margin-bottom: 0.5rem;
+            margin: 0;
+            text-align: center;
         }
+        
         .landing-subtitle {
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 1.1rem;
-            margin-bottom: 2rem;
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 1rem;
+            margin: 0;
+            text-align: center;
+        }
+        
+        @media (max-width: 768px) {
+            .landing-header {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            .landing-title-text {
+                font-size: 1.8rem;
+            }
         }
     </style>
     """, unsafe_allow_html=True)
     
-    # Landing page content - title and logo at TOP inside the gradient box
-    st.markdown('<div class="landing-container">', unsafe_allow_html=True)
-    st.markdown('<div class="landing-title">👨‍👩‍👧‍👦 Family Budget Tracker</div>', unsafe_allow_html=True)
-    st.markdown('<div class="landing-subtitle">Multi-Family Budget Management System</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Landing page header with flexbox
+    st.markdown("""
+    <div class="landing-header">
+        <div class="landing-logo">👨‍👩‍👧‍👦</div>
+        <div>
+            <div class="landing-title-text">Family Budget Tracker</div>
+            <div class="landing-subtitle">Multi-Family Budget Management System</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Center the buttons BELOW the gradient box
+    # Center the buttons below the header
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("### Choose Your Role")
