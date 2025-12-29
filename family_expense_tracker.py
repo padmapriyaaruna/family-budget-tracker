@@ -29,49 +29,21 @@ st.markdown("""
         font-size: 24px;
     }
     
-    /* Excel-like table styling for inline editing */
-    [data-testid="stHorizontalBlock"] {
-        border: 1px solid #ddd;
-        border-radius: 0;
-        padding: 8px;
-        margin-bottom: -1px;
-        background-color: white;
-    }
-    
-    [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"] {
-        gap: 0 !important;
-    }
-    
-    /* Make columns have visible borders */
+    /* Excel-like table styling - minimal and clean */
     [data-testid="column"] {
-        border-right: 1px solid #ddd;
-        padding: 6px 8px !important;
-        min-height: 40px;
+        border-right: 1px solid #e0e0e0;
+        padding: 4px 8px !important;
     }
     
     [data-testid="column"]:last-child {
         border-right: none;
     }
     
-    /* Compact input fields */
-    [data-testid="stNumberInput"], 
-    [data-testid="stTextInput"],
-    [data-testid="stDateInput"],
-    [data-testid="stSelectbox"] {
-        margin-bottom: 0 !important;
-    }
-    
-    /* Smaller buttons */
+    /* Compact buttons */
     .stButton button {
-        padding: 2px 8px;
-        font-size: 14px;
-        min-height: 28px;
-        height: 28px;
-    }
-    
-    /* Remove extra spacing */
-    .element-container {
-        margin-bottom: 0 !important;
+        padding: 4px 10px;
+        font-size: 13px;
+        height: 30px;
     }
 
     .login-container {
@@ -569,6 +541,14 @@ def show_member_expense_tracking(user_id):
             
             income_df = db.get_income_with_ids(user_id)
             if not income_df.empty:
+                # Header row
+                header_cols = st.columns([2, 3, 2, 2])
+                header_cols[0].markdown("**Date**")
+                header_cols[1].markdown("**Source**")
+                header_cols[2].markdown("**Amount**")
+                header_cols[3].markdown("**Actions**")
+                st.markdown("---")
+                
                 # Create editable table
                 for idx, row in income_df.iterrows():
                     income_id = int(row['id'])
@@ -667,6 +647,15 @@ def show_member_expense_tracking(user_id):
             
             allocations_df = db.get_allocations_with_ids(user_id)
             if not allocations_df.empty:
+                # Header row
+                header_cols = st.columns([2, 2, 2, 2, 2])
+                header_cols[0].markdown("**Category**")
+                header_cols[1].markdown("**Allocated**")
+                header_cols[2].markdown("**Spent**")
+                header_cols[3].markdown("**Balance**")
+                header_cols[4].markdown("**Actions**")
+                st.markdown("---")
+                
                 # Create editable table
                 for idx, row in allocations_df.iterrows():
                     alloc_id = int(row['id'])
