@@ -1774,96 +1774,165 @@ def show_super_admin_dashboard():
             else:
                 st.info("No families created yet. Create one using the form on the left.")
     
-    # TAB 3: Manage Members
+    # TAB 3: Manage Members (Family-Filtered)
     with tab3:
-        st.header("Member Management Across Families")
+        st.header("Member Management")
         
-        col1, col2 = st.columns([1, 2])
+        households_df = db.get_all_households()
         
-        with col1:
-            st.subheader("➕ Add Member to Family")
+        if households_df.empty:
+            st.info("📋 No families created yet. Go to 'Manage Families' tab to create one.")
+        else:
+            # Family Selector
+            family_options = {row['name']: row['id'] for _, row in households_df.iterrows()}
             
-            # Get list of families for dropdown
-            households_df = db.get_all_households()
-            if not households_df.empty:
-                with st.form("add_member_super_form"):
-                    household_options = {row['name']: row['id'] for _, row in households_df.iterrows()}
-                    selected_family = st.selectbox("Select Family", options=list(household_options.keys()))
-                    
-                    member_name = st.text_input("Member Name")
-                    member_email = st.text_input("Member Email")
-                    member_relationship = st.selectbox("Relationship", 
-                        ["Spouse", "Parent", "Child", "Sibling", "Other"])
-                    
-                    add_member_btn = st.form_submit_button("Add Member", use_container_width=True)
-                    
-                    if add_member_btn:
-                        if not all([selected_family, member_name, member_email]):
-                            st.error("Please fill all fields")
-                        else:
-                            household_id = household_options[selected_family]
-                            success, member_id, invite_token = db.add_member_to_family_super_admin(
-                                household_id, member_email, member_name, member_relationship
-                            )
-                            if success:
-                                st.success(f"✅ Member added to {selected_family}")
-                                st.info(f"📧 Invite Token:\n`{invite_token}`")
-                                st.caption("Share this token with the member")
-                                st.cache_data.clear()
-                                st.rerun()
-                            else:
-                                st.error(f"❌ {invite_token}")
+            selected_family_name = st.selectbox(
+                "🏠 Select Family",
+                options=["-- Choose a family --"] + list(family_options.keys()),
+                help="Select a family to view and manage its members"
+            )
+            
+            if selected_family_name == "-- Choose a family --":
+                st.info("👆 Please select a family from the dropdown above to manage its members.")
             else:
-                st.info("Create families first before adding members")
-        
-        with col2:
-            st.subheader("👤 Members by Family")
-            
-            users_df = db.get_all_users_super_admin()
-            
-            if not users_df.empty:
-                # Group by family
-                families = users_df['household_name'].unique()
+                selected_household_id = family_options[selected_family_name]
                 
-                for family in families:
-                    if pd.isna(family):
-                        continue
-                        
-                    st.markdown(f"### {family}")
-                    family_users = users_df[users_df['household_name'] == family]
+                st.divider()
+                
+                # Two column layout
+                col1, col2 = st.columns([1, 2])
+                
+                # LEFT COLUMN: Add Member Form
+                with col1:
+                    st.subheader("➕ Add Member")
                     
-                    for _, user in family_users.iterrows():
-                        with st.container():
-                            col_info, col_action = st.columns([3, 1])
-                            
-                            with col_info:
-                                role_icon = "👑" if user['role'] == 'admin' else "👤"
-                                # Handle both PostgreSQL (True/False) and SQLite (1/0)
-                                status_icon = "✅" if user['is_active'] else "❌"
-                                st.markdown(f"""
-                                {role_icon} **{user['full_name']}** {status_icon}  
-                                📧 {user['email']} | Role: {user['role'].title()}
-                                """)
-                            
-                            with col_action:
-                                # Only show promote button for members
-                                if user['role'] == 'member':
-                                    if st.button("👑 Make Admin", key=f"promote_{user['id']}", help="Promote to family admin"):
-                                        # Get household_id from household_name
-                                        household_row = households_df[households_df['name'] == family]
-                                        if not household_row.empty:
-                                            household_id = household_row.iloc[0]['id']
-                                            success, msg = db.promote_member_to_admin(user['id'], household_id)
-                                            if success:
-                                                st.success(msg)
-                                                st.cache_data.clear()
-                                                st.rerun()
-                                            else:
-                                                st.error(msg)
+                    with st.form("add_member_super_form", clear_on_submit=True):
+                        member_name = st.text_input("Member Name")
+                        member_email = st.text_input("Member Email")
+                        member_relationship = st.selectbox("Relationship", 
+                            ["Spouse", "Parent", "Child", "Sibling", "Other"])
                         
-                        st.divider()
-            else:
-                st.info("No users found")
+                        add_member_btn = st.form_submit_button("Add Member", use_container_width=True)
+                        
+                        if add_member_btn:
+                            if not all([member_name, member_email]):
+                                st.error("Please fill all fields")
+                            else:
+                                success, member_id, invite_token = db.add_member_to_family_super_admin(
+                                    selected_household_id, member_email, member_name, member_relationship
+                                )
+                                if success:
+                                    st.success(f"✅ Member added to {selected_family_name}")
+                                    st.info(f"📧 Invite Token:\n`{invite_token}`")
+                                    st.caption("Share this token with the member")
+                                    st.cache_data.clear()
+                                    st.rerun()
+                                else:
+                                    st.error(f"❌ {invite_token}")
+                
+                # RIGHT COLUMN: Members List
+                with col2:
+                    st.subheader(f"👥 Members of {selected_family_name}")
+                    
+                    # Get members for selected family
+                    all_users_df = db.get_all_users_super_admin()
+                    
+                    if not all_users_df.empty:
+                        family_members = all_users_df[all_users_df['household_name'] == selected_family_name]
+                        
+                        if not family_members.empty:
+                            # Count admins for this family
+                            admin_count = db.count_household_admins(selected_household_id)
+                            
+                            st.caption(f"Total: {len(family_members)} members | Admins: {admin_count}")
+                            st.divider()
+                            
+                            # Display each member
+                            for _, user in family_members.iterrows():
+                                with st.container():
+                                    col_info, col_actions = st.columns([3, 2])
+                                    
+                                    with col_info:
+                                        role_icon = "👑" if user['role'] == 'admin' else "👤"
+                                        status_icon = "✅" if user['is_active'] else "❌"
+                                        st.markdown(f"""
+                                        {role_icon} **{user['full_name']}** {status_icon}  
+                                        📧 {user['email']} | Role: {user['role'].title()}
+                                        """)
+                                    
+                                    with col_actions:
+                                        is_admin = user['role'] == 'admin'
+                                        user_id = user['id']
+                                        
+                                        if is_admin:
+                                            # ADMIN USER: Show Remove Admin + Delete (disabled)
+                                            can_remove_admin = admin_count > 1
+                                            
+                                            # Remove Admin Button
+                                            if st.button(
+                                                "⬇️ Remove Admin", 
+                                                key=f"demote_{user_id}",
+                                                disabled=(not can_remove_admin),
+                                                help="Cannot demote the only admin" if not can_remove_admin else "Demote to member role",
+                                                use_container_width=True
+                                            ):
+                                                success, msg = db.demote_admin_to_member(user_id, selected_household_id)
+                                                if success:
+                                                    st.success(msg)
+                                                    st.cache_data.clear()
+                                                    st.rerun()
+                                                else:
+                                                    st.error(msg)
+                                            
+                                            # Delete Member Button (always disabled for admins)
+                                            st.button(
+                                                "🗑️ Delete Member",
+                                                key=f"delete_{user_id}",
+                                                disabled=True,
+                                                help="Demote admin first before deletion",
+                                                use_container_width=True
+                                            )
+                                        else:
+                                            # REGULAR MEMBER: Show Make Admin + Delete (enabled)
+                                            
+                                            # Make Admin Button
+                                            if st.button("⬆️ Make Admin", key=f"promote_{user_id}", use_container_width=True):
+                                                success, msg = db.promote_member_to_admin(user_id, selected_household_id)
+                                                if success:
+                                                    st.success(msg)
+                                                    st.cache_data.clear()
+                                                    st.rerun()
+                                                else:
+                                                    st.error(msg)
+                                            
+                                            # Delete Member Button (with confirmation)
+                                            if st.button("🗑️ Delete Member", key=f"delete_{user_id}", use_container_width=True):
+                                                st.session_state[f'confirm_delete_member_{user_id}'] = True
+                                                st.rerun()
+                                            
+                                            # Confirmation dialog
+                                            if st.session_state.get(f'confirm_delete_member_{user_id}', False):
+                                                st.warning(f"⚠️ Delete {user['full_name']}? This action cannot be undone.")
+                                                col_yes, col_no = st.columns(2)
+                                                with col_yes:
+                                                    if st.button("✓ Yes", key=f"yes_del_{user_id}"):
+                                                        if db.delete_member(user_id):
+                                                            st.success(f"Deleted {user['full_name']}")
+                                                            st.session_state.pop(f'confirm_delete_member_{user_id}')
+                                                            st.cache_data.clear()
+                                                            st.rerun()
+                                                        else:
+                                                            st.error("Failed to delete member")
+                                                with col_no:
+                                                    if st.button("✗ No", key=f"no_del_{user_id}"):
+                                                        st.session_state.pop(f'confirm_delete_member_{user_id}')
+                                                        st.rerun()
+                                    
+                                    st.divider()
+                        else:
+                            st.info("No members in this family yet.")
+                    else:
+                        st.info("No users found in the system.")
     
     # TAB 4: All Users
     with tab4:

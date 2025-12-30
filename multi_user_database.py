@@ -785,6 +785,49 @@ class MultiUserDB:
             print(f"Error promoting user: {str(e)}")
             return (False, str(e))
     
+    def demote_admin_to_member(self, user_id, household_id):
+        """Demote an admin to member role (enforces at-least-one-admin rule)"""
+        try:
+            cursor = self.conn.cursor()
+            
+            # Count current admins in household
+            is_active_value = True if self.use_postgres else 1
+            self._execute(cursor, 
+                "SELECT COUNT(*) as count FROM users WHERE household_id = ? AND role = 'admin' AND is_active = ?",
+                (household_id, is_active_value))
+            result = cursor.fetchone()
+            admin_count = result['count'] if result else 0
+            
+            # Prevent demotion if only one admin
+            if admin_count <= 1:
+                return (False, "Cannot demote the only admin. Promote another member first.")
+            
+            # Demote to member
+            self._execute(cursor, 
+                "UPDATE users SET role = 'member' WHERE id = ? AND household_id = ?",
+                (user_id, household_id))
+            
+            self.conn.commit()
+            return (True, "Admin demoted to member successfully")
+        except Exception as e:
+            self.conn.rollback()
+            print(f"Error demoting admin: {str(e)}")
+            return (False, str(e))
+    
+    def count_household_admins(self, household_id):
+        """Count active admins in a household"""
+        try:
+            cursor = self.conn.cursor()
+            is_active_value = True if self.use_postgres else 1
+            self._execute(cursor,
+                "SELECT COUNT(*) as count FROM users WHERE household_id = ? AND role = 'admin' AND is_active = ?",
+                (household_id, is_active_value))
+            result = cursor.fetchone()
+            return result['count'] if result else 0
+        except Exception as e:
+            print(f"Error counting admins: {str(e)}")
+            return 0
+    
     def add_member_to_family_super_admin(self, household_id, email, full_name, relationship):
         """Super admin adds a new member to a family"""
         try:
