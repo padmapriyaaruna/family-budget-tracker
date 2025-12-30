@@ -477,9 +477,14 @@ def show_admin_dashboard():
             if selected_member_ids and not available_years:
                 st.warning("⚠️ No financial data found for selected members. Add income, expenses, or allocations first.")
             
-            # Define year range
+            # Define year range (dynamically extend if past July)
             current_year = datetime.now().year
-            all_years = list(range(current_year - 5, current_year + 2))  # Last 5 years + next year
+            current_month = datetime.now().month
+            # If past July, add one more future year for planning next year's budget
+            if current_month >= 7:
+                all_years = list(range(current_year - 5, current_year + 3))  # Last 5 years + next 2 years
+            else:
+                all_years = list(range(current_year - 5, current_year + 2))  # Last 5 years + next year
             
             with col2:
                 # Format year options with visual prefix for unavailable years
@@ -1339,9 +1344,14 @@ def show_member_expense_tracking(user_id):
             st.subheader("🔍 Select Period(s)")
             col1, col2 = st.columns(2)
             
-            # Define year range
+            # Define year range (dynamically extend if past July)
             current_year = datetime.now().year
-            all_years = list(range(current_year - 5, current_year + 2))  # Last 5 years + next year
+            current_month = datetime.now().month
+            # If past July, add one more future year for planning next year's budget
+            if current_month >= 7:
+                all_years = list(range(current_year - 5, current_year + 3))  # Last 5 years + next 2 years
+            else:
+                all_years = list(range(current_year - 5, current_year + 2))  # Last 5 years + next year
             
             with col1:
                 # Format year options with visual prefix for unavailable years
