@@ -766,17 +766,17 @@ class MultiUserDB:
             cursor = self.conn.cursor()
             
             # Update user role to admin
-            cursor.execute('''
+            self._execute(cursor, '''
                 UPDATE users 
                 SET role = 'admin', relationship = 'self'
                 WHERE id = ? AND household_id = ?
             ''', (user_id, household_id))
             
             # Update household created_by if needed
-            cursor.execute('SELECT created_by FROM households WHERE id = ?', (household_id,))
+            self._execute(cursor, 'SELECT created_by FROM households WHERE id = ?', (household_id,))
             result = cursor.fetchone()
             if result and not result['created_by']:
-                cursor.execute('UPDATE households SET created_by = ? WHERE id = ?', (user_id, household_id))
+                self._execute(cursor, 'UPDATE households SET created_by = ? WHERE id = ?', (user_id, household_id))
             
             self.conn.commit()
             return (True, "User promoted to family admin successfully")
