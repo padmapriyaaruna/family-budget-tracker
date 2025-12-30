@@ -372,59 +372,204 @@ def show_admin_dashboard():
     with tab1:
         st.header("📊 Family Financial Overview")
         
-        # Get household totals
-        total_household_income = db.get_household_total_income(household_id)
-        total_household_expenses = db.get_household_total_expenses(household_id)
-        total_household_savings = total_household_income - total_household_expenses
+        # Initialize selected member in session state (default to admin)
+        if 'selected_family_member_id' not in st.session_state:
+            st.session_state.selected_family_member_id = user['id']
         
-        # Display household metrics
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("💰 Total Family Income", f"{config.CURRENCY_SYMBOL}{total_household_income:,.2f}")
-        with col2:
-            st.metric("💸 Total Family Expenses", f"{config.CURRENCY_SYMBOL}{total_household_expenses:,.2f}")
-        with col3:
-            st.metric("💵 Total Family Savings", f"{config.CURRENCY_SYMBOL}{total_household_savings:,.2f}")
+        # Get household members for navigation
+        members_df = db.get_household_members(household_id)
+        
+        # Create member selection buttons
+        if not members_df.empty:
+            # Count active members
+            member_count = len(members_df)
+            
+            # Create button columns dynamically
+            # Add extra column for "All Family" button if multiple members
+            num_cols = member_count + (1 if member_count > 1 else 0)
+            cols = st.columns(num_cols)
+            
+            # Create buttons for each member
+            for idx, member in members_df.iterrows():
+                with cols[idx]:
+                    # Determine button type based on selection
+                    button_type = "primary" if st.session_state.selected_family_member_id == member['id'] else "secondary"
+                    
+                    if st.button(
+                        f"👤 {member['full_name']}", 
+                        key=f"member_btn_{member['id']}",
+                        use_container_width=True,
+                        type=button_type
+                    ):
+                        st.session_state.selected_family_member_id = member['id']
+                        st.rerun()
+            
+            # Add "All Family" button if multiple members
+            if member_count > 1:
+                with cols[-1]:
+                    button_type = "primary" if st.session_state.selected_family_member_id == 'all' else "secondary"
+                    if st.button(
+                        "👨‍👩‍👧‍👦 All Family",
+                        key="all_family_btn",
+                        use_container_width=True,
+                        type=button_type
+                    ):
+                        st.session_state.selected_family_member_id = 'all'
+                        st.rerun()
         
         st.divider()
         
-        # Member-wise summary
-        st.subheader("👥 Member-wise Financial Summary")
-        member_summary = db.get_household_member_summary(household_id)
+        # Get period context
+        import calendar
+        period_display = f"{calendar.month_name[st.session_state.budget_month]} {st.session_state.budget_year}"
         
-        if not member_summary.empty and len(member_summary.columns) > 0:
-            # Format currency columns - check if columns exist first
-            for col in ['Income', 'Expenses', 'Savings']:
-                if col in member_summary.columns:
-                    member_summary[col] = member_summary[col].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
+        # Display data based on selection
+        if st.session_state.selected_family_member_id == 'all':
+            # Show cumulative family view
+            st.subheader(f"📊 Family Totals for {period_display}")
             
-            st.dataframe(member_summary, use_container_width=True, hide_index=True)
+            # Get household totals (all-time for now, can be made period-specific later)
+            total_household_income = db.get_household_total_income(household_id)
+            total_household_expenses = db.get_household_total_expenses(household_id)
+            total_household_savings = total_household_income - total_household_expenses
             
-            # Visualization
-            st.subheader("📈 Member Contribution Visualization")
+            # Display household metrics
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("💰 Total Family Income", f"{config.CURRENCY_SYMBOL}{total_household_income:,.2f}")
+            with col2:
+                st.metric("💸 Total Family Expenses", f"{config.CURRENCY_SYMBOL}{total_household_expenses:,.2f}")
+            with col3:
+                st.metric("💵 Total Family Savings", f"{config.CURRENCY_SYMBOL}{total_household_savings:,.2f}")
             
-            # Use original data for visualization (before formatting)
-            member_summary_viz = db.get_household_member_summary(household_id)
+            st.divider()
             
-            # Check if we have the required columns
-            if not member_summary_viz.empty and all(col in member_summary_viz.columns for col in ['Member', 'Income', 'Expenses', 'Savings']):
-                fig = go.Figure(data=[
-                    go.Bar(name='Income', x=member_summary_viz['Member'], y=member_summary_viz['Income']),
-                    go.Bar(name='Expenses', x=member_summary_viz['Member'], y=member_summary_viz['Expenses']),
-                    go.Bar(name='Savings', x=member_summary_viz['Member'], y=member_summary_viz['Savings'])
-                ])
+            # Member-wise summary
+            st.subheader("👥 Member-wise Financial Summary")
+            member_summary = db.get_household_member_summary(household_id)
+            
+            if not member_summary.empty and len(member_summary.columns) > 0:
+                # Format currency columns
+                for col in ['Income', 'Expenses', 'Savings']:
+                    if col in member_summary.columns:
+                        member_summary[col] = member_summary[col].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
                 
-                fig.update_layout(
-                    barmode='group',
-                    title='Financial Overview by Member',
-                    xaxis_title='Member',
-                    yaxis_title='Amount (₹)',
-                    height=400
-                )
+                st.dataframe(member_summary, use_container_width=True, hide_index=True)
                 
-                st.plotly_chart(fig, use_container_width=True)
+                # Visualization
+                st.subheader("📈 Member Contribution Visualization")
+                
+                # Use original data for visualization
+                member_summary_viz = db.get_household_member_summary(household_id)
+                
+                if not member_summary_viz.empty and all(col in member_summary_viz.columns for col in ['Member', 'Income', 'Expenses', 'Savings']):
+                    fig = go.Figure(data=[
+                        go.Bar(name='Income', x=member_summary_viz['Member'], y=member_summary_viz['Income']),
+                        go.Bar(name='Expenses', x=member_summary_viz['Member'], y=member_summary_viz['Expenses']),
+                        go.Bar(name='Savings', x=member_summary_viz['Member'], y=member_summary_viz['Savings'])
+                    ])
+                    
+                    fig.update_layout(
+                        barmode='group',
+                        title='Financial Overview by Member',
+                        xaxis_title='Member',
+                        yaxis_title=f'Amount ({config.CURRENCY_SYMBOL})',
+                        height=400
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No member financial data available yet.")
+        
         else:
-            st.info("No member financial data available yet. Add members and start tracking!")
+            # Show individual member view
+            # Get selected member's details
+            selected_member = members_df[members_df['id'] == st.session_state.selected_family_member_id].iloc[0]
+            
+            st.subheader(f"💰 {selected_member['full_name']}'s Financial Overview")
+            st.caption(f"📅 Period: **{period_display}**")
+            
+            # Get period-specific data for selected member
+            selected_user_id = selected_member['id']
+            
+            # Calculate period-specific income
+            income_df = db.get_income_with_ids(selected_user_id)
+            if not income_df.empty:
+                income_df['date_parsed'] = pd.to_datetime(income_df['date'])
+                period_income_df = income_df[
+                    (income_df['date_parsed'].dt.year == st.session_state.budget_year) &
+                    (income_df['date_parsed'].dt.month == st.session_state.budget_month)
+                ]
+                total_income = float(period_income_df['amount'].apply(lambda x: float(x)).sum()) if not period_income_df.empty else 0.0
+            else:
+                total_income = 0.0
+            
+            # Get period-specific allocations
+            allocations_df = db.get_all_allocations(selected_user_id, st.session_state.budget_year, st.session_state.budget_month)
+            
+            # Calculate metrics
+            total_allocated = float(allocations_df["Allocated Amount"].sum()) if not allocations_df.empty else 0.0
+            total_spent = float(allocations_df["Spent Amount"].sum()) if not allocations_df.empty else 0.0
+            total_balance = float(allocations_df["Balance"].sum()) if not allocations_df.empty else 0.0
+            remaining_liquidity = total_income - total_allocated
+            
+            # Display metrics
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("💰 Income", f"{config.CURRENCY_SYMBOL}{total_income:,.2f}")
+            with col2:
+                st.metric("🎯 Allocated", f"{config.CURRENCY_SYMBOL}{total_allocated:,.2f}")
+            with col3:
+                st.metric("💸 Spent", f"{config.CURRENCY_SYMBOL}{total_spent:,.2f}")
+            with col4:
+                st.metric("💵 Liquidity", f"{config.CURRENCY_SYMBOL}{remaining_liquidity:,.2f}")
+            
+            st.divider()
+            
+            # Charts
+            if not allocations_df.empty:
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.subheader("Allocation Breakdown")
+                    fig_pie = px.pie(
+                        allocations_df,
+                        values="Allocated Amount",
+                        names="Category",
+                        hole=0.4
+                    )
+                    fig_pie.update_layout(height=350)
+                    st.plotly_chart(fig_pie, use_container_width=True)
+                
+                with col2:
+                    st.subheader("Spent vs Allocated")
+                    fig_bar = go.Figure()
+                    fig_bar.add_trace(go.Bar(
+                        name="Allocated",
+                        x=allocations_df["Category"],
+                        y=allocations_df["Allocated Amount"],
+                        marker_color='lightblue'
+                    ))
+                    fig_bar.add_trace(go.Bar(
+                        name="Spent",
+                        x=allocations_df["Category"],
+                        y=allocations_df["Spent Amount"],
+                        marker_color='coral'
+                    ))
+                    fig_bar.update_layout(barmode='group', height=350)
+                    st.plotly_chart(fig_bar, use_container_width=True)
+                
+                # Allocation status table
+                st.subheader(f"📋 Allocation Status")
+                display_df = allocations_df.copy()
+                display_df["Allocated Amount"] = display_df["Allocated Amount"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
+                display_df["Spent Amount"] = display_df["Spent Amount"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
+                display_df["Balance"] = display_df["Balance"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
+                
+                st.dataframe(display_df, use_container_width=True, hide_index=True)
+            else:
+                st.info(f"No allocations for {period_display}. {selected_member['full_name']} can create allocations in their dashboard.")
+
     
     # TAB 2: Manage Members
     with tab2:
