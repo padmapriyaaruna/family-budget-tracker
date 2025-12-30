@@ -417,10 +417,18 @@ def show_admin_dashboard():
     st.divider()
     
     # Tabs for admin functions
-    tab1, tab2, tab3 = st.tabs(["📊 Family Overview", "👥 Manage Members", "💰 My Expenses"])
+    tab1, tab2, tab3 = st.tabs(["💰 My Expenses", "📊 Family Overview", "👥 Manage Members"])
     
-    # TAB 1: Family Overview
+    # TAB 1: Admin's Personal Expenses
     with tab1:
+        st.header("💰 My Personal Expenses")
+        st.caption("Track your own income and expenses")
+        
+        # Reuse member dashboard for admin's personal tracking
+        show_member_expense_tracking(user['id'])
+    
+    # TAB 2: Family Overview
+    with tab2:
         st.header("📊 Family Financial Overview")
         
         # Get household members
@@ -724,8 +732,8 @@ def show_admin_dashboard():
 
 
     
-    # TAB 2: Manage Members
-    with tab2:
+    # TAB 3: Manage Members
+    with tab3:
         st.header("👥 Family Member Management")
        
         col1, col2 = st.columns([1, 2])
@@ -822,14 +830,6 @@ def show_admin_dashboard():
                         st.divider()
             else:
                 st.info("No additional members yet")
-    
-    # TAB 3: Admin's Personal Expenses
-    with tab3:
-        st.header("💰 My Personal Expenses")
-        st.caption("Track your own income and expenses")
-        
-        # Reuse member dashboard for admin's personal tracking
-        show_member_expense_tracking(user['id'])
 
 # ==================== MEMBER DASHBOARD ====================
 
