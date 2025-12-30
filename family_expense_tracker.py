@@ -1320,91 +1320,282 @@ def show_member_expense_tracking(user_id):
     with tab4:
         st.header("📊 Financial Review")
         
-        # Get data for current budget period
-        import calendar
-        period_display = f"{calendar.month_name[st.session_state.budget_month]} {st.session_state.budget_year}"
+        # Initialize review filter session state
+        if 'review_selected_years' not in st.session_state:
+            st.session_state.review_selected_years = []
+        if 'review_selected_months' not in st.session_state:
+            st.session_state.review_selected_months = []
         
-        st.caption(f"📅 Reviewing: **{period_display}**")
-        st.caption("💡 Change period in Income tab to review different months")
+        # Get available periods for this user only
+        available_data = get_user_available_periods(db, [user_id])
+        available_years = available_data['years']
+        available_months_by_year = available_data['months_by_year']
         
-        # Get period-specific data
-        # Calculate period-specific total income by filtering
-        income_df = db.get_income_with_ids(user_id)
-        if not income_df.empty:
-            income_df['date_parsed'] = pd.to_datetime(income_df['date'])
-            period_income_df = income_df[
-                (income_df['date_parsed'].dt.year == st.session_state.budget_year) &
-                (income_df['date_parsed'].dt.month == st.session_state.budget_month)
-            ]
-            total_income = float(period_income_df['amount'].apply(lambda x: float(x)).sum()) if not period_income_df.empty else 0.0
+        # Check if user has any data
+        if not available_years:
+            st.info("ℹ️ No financial data found. Start by adding income and allocations in the respective tabs!")
         else:
-            total_income = 0.0
-            
-        allocations_df = db.get_all_allocations(user_id, st.session_state.budget_year, st.session_state.budget_month)
-        
-        # Calculate metrics - convert to float to handle PostgreSQL Decimal types
-        total_allocated = float(allocations_df["Allocated Amount"].sum()) if not allocations_df.empty else 0.0
-        total_spent = float(allocations_df["Spent Amount"].sum()) if not allocations_df.empty else 0.0
-        total_balance = float(allocations_df["Balance"].sum()) if not allocations_df.empty else 0.0
-        remaining_liquidity = total_income - total_allocated
-        
-        # Display metrics
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("💰 Total Income", f"{config.CURRENCY_SYMBOL}{total_income:,.2f}")
-        with col2:
-            st.metric("🎯 Total Allocated", f"{config.CURRENCY_SYMBOL}{total_allocated:,.2f}")
-        with col3:
-            st.metric("💸 Total Spent", f"{config.CURRENCY_SYMBOL}{total_spent:,.2f}")
-        with col4:
-            st.metric("💵 Liquidity", f"{config.CURRENCY_SYMBOL}{remaining_liquidity:,.2f}")
-        
-        st.divider()
-        
-        # Charts
-        if not allocations_df.empty:
+            # Create filter UI
+            st.subheader("🔍 Select Period(s)")
             col1, col2 = st.columns(2)
             
+            # Define year range
+            current_year = datetime.now().year
+            all_years = list(range(current_year - 5, current_year + 2))  # Last 5 years + next year
+            
             with col1:
-                st.subheader("Allocation Breakdown")
-                fig_pie = px.pie(
-                    allocations_df,
-                    values="Allocated Amount",
-                    names="Category",
-                    hole=0.4
+                # Format year options with visual prefix for unavailable years
+                year_options = []
+                year_mapping = {}
+                for year in all_years:
+                    if year in available_years:
+                        label = str(year)
+                    else:
+                        label = f"⊘ {year} (No Data)"
+                    year_options.append(label)
+                    year_mapping[label] = year
+                
+                # Smart defaults for years
+                if not st.session_state.review_selected_years:
+                    # Default to most recent year with data
+                    if available_years:
+                        st.session_state.review_selected_years = [max(available_years)]
+                
+                # Get previously selected years that are still valid
+                prev_years_labels = [
+                    str(y) if y in available_years else f"⊘ {y} (No Data)" 
+                    for y in st.session_state.review_selected_years if y in all_years
+                ]
+                if not prev_years_labels and available_years:
+                    # Fallback to most recent year
+                    prev_years_labels = [str(max(available_years))]
+                
+                selected_year_labels = st.multiselect(
+                    "📅 Years",
+                    options=year_options,
+                    default=prev_years_labels,
+                    key="review_year_filter",
+                    help="Select years to review. Options marked with ⊘ have no data."
                 )
-                fig_pie.update_layout(height=350)
-                st.plotly_chart(fig_pie, use_container_width=True)
+                
+                # Parse selected years
+                selected_years = [year_mapping[label] for label in selected_year_labels]
+                st.session_state.review_selected_years = selected_years
             
             with col2:
-                st.subheader("Spent vs Allocated")
-                fig_bar = go.Figure()
-                fig_bar.add_trace(go.Bar(
-                    name="Allocated",
-                    x=allocations_df["Category"],
-                    y=allocations_df["Allocated Amount"],
-                    marker_color='lightblue'
-                ))
-                fig_bar.add_trace(go.Bar(
-                    name="Spent",
-                    x=allocations_df["Category"],
-                    y=allocations_df["Spent Amount"],
-                    marker_color='coral'
-                ))
-                fig_bar.update_layout(barmode='group', height=350)
-                st.plotly_chart(fig_bar, use_container_width=True)
-        
-        # Allocation status table
-        st.subheader(f"📋 Allocation Status for {period_display}")
-        if not allocations_df.empty:
-            display_df = allocations_df.copy()
-            display_df["Allocated Amount"] = display_df["Allocated Amount"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
-            display_df["Spent Amount"] = display_df["Spent Amount"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
-            display_df["Balance"] = display_df["Balance"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
+                # Get available months for selected years (union of all months across selected years)
+                available_months_for_selection = set()
+                for year in selected_years:
+                    if year in available_months_by_year:
+                        available_months_for_selection.update(available_months_by_year[year])
+                
+                # Format month options with visual prefix for unavailable months
+                import calendar
+                all_months = list(range(1, 13))
+                month_options = []
+                month_mapping = {}
+                for month in all_months:
+                    month_name = calendar.month_name[month]
+                    if month in available_months_for_selection:
+                        label = month_name
+                    else:
+                        label = f"⊘ {month_name} (No Data)"
+                    month_options.append(label)
+                    month_mapping[label] = month
+                
+                # Smart defaults for months
+                if not st.session_state.review_selected_months and available_months_for_selection:
+                    # Default to current month if available, otherwise most recent
+                    current_month = datetime.now().month
+                    if current_month in available_months_for_selection:
+                        st.session_state.review_selected_months = [current_month]
+                    else:
+                        st.session_state.review_selected_months = [max(available_months_for_selection)]
+                
+                # Get previously selected months that are still valid
+                prev_months_labels = [
+                    calendar.month_name[m] if m in available_months_for_selection else f"⊘ {calendar.month_name[m]} (No Data)"
+                    for m in st.session_state.review_selected_months if 1 <= m <= 12
+                ]
+                if not prev_months_labels and available_months_for_selection:
+                    # Fallback to most recent month
+                    latest_month = max(available_months_for_selection)
+                    prev_months_labels = [calendar.month_name[latest_month]]
+                
+                selected_month_labels = st.multiselect(
+                    "📆 Months",
+                    options=month_options,
+                    default=prev_months_labels,
+                    key="review_month_filter",
+                    help="Select months to review. Options marked with ⊘ have no data for selected years."
+                )
+                
+                # Parse selected months
+                selected_months = [month_mapping[label] for label in selected_month_labels]
+                st.session_state.review_selected_months = selected_months
             
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
-        else:
-            st.info(f"No allocations for {period_display}. Create some in the Allocations tab!")
+            st.divider()
+            
+            # Display data based on selections
+            if not selected_years or not selected_months:
+                st.warning("⚠️ Please select at least one year and month to review.")
+            else:
+                # Show selection summary
+                if len(selected_years) <= 3:
+                    year_str = ", ".join(map(str, sorted(selected_years)))
+                else:
+                    year_str = f"{len(selected_years)} years"
+                    
+                if len(selected_months) <= 3:
+                    month_str = ", ".join([calendar.month_name[m] for m in sorted(selected_months)])
+                else:
+                    month_str = f"{len(selected_months)} months"
+                
+                st.caption(f"📊 Showing: **{year_str}** | **{month_str}**")
+                
+                # Load data with spinner
+                with st.spinner('🔄 Loading review data...'):
+                    all_income_data = []
+                    all_allocation_data = []
+                    
+                    for year in selected_years:
+                        for month in selected_months:
+                            # Get income data
+                            try:
+                                income_df = db.get_income_with_ids(user_id)
+                                if not income_df.empty:
+                                    income_df['date_parsed'] = pd.to_datetime(income_df['date'])
+                                    period_income = income_df[
+                                        (income_df['date_parsed'].dt.year == year) &
+                                        (income_df['date_parsed'].dt.month == month)
+                                    ].copy()
+                                    if not period_income.empty:
+                                        period_income['year'] = year
+                                        period_income['month'] = month
+                                        all_income_data.append(period_income)
+                            except:
+                                pass
+                            
+                            # Get allocation data
+                            try:
+                                alloc_df = db.get_all_allocations(user_id, year, month)
+                                if not alloc_df.empty:
+                                    alloc_df['year'] = year
+                                    alloc_df['month'] = month
+                                    all_allocation_data.append(alloc_df)
+                            except:
+                                pass
+                    
+                    # Combine data
+                    combined_income_df = pd.concat(all_income_data) if all_income_data else pd.DataFrame()
+                    combined_alloc_df = pd.concat(all_allocation_data) if all_allocation_data else pd.DataFrame()
+                
+                # Calculate metrics
+                total_income = float(combined_income_df['amount'].apply(lambda x: float(x)).sum()) if not combined_income_df.empty else 0.0
+                total_allocated = float(combined_alloc_df["Allocated Amount"].sum()) if not combined_alloc_df.empty else 0.0
+                total_spent = float(combined_alloc_df["Spent Amount"].sum()) if not combined_alloc_df.empty else 0.0
+                total_balance = float(combined_alloc_df["Balance"].sum()) if not combined_alloc_df.empty else 0.0
+                remaining_liquidity = total_income - total_allocated
+                
+                # Display metrics
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("💰 Total Income", f"{config.CURRENCY_SYMBOL}{total_income:,.2f}")
+                with col2:
+                    st.metric("🎯 Total Allocated", f"{config.CURRENCY_SYMBOL}{total_allocated:,.2f}")
+                with col3:
+                    st.metric("💸 Total Spent", f"{config.CURRENCY_SYMBOL}{total_spent:,.2f}")
+                with col4:
+                    st.metric("💵 Liquidity", f"{config.CURRENCY_SYMBOL}{remaining_liquidity:,.2f}")
+                
+                st.divider()
+                
+                # Charts
+                if not combined_alloc_df.empty:
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.subheader("Allocation Breakdown")
+                        # Aggregate by category if multi-period
+                        if len(selected_years) > 1 or len(selected_months) > 1:
+                            agg_alloc = combined_alloc_df.groupby('Category').agg({
+                                'Allocated Amount': 'sum'
+                            }).reset_index()
+                            fig_pie = px.pie(
+                                agg_alloc,
+                                values="Allocated Amount",
+                                names="Category",
+                                hole=0.4
+                            )
+                        else:
+                            fig_pie = px.pie(
+                                combined_alloc_df,
+                                values="Allocated Amount",
+                                names="Category",
+                                hole=0.4
+                            )
+                        fig_pie.update_layout(height=350)
+                        st.plotly_chart(fig_pie, use_container_width=True)
+                    
+                    with col2:
+                        st.subheader("Spent vs Allocated")
+                        # Aggregate by category if multi-period
+                        if len(selected_years) > 1 or len(selected_months) > 1:
+                            agg_alloc = combined_alloc_df.groupby('Category').agg({
+                                'Allocated Amount': 'sum',
+                                'Spent Amount': 'sum'
+                            }).reset_index()
+                            fig_bar = go.Figure()
+                            fig_bar.add_trace(go.Bar(
+                                name="Allocated",
+                                x=agg_alloc["Category"],
+                                y=agg_alloc["Allocated Amount"],
+                                marker_color='lightblue'
+                            ))
+                            fig_bar.add_trace(go.Bar(
+                                name="Spent",
+                                x=agg_alloc["Category"],
+                                y=agg_alloc["Spent Amount"],
+                                marker_color='coral'
+                            ))
+                        else:
+                            fig_bar = go.Figure()
+                            fig_bar.add_trace(go.Bar(
+                                name="Allocated",
+                                x=combined_alloc_df["Category"],
+                                y=combined_alloc_df["Allocated Amount"],
+                                marker_color='lightblue'
+                            ))
+                            fig_bar.add_trace(go.Bar(
+                                name="Spent",
+                                x=combined_alloc_df["Category"],
+                                y=combined_alloc_df["Spent Amount"],
+                                marker_color='coral'
+                            ))
+                        fig_bar.update_layout(barmode='group', height=350)
+                        st.plotly_chart(fig_bar, use_container_width=True)
+                
+                # Allocation status table
+                st.subheader(f"📋 Allocation Status")
+                if not combined_alloc_df.empty:
+                    display_df = combined_alloc_df.copy()
+                    display_df["Allocated Amount"] = display_df["Allocated Amount"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
+                    display_df["Spent Amount"] = display_df["Spent Amount"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
+                    display_df["Balance"] = display_df["Balance"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
+                    
+                    # Show relevant columns based on selection
+                    if len(selected_years) > 1 or len(selected_months) > 1:
+                        # Show year/month columns for multi-period view
+                        display_cols = ['Category', 'year', 'month', 'Allocated Amount', 'Spent Amount', 'Balance']
+                    else:
+                        # Single period - hide year/month
+                        display_cols = ['Category', 'Allocated Amount', 'Spent Amount', 'Balance']
+                    
+                    display_df_filtered = display_df[[col for col in display_cols if col in display_df.columns]]
+                    st.dataframe(display_df_filtered, use_container_width=True, hide_index=True)
+                else:
+                    st.info("ℹ️ No allocation data found for selected period(s). Try different years/months or create allocations first!")
+
 
 
 
