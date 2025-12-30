@@ -636,7 +636,7 @@ class MultiUserDB:
                 household_id = cursor.lastrowid
            
             # Generate invite token for admin
-            invite_token = self._generate_token()
+            invite_token = self.generate_invite_token()
             
             # Create admin user with invite token (no password yet) - use RETURNING for PostgreSQL
             if self.use_postgres:
