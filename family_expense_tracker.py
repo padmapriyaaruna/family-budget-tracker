@@ -1851,10 +1851,19 @@ def show_super_admin_dashboard():
                                 )
                                 if success:
                                     st.success(f"✅ Member added to {selected_family_name}")
-                                    st.info(f"📧 Invite Token:\n`{invite_token}`")
-                                    st.caption("Share this token with the member")
+                                    with st.expander("📧 Member Invite Token - Click to view", expanded=True):
+                                        st.info(f"**Share this token with {member_name}:**")
+                                        st.code(invite_token, language=None)
+                                        st.caption("💡 Member needs this token to set up their password")
+                                        st.markdown("""
+                                        **Instructions to share:**
+                                        1. Share the app URL with the member
+                                        2. Click 'Password Setup' on landing page
+                                        3. Select 'New Password'
+                                        4. Paste token and create password
+                                        """)
                                     st.cache_data.clear()
-                                    st.rerun()
+                                    # Don't auto-rerun so user can copy token
                                 else:
                                     st.error(f"❌ {invite_token}")
                 
