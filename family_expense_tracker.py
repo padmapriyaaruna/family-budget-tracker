@@ -454,11 +454,16 @@ def show_admin_dashboard():
                     "👥 Family Members",
                     options=member_names,
                     default=st.session_state.filter_selected_members,
-                    key="member_filter"
+                    key="member_filter",
+                    help="Select one or more family members to view their financial data. Multiple selections show combined data (union)."
                 )
                 # Update session state
                 if selected_member_names:
                     st.session_state.filter_selected_members = selected_member_names
+                
+                # Show info if no members selected
+                if not selected_member_names:
+                    st.info("👥 Select family members to view their available periods")
             
             # Get selected member IDs
             selected_member_ids = [member_options[name] for name in selected_member_names] if selected_member_names else []
@@ -468,36 +473,42 @@ def show_admin_dashboard():
             available_years = available_data['years']
             available_months_by_year = available_data['months_by_year']
             
+            # Show warning if members selected but no data exists
+            if selected_member_ids and not available_years:
+                st.warning("⚠️ No financial data found for selected members. Add income, expenses, or allocations first.")
+            
             # Define year range
             current_year = datetime.now().year
             all_years = list(range(current_year - 5, current_year + 2))  # Last 5 years + next year
             
             with col2:
-                # Format year options with (No Data) suffix
+                # Format year options with visual prefix for unavailable years
                 year_options = []
                 year_mapping = {}
                 for year in all_years:
                     if year in available_years:
                         label = str(year)
                     else:
-                        label = f"{year} (No Data)"
+                        label = f"⊘ {year} (No Data)"
                     year_options.append(label)
                     year_mapping[label] = year
                 
                 # Get previously selected years that are still valid
-                prev_years_labels = [str(y) if y in available_years else f"{y} (No Data)" for y in st.session_state.filter_selected_years if y in all_years]
+                prev_years_labels = [str(y) if y in available_years else f"⊘ {y} (No Data)" for y in st.session_state.filter_selected_years if y in all_years]
                 if not prev_years_labels:
                     # Default to current year if available
                     if current_year in available_years:
                         prev_years_labels = [str(current_year)]
                     elif available_years:
-                        prev_years_labels = [str(sorted(available_years)[0])]
+                        # Default to most recent year with data
+                        prev_years_labels = [str(max(available_years))]
                 
                 selected_year_labels = st.multiselect(
                     "📅 Years",
                     options=year_options,
                     default=prev_years_labels,
-                    key="year_filter"
+                    key="year_filter",
+                    help="Select years to view. Options marked with ⊘ have no data for selected members."
                 )
                 
                 # Parse selected years
@@ -505,13 +516,13 @@ def show_admin_dashboard():
                 st.session_state.filter_selected_years = selected_years
             
             with col3:
-                # Get available months for selected years
+                # Get available months for selected years (union of all months across selected years)
                 available_months_for_selection = set()
                 for year in selected_years:
                     if year in available_months_by_year:
                         available_months_for_selection.update(available_months_by_year[year])
                 
-                # Format month options
+                # Format month options with visual prefix for unavailable months
                 import calendar
                 all_months = list(range(1, 13))
                 month_options = []
@@ -521,25 +532,31 @@ def show_admin_dashboard():
                     if month in available_months_for_selection:
                         label = month_name
                     else:
-                        label = f"{month_name} (No Data)"
+                        label = f"⊘ {month_name} (No Data)"
                     month_options.append(label)
                     month_mapping[label] = month
                 
                 # Get previously selected months that are still valid
                 prev_months_labels = [
-                    calendar.month_name[m] if m in available_months_for_selection else f"{calendar.month_name[m]} (No Data)"
+                    calendar.month_name[m] if m in available_months_for_selection else f"⊘ {calendar.month_name[m]} (No Data)"
                     for m in st.session_state.filter_selected_months if 1 <= m <= 12
                 ]
                 if not prev_months_labels and available_months_for_selection:
-                    # Default to first available month
-                    first_month = sorted(available_months_for_selection)[0]
-                    prev_months_labels = [calendar.month_name[first_month]]
+                    # Default to current month if available, otherwise most recent
+                    current_month = datetime.now().month
+                    if current_month in available_months_for_selection:
+                        prev_months_labels = [calendar.month_name[current_month]]
+                    else:
+                        # Default to most recent available month
+                        latest_month = max(available_months_for_selection)
+                        prev_months_labels = [calendar.month_name[latest_month]]
                 
                 selected_month_labels = st.multiselect(
                     "📆 Months",
                     options=month_options,
                     default=prev_months_labels,
-                    key="month_filter"
+                    key="month_filter",
+                    help="Select months to view. Options marked with ⊘ have no data for selected members and years."
                 )
                 
                 # Parse selected months
@@ -552,42 +569,44 @@ def show_admin_dashboard():
             if not selected_member_ids or not selected_years or not selected_months:
                 st.warning("⚠️ Please select at least one member, year, and month to view data.")
             else:
-                # Collect data for all selected combinations
-                all_income_data = []
-                all_allocation_data = []
-                
-                for member_id in selected_member_ids:
-                    for year in selected_years:
-                        for month in selected_months:
-                            # Get income data
-                            try:
-                                income_df = db.get_income_with_ids(member_id)
-                                if not income_df.empty:
-                                    income_df['date_parsed'] = pd.to_datetime(income_df['date'])
-                                    period_income = income_df[
-                                        (income_df['date_parsed'].dt.year == year) &
-                                        (income_df['date_parsed'].dt.month == month)
-                                    ].copy()
-                                    if not period_income.empty:
-                                        period_income['member_id'] = member_id
-                                        period_income['member_name'] = [name for name, mid in member_options.items() if mid == member_id][0]
-                                        period_income['year'] = year
-                                        period_income['month'] = month
-                                        all_income_data.append(period_income)
-                            except:
-                                pass
-                            
-                            # Get allocation data
-                            try:
-                                alloc_df = db.get_all_allocations(member_id, year, month)
-                                if not alloc_df.empty:
-                                    alloc_df['member_id'] = member_id
-                                    alloc_df['member_name'] = [name for name, mid in member_options.items() if mid == member_id][0]
-                                    alloc_df['year'] = year
-                                    alloc_df['month'] = month
-                                    all_allocation_data.append(alloc_df)
-                            except:
-                                pass
+                # Use spinner for data loading
+                with st.spinner('🔄 Loading filtered data...'):
+                    # Collect data for all selected combinations
+                    all_income_data = []
+                    all_allocation_data = []
+                    
+                    for member_id in selected_member_ids:
+                        for year in selected_years:
+                            for month in selected_months:
+                                # Get income data
+                                try:
+                                    income_df = db.get_income_with_ids(member_id)
+                                    if not income_df.empty:
+                                        income_df['date_parsed'] = pd.to_datetime(income_df['date'])
+                                        period_income = income_df[
+                                            (income_df['date_parsed'].dt.year == year) &
+                                            (income_df['date_parsed'].dt.month == month)
+                                        ].copy()
+                                        if not period_income.empty:
+                                            period_income['member_id'] = member_id
+                                            period_income['member_name'] = [name for name, mid in member_options.items() if mid == member_id][0]
+                                            period_income['year'] = year
+                                            period_income['month'] = month
+                                            all_income_data.append(period_income)
+                                except:
+                                    pass
+                                
+                                # Get allocation data
+                                try:
+                                    alloc_df = db.get_all_allocations(member_id, year, month)
+                                    if not alloc_df.empty:
+                                        alloc_df['member_id'] = member_id
+                                        alloc_df['member_name'] = [name for name, mid in member_options.items() if mid == member_id][0]
+                                        alloc_df['year'] = year
+                                        alloc_df['month'] = month
+                                        all_allocation_data.append(alloc_df)
+                                except:
+                                    pass
                 
                 # Combine data
                 combined_income_df = pd.concat(all_income_data) if all_income_data else pd.DataFrame()
