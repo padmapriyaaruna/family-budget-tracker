@@ -641,16 +641,16 @@ class MultiUserDB:
             # Create admin user with invite token (no password yet) - use RETURNING for PostgreSQL
             if self.use_postgres:
                 self._execute(cursor, '''
-                    INSERT INTO users (household_id, email, full_name, role, relationship, is_active, pending_invite, invite_token)
-                    VALUES (?, ?, ?, 'admin', 'self', ?, ?, ?)
+                    INSERT INTO users (household_id, email, full_name, role, relationship, is_active, invite_token)
+                    VALUES (?, ?, ?, 'admin', 'self', ?, ?)
                     RETURNING id
-                ''', (household_id, admin_email, admin_name, is_active_value, True if self.use_postgres else 1, invite_token))
+                ''', (household_id, admin_email, admin_name, is_active_value, invite_token))
                 admin_id = cursor.fetchone()['id']
             else:
                 self._execute(cursor, '''
-                    INSERT INTO users (household_id, email, full_name, role, relationship, is_active, pending_invite, invite_token)
-                    VALUES (?, ?, ?, 'admin', 'self', ?, ?, ?)
-                ''', (household_id, admin_email, admin_name, is_active_value, 1, invite_token))
+                    INSERT INTO users (household_id, email, full_name, role, relationship, is_active, invite_token)
+                    VALUES (?, ?, ?, 'admin', 'self', ?, ?)
+                ''', (household_id, admin_email, admin_name, is_active_value, invite_token))
                 admin_id = cursor.lastrowid
             
             # Update household created_by
