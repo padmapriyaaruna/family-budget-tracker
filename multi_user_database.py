@@ -616,15 +616,15 @@ class MultiUserDB:
             traceback.print_exc()
             return pd.DataFrame()
     
-    def create_household_with_admin(self, household_name, admin_email, admin_name, admin_password):
-        """Super admin creates a new household with a family admin"""
+    def create_household_with_admin(self, household_name, admin_email, admin_name):
+        """Super admin creates a new household with a family admin (using invite token)"""
         try:
             cursor = self.conn.cursor()
             
             # Check if email already exists
             self._execute(cursor, 'SELECT id FROM users WHERE email = ?', (admin_email,))
             if cursor.fetchone():
-                return (False, None, "Email already exists")
+                return (False, None, None, "Email already exists")
             
             # Create household - use RETURNING for PostgreSQL
             is_active_value = True if self.use_postgres else 1
@@ -635,31 +635,33 @@ class MultiUserDB:
                 self._execute(cursor, 'INSERT INTO households (name, is_active) VALUES (?, ?)', (household_name, is_active_value))
                 household_id = cursor.lastrowid
            
-            # Create admin user - use RETURNING for PostgreSQL
-            password_hash = self._hash_password(admin_password)
+            # Generate invite token for admin
+            invite_token = self._generate_token()
+            
+            # Create admin user with invite token (no password yet) - use RETURNING for PostgreSQL
             if self.use_postgres:
                 self._execute(cursor, '''
-                    INSERT INTO users (household_id, email, password_hash, full_name, role, relationship, is_active)
-                    VALUES (?, ?, ?, ?, 'admin', 'self', ?)
+                    INSERT INTO users (household_id, email, full_name, role, relationship, is_active, pending_invite, invite_token)
+                    VALUES (?, ?, ?, 'admin', 'self', ?, ?, ?)
                     RETURNING id
-                ''', (household_id, admin_email, password_hash, admin_name, is_active_value))
+                ''', (household_id, admin_email, admin_name, is_active_value, True if self.use_postgres else 1, invite_token))
                 admin_id = cursor.fetchone()['id']
             else:
                 self._execute(cursor, '''
-                    INSERT INTO users (household_id, email, password_hash, full_name, role, relationship, is_active)
-                    VALUES (?, ?, ?, ?, 'admin', 'self', ?)
-                ''', (household_id, admin_email, password_hash, admin_name, is_active_value))
+                    INSERT INTO users (household_id, email, full_name, role, relationship, is_active, pending_invite, invite_token)
+                    VALUES (?, ?, ?, 'admin', 'self', ?, ?, ?)
+                ''', (household_id, admin_email, admin_name, is_active_value, 1, invite_token))
                 admin_id = cursor.lastrowid
             
             # Update household created_by
             self._execute(cursor, 'UPDATE households SET created_by = ? WHERE id = ?', (admin_id, household_id))
             
             self.conn.commit()
-            return (True, household_id, f"Household '{household_name}' created successfully")
+            return (True, household_id, invite_token, f"Household '{household_name}' created successfully")
         except Exception as e:
             self.conn.rollback()
             print(f"Error creating household: {str(e)}")
-            return (False, None, str(e))
+            return (False, None, None, str(e))
     
     def toggle_household_status(self, household_id):
         """Enable/disable a household"""

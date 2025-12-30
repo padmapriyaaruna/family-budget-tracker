@@ -196,9 +196,33 @@ def show_landing_page():
             st.session_state.login_page = 'member'
             st.rerun()
         
-        if st.button("🔑 Member Password Setup", use_container_width=True, key="btn_setup"):
-            st.session_state.login_page = 'setup'
-            st.rerun()
+        # Password Setup with submenu
+        if 'password_setup_menu' not in st.session_state:
+            st.session_state.password_setup_menu = False
+        
+        if not st.session_state.password_setup_menu:
+            if st.button("🔑 Password Setup", use_container_width=True, key="btn_setup"):
+                st.session_state.password_setup_menu = True
+                st.rerun()
+        else:
+            st.markdown("---")
+            st.markdown("#### Password Management")
+            st.markdown("")
+            
+            col_a, col_b = st.columns(2)
+            with col_a:
+                if st.button("🆕 New Password", use_container_width=True, key="btn_new_pwd", help="Set up password for new users"):
+                    st.session_state.login_page = 'setup'
+                    st.session_state.password_setup_menu = False
+                    st.rerun()
+            
+            with col_b:
+                st.button("🔄 Reset Password", use_container_width=True, key="btn_reset_pwd", disabled=True, help="Coming soon")
+            
+            st.markdown("")
+            if st.button("← Back", use_container_width=True, key="btn_back_setup"):
+                st.session_state.password_setup_menu = False
+                st.rerun()
 
 
 
@@ -1682,31 +1706,35 @@ def show_super_admin_dashboard():
         with col1:
             st.subheader("➕ Create New Family")
             
-            with st.form("create_household_form"):
+            with st.form("create_household_form", clear_on_submit=True):
                 household_name = st.text_input("Family/Household Name", placeholder="e.g., Smith Family")
                 admin_name = st.text_input("Family Admin Name")
                 admin_email = st.text_input("Family Admin Email")
-                admin_password = st.text_input("Admin Password", type="password")
-                confirm_password = st.text_input("Confirm Password", type="password")
                 
                 create_btn = st.form_submit_button("Create Family", use_container_width=True)
                 
                 if create_btn:
-                    if not all([household_name, admin_name, admin_email, admin_password]):
+                    if not all([household_name, admin_name, admin_email]):
                         st.error("Please fill all fields")
-                    elif admin_password != confirm_password:
-                        st.error("Passwords do not match")
-                    elif len(admin_password) < 6:
-                        st.error("Password must be at least 6 characters")
                     else:
-                        success, household_id, message = db.create_household_with_admin(
-                            household_name, admin_email, admin_name, admin_password
+                        success, household_id, invite_token, message = db.create_household_with_admin(
+                            household_name, admin_email, admin_name
                         )
                         if success:
                             st.success(f"✅ {message}")
-                            st.info(f"📧 Family admin can now login with:\nEmail: {admin_email}\nPassword: {admin_password}")
+                            with st.expander("📧 Admin Invite Token - Click to view", expanded=True):
+                                st.info(f"**Share this token with {admin_name}:**")
+                                st.code(invite_token, language=None)
+                                st.caption("💡 Admin needs this token to set up their password")
+                                st.markdown("""
+                                **Instructions to share:**
+                                1. Share the app URL with the admin
+                                2. Click 'Password Setup' on landing page
+                                3. Select 'New Password'
+                                4. Paste token and create password
+                                """)
                             st.cache_data.clear()
-                            st.rerun()
+                            # Don't auto-rerun so user can copy token
                         else:
                             st.error(f"❌ {message}")
         
