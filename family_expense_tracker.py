@@ -850,6 +850,28 @@ def show_admin_dashboard():
                                         if st.button("✗", key=f"no_{member['id']}"):
                                             st.session_state.pop(f'confirm_delete_{member["id"]}')
                                             st.rerun()
+                            else:
+                                # Admin user - show message
+                                st.caption("Admins cannot be deleted")
+                            
+                            # Reset Password Button (for all members including admins)
+                            if st.button("🔄 Reset Password", key=f"reset_pwd_fam_{member['id']}", use_container_width=True):
+                                success, new_token, message = db.reset_user_password(member['id'])
+                                if success:
+                                    st.success("✅ Password reset successfully!")
+                                    with st.expander("🔑 New Invite Token - Click to view", expanded=True):
+                                        st.info(f"**Share this token with {member['full_name']}:**")
+                                        st.code(new_token, language=None)
+                                        st.caption("💡 User must use Password Setup → New Password to set their password")
+                                        st.markdown("""
+                                        **Instructions:**
+                                        1. Share token with user
+                                        2. User clicks Password Setup → New Password
+                                        3. User pastes token and creates new password
+                                        """)
+                                    st.cache_data.clear()
+                                else:
+                                    st.error(f"❌ {message}")
                         
                         st.divider()
             else:
@@ -1929,6 +1951,25 @@ def show_super_admin_dashboard():
                                                 help="Demote admin first before deletion",
                                                 use_container_width=True
                                             )
+                                            
+                                            # Reset Password Button
+                                            if st.button("🔄 Reset Password", key=f"reset_pwd_{user_id}", use_container_width=True):
+                                                success, new_token, message = db.reset_user_password(user_id)
+                                                if success:
+                                                    st.success("✅ Password reset successfully!")
+                                                    with st.expander("🔑 New Invite Token - Click to view", expanded=True):
+                                                        st.info(f"**Share this token with {user['full_name']}:**")
+                                                        st.code(new_token, language=None)
+                                                        st.caption("💡 User must use Password Setup → New Password to set their password")
+                                                        st.markdown("""
+                                                        **Instructions:**
+                                                        1. Share token with user
+                                                        2. User clicks Password Setup → New Password
+                                                        3. User pastes token and creates new password
+                                                        """)
+                                                    st.cache_data.clear()
+                                                else:
+                                                    st.error(f"❌ {message}")
                                         else:
                                             # REGULAR MEMBER: Show Make Admin + Delete (enabled)
                                             
@@ -1964,6 +2005,25 @@ def show_super_admin_dashboard():
                                                     if st.button("✗ No", key=f"no_del_{user_id}"):
                                                         st.session_state.pop(f'confirm_delete_member_{user_id}')
                                                         st.rerun()
+                                            
+                                            # Reset Password Button
+                                            if st.button("🔄 Reset Password", key=f"reset_pwd_member_{user_id}", use_container_width=True):
+                                                success, new_token, message = db.reset_user_password(user_id)
+                                                if success:
+                                                    st.success("✅ Password reset successfully!")
+                                                    with st.expander("🔑 New Invite Token - Click to view", expanded=True):
+                                                        st.info(f"**Share this token with {user['full_name']}:**")
+                                                        st.code(new_token, language=None)
+                                                        st.caption("💡 User must use Password Setup → New Password to set their password")
+                                                        st.markdown("""
+                                                        **Instructions:**
+                                                        1. Share token with user
+                                                        2. User clicks Password Setup → New Password
+                                                        3. User pastes token and creates new password
+                                                        """)
+                                                    st.cache_data.clear()
+                                                else:
+                                                    st.error(f"❌ {message}")
                                     
                                     st.divider()
                         else:

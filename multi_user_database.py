@@ -834,6 +834,32 @@ class MultiUserDB:
             print(f"Error counting admins: {str(e)}")
             return 0
     
+    def reset_user_password(self, user_id):
+        """Reset user password and generate new invite token (for admins to force password reset)"""
+        try:
+            cursor = self.conn.cursor()
+            
+            # Generate new invite token
+            new_token = self.generate_invite_token()
+            
+            # Generate temp password (user must use token to set real password)
+            temp_password = secrets.token_urlsafe(16)
+            password_hash = self._hash_password(temp_password)
+            
+            # Update user with new token and temp password (invalidates old password)
+            self._execute(cursor, '''
+                UPDATE users 
+                SET password_hash = ?, invite_token = ?
+                WHERE id = ?
+            ''', (password_hash, new_token, user_id))
+            
+            self.conn.commit()
+            return (True, new_token, "Password reset successfully")
+        except Exception as e:
+            self.conn.rollback()
+            print(f"Error resetting password: {str(e)}")
+            return (False, None, str(e))
+    
     def add_member_to_family_super_admin(self, household_id, email, full_name, relationship):
         """Super admin adds a new member to a family"""
         try:
