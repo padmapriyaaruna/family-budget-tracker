@@ -441,7 +441,10 @@ If results are empty, say "No data found for this query."
             return response
             
         except Exception as e:
-            return f"I encountered an issue retrieving your data. Please try rephrasing your question or contact support if the problem persists."
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"🔍 DEBUG - Exception: {error_trace}")
+            return f"I encountered an issue retrieving your data.\n\n[DEBUG Error: {str(e)}]"
     
     def _handle_general_query(self, query: str, system_instruction: str) -> str:
         """Handle general questions using RAG document retrieval"""
