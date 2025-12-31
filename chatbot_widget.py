@@ -6,20 +6,33 @@ import streamlit as st
 import streamlit.components.v1 as components
 from typing import List, Dict
 import config
-from chatbot_engine import ChatbotEngine
+
+# Try to import chatbot engine - fail gracefully if not available
+try:
+    from chatbot_engine import ChatbotEngine
+    CHATBOT_AVAILABLE = True
+except ImportError as e:
+    CHATBOT_AVAILABLE = False
+    print(f"⚠️ Chatbot engine not available: {e}")
+except Exception as e:
+    CHATBOT_AVAILABLE = False
+    print(f"⚠️ Error importing chatbot engine: {e}")
 
 
 # Initialize chatbot engine
 @st.cache_resource
 def get_chatbot_engine():
     """Initialize and cache the chatbot engine"""
+    if not CHATBOT_AVAILABLE:
+        return None
+    
     try:
         return ChatbotEngine(
             docs_directory=config.CHATBOT_DOCS_DIR,
             api_key=config.GEMINI_API_KEY
         )
     except Exception as e:
-        st.error(f"⚠️ Chatbot initialization error: {e}")
+        print(f"⚠️ Chatbot initialization error: {e}")
         return None
 
 
@@ -363,7 +376,15 @@ def render_chatbot_widget(db_connection):
 
 def render_chatbot_sidebar():
     """Render chatbot toggle in sidebar (alternative placement)"""
+    # Early return if chatbot not available
+    if not CHATBOT_AVAILABLE:
+        return
+    
     if not st.session_state.get('logged_in', False) or not config.CHATBOT_ENABLED:
+        return
+    
+    # Check if API key is configured
+    if not config.GEMINI_API_KEY:
         return
     
     with st.sidebar:
