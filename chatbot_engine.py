@@ -25,8 +25,8 @@ class LLMClient:
         
         # Initialize with old but working API
         genai.configure(api_key=self.api_key)
-        # Use original stable Gemini Pro model (works with free tier)
-        self.model = genai.GenerativeModel('gemini-pro')
+        # Use same model name as JavaScript SDK
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
         self.chat_session = None
     
     def generate_response(self, prompt: str, system_instruction: str = "") -> str:
