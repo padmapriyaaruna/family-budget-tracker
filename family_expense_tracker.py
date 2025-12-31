@@ -2244,6 +2244,9 @@ def main():
     else:
         user = st.session_state.user
         
+        # VERSION MARKER - to confirm new code is deployed
+        st.write("🔴 **CODE VERSION: 2026-01-01-02:47 - If you see this, new code is running**")
+        
         # Render chatbot widget in sidebar (only when logged in)
         # TEMPORARILY DISABLED FOR DEBUGGING
         # render_chatbot_sidebar()
@@ -2251,6 +2254,7 @@ def main():
         # TEST: Show something in sidebar to prove it works
         st.sidebar.write("### TEST SIDEBAR")
         st.sidebar.write("If you see this, sidebar is working!")
+        st.sidebar.write(f"Sidebar state: expanded")
         
         # Route to appropriate dashboard
         if user['role'] == 'superadmin':
