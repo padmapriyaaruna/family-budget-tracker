@@ -1072,6 +1072,48 @@ class MultiUserDB:
             print(f"Error fetching categories: {str(e)}")
             return []
     
+    def get_past_allocations(self, user_id, exclude_year, exclude_month):
+        """Get distinct allocation categories from past 6 months (excluding current period)"""
+        try:
+            from datetime import datetime, timedelta
+            cursor = self.conn.cursor()
+            
+            # Calculate date 6 months ago
+            current_date = datetime(exclude_year, exclude_month, 1)
+            six_months_ago = current_date - timedelta(days=180)
+            
+            # Get allocations from past 6 months, excluding current period
+            self._execute(cursor, '''
+                SELECT DISTINCT category, allocated_amount, year, month
+                FROM allocations
+                WHERE user_id = ?
+                  AND NOT (year = ? AND month = ?)
+                  AND ((year > ?) OR (year = ? AND month >= ?))
+                ORDER BY year DESC, month DESC, category
+            ''', (user_id, 
+                  exclude_year, exclude_month,
+                  six_months_ago.year, six_months_ago.year, six_months_ago.month))
+            
+            results = cursor.fetchall()
+            
+            # Get unique categories (most recent occurrence)
+            seen_categories = set()
+            unique_allocations = []
+            for row in results:
+                if row['category'] not in seen_categories:
+                    unique_allocations.append({
+                        'category': row['category'],
+                        'amount': float(row['allocated_amount'])
+                    })
+                    seen_categories.add(row['category'])
+            
+            return unique_allocations
+        except Exception as e:
+            print(f"Error getting past allocations: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return []
+    
     def get_allocations_with_ids(self, user_id, year=None, month=None):
         """Get all allocations with IDs for editing, optionally filtered by period"""
         try:
