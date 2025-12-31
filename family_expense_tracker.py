@@ -9,7 +9,21 @@ import plotly.graph_objects as go
 from datetime import datetime, date
 from multi_user_database import MultiUserDB
 import config
-from chatbot_widget import render_chatbot_sidebar
+
+# Try to import chatbot widget - fail gracefully if not available
+try:
+    from chatbot_widget import render_chatbot_sidebar
+    print("✅ Chatbot widget imported successfully")
+except ImportError as e:
+    print(f"⚠️ Chatbot widget not available (ImportError): {e}")
+    # Create dummy function
+    def render_chatbot_sidebar():
+        pass
+except Exception as e:
+    print(f"⚠️ Chatbot widget import error: {e}")
+    # Create dummy function
+    def render_chatbot_sidebar():
+        pass
 
 # Page configuration
 st.set_page_config(
