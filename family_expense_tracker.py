@@ -10,20 +10,16 @@ from datetime import datetime, date
 from multi_user_database import MultiUserDB
 import config
 
-# Try to import chatbot widget - fail gracefully if not available
+# Try to import debug chatbot widget
 try:
-    from chatbot_widget import render_chatbot_sidebar
-    print("✅ Chatbot widget imported successfully")
-except ImportError as e:
-    print(f"⚠️ Chatbot widget not available (ImportError): {e}")
-    # Create dummy function
-    def render_chatbot_sidebar():
-        pass
+    from chatbot_widget_debug import render_chatbot_sidebar_debug as render_chatbot_sidebar
+    print("✅ Debug chatbot widget imported")
 except Exception as e:
-    print(f"⚠️ Chatbot widget import error: {e}")
-    # Create dummy function
+    print(f"⚠️ Debug widget error: {e}")
     def render_chatbot_sidebar():
-        pass
+        import streamlit as st
+        with st.sidebar:
+            st.error(f"Chatbot import failed: {e}")
 
 # Page configuration
 st.set_page_config(
