@@ -7,8 +7,7 @@ import re
 import json
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 
 
 class LLMClient:
@@ -24,48 +23,33 @@ class LLMClient:
                 "environment variable. Get your key from: https://makersuite.google.com/app/apikey"
             )
         
-        # Initialize client with new API
-        self.client = genai.Client(api_key=self.api_key)
-        # Use full model path for new API
-        self.model_name = 'models/gemini-1.5-flash'
-        self.chat_history = []
+        # Initialize with old but working API
+        genai.configure(api_key=self.api_key)
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.chat_session = None
     
     def generate_response(self, prompt: str, system_instruction: str = "") -> str:
         """Generate a response from Gemini with optional system instruction"""
         try:
             full_prompt = f"{system_instruction}\n\n{prompt}" if system_instruction else prompt
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=full_prompt
-            )
+            response = self.model.generate_content(full_prompt)
             return response.text
         except Exception as e:
             return f"⚠️ Error communicating with AI: {str(e)}"
     
     def start_chat(self, system_instruction: str = ""):
         """Start a chat session with context"""
-        self.chat_history = []
+        self.chat_session = self.model.start_chat(history=[])
         if system_instruction:
-            self.chat_history.append({"role": "user", "parts": [f"SYSTEM: {system_instruction}"]})
+            self.chat_session.send_message(f"SYSTEM: {system_instruction}")
     
     def send_message(self, message: str) -> str:
         """Send a message in ongoing chat session"""
-        if not self.chat_history:
+        if not self.chat_session:
             self.start_chat()
         
         try:
-            # Add user message
-            self.chat_history.append({"role": "user", "parts": [message]})
-            
-            # Generate response with history
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=self.chat_history
-            )
-            
-            # Add AI response to history
-            self.chat_history.append({"role": "model", "parts": [response.text]})
-            
+            response = self.chat_session.send_message(message)
             return response.text
         except Exception as e:
             return f"⚠️ Error: {str(e)}"
