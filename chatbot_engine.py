@@ -236,49 +236,39 @@ If the query is not possible or violates security rules, return: "UNSAFE_QUERY"
         sql_query = sql_response.strip()
         
         # Validate the query
-        if not self._is_safe_query(sql_query, user_id, family_id, role):
-            return "UNSAFE_QUERY", "This query violates security rules."
+        is_safe, debug_msg = self._is_safe_query(sql_query, user_id, family_id, role)
+        if not is_safe:
+            return "UNSAFE_QUERY", f"Security validation failed: {debug_msg}. SQL was: {sql_query[:200]}"
         
         return sql_query, "SQL query generated successfully"
     
-    def _is_safe_query(self, sql: str, user_id: int, family_id: int, role: str) -> bool:
-        """Validate SQL query for safety"""
-        print(f"🔍 DEBUG _is_safe_query - SQL: {sql[:100]}...")
-        print(f"🔍 DEBUG _is_safe_query - Role: {role}, User ID: {user_id}")
+    def _is_safe_query(self, sql: str, user_id: int, family_id: int, role: str) -> tuple[bool, str]:
+        """Validate SQL query for safety. Returns (is_safe, debug_message)"""
         
         if sql == "UNSAFE_QUERY":
-            print("🔍 DEBUG - SQL is literal 'UNSAFE_QUERY' from LLM")
-            return False
+            return False, "LLM returned 'UNSAFE_QUERY'"
         
         sql_upper = sql.upper()
         
         # Must be SELECT only
         if not sql_upper.strip().startswith("SELECT"):
-            print("🔍 DEBUG - Not a SELECT query")
-            return False
+            return False, "Not a SELECT query"
         
         # Block dangerous operations
         dangerous_keywords = ["DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "TRUNCATE", "EXECUTE"]
-        if any(keyword in sql_upper for keyword in dangerous_keywords):
-            print(f"🔍 DEBUG - Contains dangerous keyword")
-            return False
+        for keyword in dangerous_keywords:
+            if keyword in sql_upper:
+                return False, f"Contains dangerous keyword: {keyword}"
         
         # For members: Must have WHERE clause restricting to their user_id
         if role == 'member':
             if "WHERE" not in sql_upper:
-                print("🔍 DEBUG - Member query missing WHERE clause")
-                return False
-            # Should contain user_id restriction
+                return False, "Member query missing WHERE clause"
             if f"USER_ID = {user_id}" not in sql_upper and f"USER_ID={user_id}" not in sql_upper:
-                print(f"🔍 DEBUG - Member query missing user_id={user_id} restriction")
-                return False
+                return False, f"Member query missing user_id={user_id} restriction"
         
-        # For admin/superadmin: Just need household_id in most cases
-        # But we'll be lenient and trust the LLM prompt instructions
-        # The LLM was instructed to add household_id filter
-        
-        print("🔍 DEBUG - Query passed all validations")
-        return True
+        # Admin/superadmin: Allow queries without strict user_id restriction
+        return True, "Passed all validations"
 
 
 class ChatbotEngine:
@@ -421,8 +411,8 @@ If asked about non-budget topics, politely redirect:
             print(f"🔍 DEBUG - SQL: {sql_query}")
             
             if sql_query == "UNSAFE_QUERY":
-                print(f"🔍 DEBUG - Query blocked as UNSAFE")
-                return f"I cannot process this query due to security restrictions. Please ask about your own expense or income data.\n\n[DEBUG: Role={role}, Blocked as UNSAFE]"
+                print(f"🔍 DEBUG - Query blocked: {explanation}")
+                return f"I cannot process this query due to security restrictions.\n\n[DEBUG: {explanation}]"
             
             # Execute query
             cursor = db_connection.cursor()
