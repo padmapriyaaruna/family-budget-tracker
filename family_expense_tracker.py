@@ -1154,11 +1154,11 @@ def show_member_expense_tracking(user_id):
                         month = st.session_state.budget_month
                         
                         if db.add_allocation(user_id, alloc_category, alloc_amount, year, month):
-                        st.success(f"✅ Created allocation: {alloc_category} for {period_display}")
-                        st.cache_resource.clear()
-                        st.rerun()
-                    else:
-                        st.error(f"Category '{alloc_category}' already exists for {period_display}!")
+                            st.success(f"✅ Created allocation: {alloc_category} for {period_display}")
+                            st.cache_resource.clear()
+                            st.rerun()
+                        else:
+                            st.error(f"Category '{alloc_category}' already exists for {period_display}!")
         
         with col2:
             st.subheader(f"Allocations for {period_display}")
