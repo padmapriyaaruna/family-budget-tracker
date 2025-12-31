@@ -243,32 +243,41 @@ If the query is not possible or violates security rules, return: "UNSAFE_QUERY"
     
     def _is_safe_query(self, sql: str, user_id: int, family_id: int, role: str) -> bool:
         """Validate SQL query for safety"""
+        print(f"🔍 DEBUG _is_safe_query - SQL: {sql[:100]}...")
+        print(f"🔍 DEBUG _is_safe_query - Role: {role}, User ID: {user_id}")
+        
         if sql == "UNSAFE_QUERY":
+            print("🔍 DEBUG - SQL is literal 'UNSAFE_QUERY' from LLM")
             return False
         
         sql_upper = sql.upper()
         
         # Must be SELECT only
         if not sql_upper.strip().startswith("SELECT"):
+            print("🔍 DEBUG - Not a SELECT query")
             return False
         
         # Block dangerous operations
         dangerous_keywords = ["DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "TRUNCATE", "EXECUTE"]
         if any(keyword in sql_upper for keyword in dangerous_keywords):
+            print(f"🔍 DEBUG - Contains dangerous keyword")
             return False
         
         # For members: Must have WHERE clause restricting to their user_id
         if role == 'member':
             if "WHERE" not in sql_upper:
+                print("🔍 DEBUG - Member query missing WHERE clause")
                 return False
             # Should contain user_id restriction
             if f"USER_ID = {user_id}" not in sql_upper and f"USER_ID={user_id}" not in sql_upper:
+                print(f"🔍 DEBUG - Member query missing user_id={user_id} restriction")
                 return False
         
         # For admin/superadmin: Just need household_id in most cases
         # But we'll be lenient and trust the LLM prompt instructions
         # The LLM was instructed to add household_id filter
         
+        print("🔍 DEBUG - Query passed all validations")
         return True
 
 
