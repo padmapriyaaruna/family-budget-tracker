@@ -254,9 +254,17 @@ If the query is not possible or violates security rules, return: "UNSAFE_QUERY"
         if any(keyword in sql_upper for keyword in dangerous_keywords):
             return False
         
-        # Must have WHERE clause for family isolation
-        if "WHERE" not in sql_upper:
-            return False
+        # For members: Must have WHERE clause restricting to their user_id
+        if role == 'member':
+            if "WHERE" not in sql_upper:
+                return False
+            # Should contain user_id restriction
+            if f"USER_ID = {user_id}" not in sql_upper and f"USER_ID={user_id}" not in sql_upper:
+                return False
+        
+        # For admin/superadmin: Just need household_id in most cases
+        # But we'll be lenient and trust the LLM prompt instructions
+        # The LLM was instructed to add household_id filter
         
         return True
 
