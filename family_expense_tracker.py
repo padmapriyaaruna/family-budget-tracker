@@ -2245,16 +2245,34 @@ def main():
         user = st.session_state.user
         
         # VERSION MARKER - to confirm new code is deployed
-        st.write("🔴 **CODE VERSION: 2026-01-01-02:47 - If you see this, new code is running**")
+        st.write("🔴 **CODE VERSION: 2026-01-01-03:00 - CHATBOT IN MAIN AREA**")
         
-        # Render chatbot widget in sidebar (only when logged in)
-        # TEMPORARILY DISABLED FOR DEBUGGING
-        # render_chatbot_sidebar()
-        
-        # TEST: Show something in sidebar to prove it works
-        st.sidebar.write("### TEST SIDEBAR")
-        st.sidebar.write("If you see this, sidebar is working!")
-        st.sidebar.write(f"Sidebar state: expanded")
+        # WORKAROUND: Put chatbot in MAIN area since sidebar won't show
+        with st.expander("🤖 **Budget Assistant Chatbot** (Click to expand)", expanded=False):
+            st.write("**Welcome to your Budget Assistant!**")
+            st.write("This is a temporary location. Sidebar integration is being debugged.")
+            st.write("")
+            
+            # Initialize chat state
+            if 'temp_chat_msgs' not in st.session_state:
+                st.session_state.temp_chat_msgs = []
+            
+            # Chat input
+            user_question = st.text_input("Ask me anything about your budget:", key="temp_chat_input")
+            
+            if st.button("Send", key="temp_send_btn"):
+                if user_question:
+                    # Add user message
+                    st.session_state.temp_chat_msgs.append(("You", user_question))
+                    # Simple response for now
+                    st.session_state.temp_chat_msgs.append(("Assistant", f"You asked: '{user_question}'. Full AI integration coming soon!"))
+            
+            # Show chat history
+            for role, msg in st.session_state.temp_chat_msgs[-5:]:
+                if role == "You":
+                    st.info(f"**{role}:** {msg}")
+                else:
+                    st.success(f"**{role}:** {msg}")
         
         # Route to appropriate dashboard
         if user['role'] == 'superadmin':
