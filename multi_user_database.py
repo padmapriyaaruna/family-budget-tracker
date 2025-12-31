@@ -937,17 +937,6 @@ class MultiUserDB:
             traceback.print_exc()
             return pd.DataFrame(columns=["Date", "Source", "Amount"])
     
-    def get_total_income(self, user_id):
-        """Calculate total income for a user"""
-        try:
-            cursor = self.conn.cursor()
-            self._execute(cursor, 'SELECT SUM(amount) as total FROM income WHERE user_id = ?', (user_id,))
-            result = cursor.fetchone()
-            return result['total'] if result['total'] else 0
-        except Exception as e:
-            print(f"Error calculating total income: {str(e)}")
-            return 0
-    
     def get_income_with_ids(self, user_id):
         """Get all income entries with IDs for editing"""
         try:
