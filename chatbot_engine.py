@@ -26,8 +26,8 @@ class LLMClient:
         
         # Initialize client with new API
         self.client = genai.Client(api_key=self.api_key)
-        # Use stable model name (no -latest suffix for new API)
-        self.model_name = 'gemini-1.5-flash'
+        # Use full model path for new API
+        self.model_name = 'models/gemini-1.5-flash'
         self.chat_history = []
     
     def generate_response(self, prompt: str, system_instruction: str = "") -> str:
