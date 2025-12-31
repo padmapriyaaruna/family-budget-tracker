@@ -995,11 +995,14 @@ class MultiUserDB:
         """Get total income amount for a specific user and period"""
         try:
             cursor = self.conn.cursor()
+            # Income dates are stored as strings in format YYYY-MM-DD
+            # Filter by year and month using LIKE pattern matching
+            year_month_pattern = f"{year}-{month:02d}-%"
             self._execute(cursor, '''
                 SELECT SUM(amount) as total
                 FROM income
-                WHERE user_id = ? AND year = ? AND month = ?
-            ''', (user_id, year, month))
+                WHERE user_id = ? AND date LIKE ?
+            ''', (user_id, year_month_pattern))
             result = cursor.fetchone()
             return float(result['total']) if result and result['total'] else 0.0
         except Exception as e:

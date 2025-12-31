@@ -1105,20 +1105,21 @@ def show_member_expense_tracking(user_id):
         total_allocated = allocations_df_temp['allocated_amount'].sum() if not allocations_df_temp.empty else 0.0
         allocation_left = total_income - total_allocated
         
-        # Display budget metrics
-        metric_col1, metric_col2, metric_col3 = st.columns(3)
-        with metric_col1:
-            st.metric("💵 Total Income", f"{config.CURRENCY_SYMBOL}{total_income:,.2f}")
-        with metric_col2:
-            st.metric("📈 Total Allocated", f"{config.CURRENCY_SYMBOL}{total_allocated:,.2f}")
-        with metric_col3:
-            # Color indicator based on remaining budget
-            if allocation_left > 0:
-                st.metric("💰 Allocation Amount Left", f"{config.CURRENCY_SYMBOL}{allocation_left:,.2f}", delta="Available", delta_color="normal")
-            elif allocation_left == 0:
-                st.metric("💰 Allocation Amount Left", f"{config.CURRENCY_SYMBOL}0.00", delta="Fully Allocated", delta_color="off")
-            else:
-                st.metric("💰 Allocation Amount Left", f"{config.CURRENCY_SYMBOL}{allocation_left:,.2f}", delta="Over-allocated!", delta_color="inverse")
+        # Display budget metrics in a compact container
+        with st.container():
+            metric_col1, metric_col2, metric_col3 = st.columns(3)
+            with metric_col1:
+                st.metric("💵 Total Income", f"{config.CURRENCY_SYMBOL}{total_income:,.2f}")
+            with metric_col2:
+                st.metric("📈 Total Allocated", f"{config.CURRENCY_SYMBOL}{total_allocated:,.2f}")
+            with metric_col3:
+                # Color indicator based on remaining budget
+                if allocation_left > 0:
+                    st.metric("💰 Allocation Amount Left", f"{config.CURRENCY_SYMBOL}{allocation_left:,.2f}", delta="Available", delta_color="normal")
+                elif allocation_left == 0:
+                    st.metric("💰 Allocation Amount Left", f"{config.CURRENCY_SYMBOL}0.00", delta="Fully Allocated", delta_color="off")
+                else:
+                    st.metric("💰 Allocation Amount Left", f"{config.CURRENCY_SYMBOL}{allocation_left:,.2f}", delta="Over-allocated!", delta_color="inverse")
         
         st.divider()
         
