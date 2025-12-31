@@ -12,8 +12,8 @@ import config
 
 # Try to import debug chatbot widget
 try:
-    from chatbot_widget_debug import render_chatbot_sidebar_debug as render_chatbot_sidebar
-    print("✅ Debug chatbot widget imported")
+    from chatbot_widget_simple import render_chatbot_sidebar_simple as render_chatbot_sidebar
+    print("✅ Simple chatbot widget imported")
 except Exception as e:
     print(f"⚠️ Debug widget error: {e}")
     def render_chatbot_sidebar():
