@@ -408,7 +408,7 @@ If asked about non-budget topics, politely redirect:
             sql_query, explanation = self.sql_engine.generate_sql(query, user_id, family_id, role)
             
             # DEBUG: Print details
-            print(f"🔍 DEBUG - Role: {role}, User: {full_name}")
+            print(f"🔍 DEBUG - Role: {role}, User ID: {user_id}, Family ID: {family_id}")
             print(f"🔍 DEBUG - SQL: {sql_query}")
             
             if sql_query == "UNSAFE_QUERY":
