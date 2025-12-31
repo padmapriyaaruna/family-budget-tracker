@@ -26,8 +26,8 @@ class LLMClient:
         
         # Initialize client with new API
         self.client = genai.Client(api_key=self.api_key)
-        # Use newer model supported by new API
-        self.model_name = 'gemini-2.0-flash-exp'
+        # Use stable free tier model
+        self.model_name = 'gemini-1.5-flash-latest'
         self.chat_history = []
     
     def generate_response(self, prompt: str, system_instruction: str = "") -> str:
@@ -218,9 +218,12 @@ USER CONTEXT:
 
 SECURITY RULES (CRITICAL):
 1. ONLY generate SELECT queries (read-only)
-2. ALWAYS add: WHERE household_id = {family_id} (family isolation)
-3. If role is 'member': ALSO add: AND user_id = {user_id}
-4. If role is 'admin' or 'superadmin': Can aggregate across family users
+2. ALWAYS include WHERE clause with household_id = {family_id} for family data isolation
+3. Role-based access:
+   - If role is 'member': MUST restrict to user_id = {user_id} in WHERE clause
+   - If role is 'admin': Can query ALL family members' data (household_id = {family_id})
+   - If role is 'superadmin': Can query any household data
+4. For 'admin' role: DO NOT restrict by user_id - they can see all family expenses/income
 
 Natural Language Query: "{query}"
 
