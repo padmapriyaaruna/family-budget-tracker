@@ -2245,7 +2245,12 @@ def main():
         user = st.session_state.user
         
         # Render chatbot widget in sidebar (only when logged in)
-        render_chatbot_sidebar()
+        # TEMPORARILY DISABLED FOR DEBUGGING
+        # render_chatbot_sidebar()
+        
+        # TEST: Show something in sidebar to prove it works
+        st.sidebar.write("### TEST SIDEBAR")
+        st.sidebar.write("If you see this, sidebar is working!")
         
         # Route to appropriate dashboard
         if user['role'] == 'superadmin':
