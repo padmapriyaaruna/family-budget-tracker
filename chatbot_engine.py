@@ -407,8 +407,13 @@ If asked about non-budget topics, politely redirect:
             # Generate SQL
             sql_query, explanation = self.sql_engine.generate_sql(query, user_id, family_id, role)
             
+            # DEBUG: Print details
+            print(f"🔍 DEBUG - Role: {role}, User: {full_name}")
+            print(f"🔍 DEBUG - SQL: {sql_query}")
+            
             if sql_query == "UNSAFE_QUERY":
-                return "I cannot process this query due to security restrictions. Please ask about your own expense or income data."
+                print(f"🔍 DEBUG - Query blocked as UNSAFE")
+                return f"I cannot process this query due to security restrictions. Please ask about your own expense or income data.\n\n[DEBUG: Role={role}, Blocked as UNSAFE]"
             
             # Execute query
             cursor = db_connection.cursor()
