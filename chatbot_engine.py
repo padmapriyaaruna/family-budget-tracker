@@ -24,33 +24,47 @@ class LLMClient:
                 "environment variable. Get your key from: https://makersuite.google.com/app/apikey"
             )
         
-        genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
-        self.chat_session = None
+        # Initialize client with new API
+        self.client = genai.Client(api_key=self.api_key)
+        self.model_name = 'gemini-1.5-flash'
+        self.chat_history = []
     
     def generate_response(self, prompt: str, system_instruction: str = "") -> str:
         """Generate a response from Gemini with optional system instruction"""
         try:
             full_prompt = f"{system_instruction}\n\n{prompt}" if system_instruction else prompt
-            response = self.model.generate_content(full_prompt)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=full_prompt
+            )
             return response.text
         except Exception as e:
             return f"⚠️ Error communicating with AI: {str(e)}"
     
     def start_chat(self, system_instruction: str = ""):
         """Start a chat session with context"""
-        self.chat_session = self.model.start_chat(history=[])
+        self.chat_history = []
         if system_instruction:
-            # Send system instruction as first message
-            self.chat_session.send_message(f"SYSTEM: {system_instruction}")
+            self.chat_history.append({"role": "user", "parts": [f"SYSTEM: {system_instruction}"]})
     
     def send_message(self, message: str) -> str:
         """Send a message in ongoing chat session"""
-        if not self.chat_session:
+        if not self.chat_history:
             self.start_chat()
         
         try:
-            response = self.chat_session.send_message(message)
+            # Add user message
+            self.chat_history.append({"role": "user", "parts": [message]})
+            
+            # Generate response with history
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=self.chat_history
+            )
+            
+            # Add AI response to history
+            self.chat_history.append({"role": "model", "parts": [response.text]})
+            
             return response.text
         except Exception as e:
             return f"⚠️ Error: {str(e)}"
