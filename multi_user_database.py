@@ -193,6 +193,9 @@ class MultiUserDB:
         # Run migrations to add period columns
         self._migrate_add_period_columns()
         
+        # Run migration to add subcategory column
+        self._migrate_add_subcategory_column()
+        
         # Create super admin if it doesn't exist
         self._create_super_admin()
     
@@ -331,6 +334,40 @@ class MultiUserDB:
             
         except Exception as e:
             print(f"⚠️ Migration error (might be already migrated): {str(e)}")
+            self.conn.rollback()
+    
+    def _migrate_add_subcategory_column(self):
+        """Add subcategory column to expenses table if it doesn't exist"""
+        try:
+            cursor = self.conn.cursor()
+            
+            if self.use_postgres:
+                # PostgreSQL: Check if column exists
+                self._execute(cursor, """
+                    SELECT column_name FROM information_schema.columns 
+                    WHERE table_name = 'expenses' AND column_name = 'subcategory'
+                """)
+                existing_cols = [row['column_name'] for row in cursor.fetchall()]
+                
+                if 'subcategory' not in existing_cols:
+                    print("🔄 Adding subcategory column to expenses table...")
+                    self._execute(cursor, 'ALTER TABLE expenses ADD COLUMN subcategory TEXT')
+                    print("✅ Added subcategory column to expenses table")
+            else:
+                # SQLite: Check if column exists
+                cursor.execute("PRAGMA table_info(expenses)")
+                columns = [column[1] for column in cursor.fetchall()]
+                
+                if 'subcategory' not in columns:
+                    print("🔄 Adding subcategory column to expenses table...")
+                    cursor.execute('ALTER TABLE expenses ADD COLUMN subcategory TEXT')
+                    print("✅ Added subcategory column to expenses table")
+            
+            self.conn.commit()
+            print("✅ Subcategory column migration completed successfully")
+            
+        except Exception as e:
+            print(f"⚠️ Subcategory migration error (might be already migrated): {str(e)}")
             self.conn.rollback()
     
     # ==================== AUTHENTICATION & USER MANAGEMENT ====================
@@ -1253,14 +1290,14 @@ class MultiUserDB:
     
     # ==================== EXPENSE OPERATIONS (USER-SCOPED) ====================
     
-    def add_expense(self, user_id, date, category, amount, comment):
+    def add_expense(self, user_id, date, category, amount, comment, subcategory=None):
         """Add a new expense and auto-update allocation"""
         try:
             cursor = self.conn.cursor()
             
             self._execute(cursor,
-                'INSERT INTO expenses (user_id, date, category, amount, comment) VALUES (?, ?, ?, ?, ?)',
-                (user_id, date, category, float(amount), comment)
+                'INSERT INTO expenses (user_id, date, category, amount, comment, subcategory) VALUES (?, ?, ?, ?, ?, ?)',
+                (user_id, date, category, float(amount), comment, subcategory)
             )
             
             self.update_allocation_spent(user_id, category, amount)
@@ -1330,22 +1367,22 @@ class MultiUserDB:
     def get_expenses_with_ids(self, user_id):
         """Get all expenses with IDs for editing"""
         try:
-            query = 'SELECT id, date, category, amount, comment FROM expenses WHERE user_id = ? ORDER BY date DESC'
+            query = 'SELECT id, date, category, amount, subcategory, comment FROM expenses WHERE user_id = ? ORDER BY date DESC'
             # Use engine for pandas queries if PostgreSQL
             conn_to_use = self.engine if (self.use_postgres and self.engine) else self.conn
             if self.use_postgres and self.engine:
                 # For PostgreSQL, replace ? with parameter placeholder
-                query = 'SELECT id, date, category, amount, comment FROM expenses WHERE user_id = %s ORDER BY date DESC'
+                query = 'SELECT id, date, category, amount, subcategory, comment FROM expenses WHERE user_id = %s ORDER BY date DESC'
             df = pd.read_sql_query(query, conn_to_use, params=(user_id,))
             return df
         except Exception as e:
             print(f"Error fetching expenses with IDs: {str(e)}")
             import traceback
             traceback.print_exc()
-            return pd.DataFrame(columns=["id", "date", "category", "amount", "comment"])
+            return pd.DataFrame(columns=["id", "date", "category", "amount", "subcategory", "comment"])
 
     
-    def update_expense(self, expense_id, user_id, date, category, amount, old_category, old_amount, comment):
+    def update_expense(self, expense_id, user_id, date, category, amount, old_category, old_amount, comment, subcategory=None):
         """Update an existing expense and adjust allocations"""
         # This method has complex logic with allocation updates - needs comprehensive fixing
         # For now, adding traceback to help debug
@@ -1386,8 +1423,8 @@ class MultiUserDB:
             
             # Update expense
             self._execute(cursor,
-                'UPDATE expenses SET date = ?, category = ?, amount = ?, comment = ? WHERE id = ? AND user_id = ?',
-                (date, category, float(amount), comment, expense_id, user_id)
+                'UPDATE expenses SET date = ?, category = ?, amount = ?, comment = ?, subcategory = ? WHERE id = ? AND user_id = ?',
+                (date, category, float(amount), comment, subcategory, expense_id, user_id)
             )
             
             self.conn.commit()

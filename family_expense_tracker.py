@@ -1352,7 +1352,6 @@ def show_member_expense_tracking(user_id):
             
             st.caption("💡 Change period in Income tab to log expenses for different months")
             st.divider()
-            
             if not categories:
                 st.warning("⚠️ Create allocation categories first in the Allocations tab!")
             else:
@@ -1374,16 +1373,25 @@ def show_member_expense_tracking(user_id):
                     )
                     expense_category = st.selectbox("Category", options=categories)
                     expense_amount = st.number_input(f"Amount ({config.CURRENCY_SYMBOL})", min_value=0.0, step=10.0)
+                    
+                    # Subcategory dropdown
+                    subcategory_options = ["Investment", "Food - Online", "Food - Hotel", "Grocery - Online", "Grocery - Offline", "Others"]
+                    expense_subcategory = st.selectbox("Subcategory", options=subcategory_options)
+                    
                     expense_comment = st.text_area("Comment", placeholder="Brief description")
                     
                     submit_expense = st.form_submit_button("➕ Add Expense", use_container_width=True)
                     
-                    if submit_expense and expense_category and expense_amount > 0 and expense_comment:
-                        if db.add_expense(user_id, expense_date.strftime(config.DATE_FORMAT), 
-                                        expense_category, expense_amount, expense_comment):
-                            st.success(f"✅ Added expense: {config.CURRENCY_SYMBOL}{expense_amount:,.2f}")
-                            st.cache_resource.clear()
-                            st.rerun()
+                    if submit_expense and expense_category and expense_amount > 0:
+                        # Conditional validation: Comment required if subcategory is "Others"
+                        if expense_subcategory == "Others" and (not expense_comment or expense_comment.strip() == ""):
+                            st.error("⚠️ Comment is required when subcategory is 'Others'")
+                        else:
+                            if db.add_expense(user_id, expense_date.strftime(config.DATE_FORMAT), 
+                                            expense_category, expense_amount, expense_comment, expense_subcategory):
+                                st.success(f"✅ Added expense: {config.CURRENCY_SYMBOL}{expense_amount:,.2f}")
+                                st.cache_resource.clear()
+                                st.rerun()
         
         with col2:
             st.subheader(f"Expense History for {period_display}")
@@ -1409,12 +1417,13 @@ def show_member_expense_tracking(user_id):
                     display_df = display_df.rename(columns={
                         'date': 'Date',
                         'category': 'Category',
+                        'subcategory': 'Subcategory',
                         'comment': 'Comment'
                     })
                     
                     # Show as dataframe (Excel-like)
                     st.dataframe(
-                        display_df[['Date', 'Category', 'Amount', 'Comment']],
+                        display_df[['Date', 'Category', 'Amount', 'Subcategory', 'Comment']],
                         use_container_width=True,
                         hide_index=True
                     )
@@ -1456,12 +1465,20 @@ def show_member_expense_tracking(user_id):
                                     cat_index = cat_options.index(selected_row['category']) if selected_row['category'] in cat_options else 0
                                     new_category = st.selectbox("Category", options=cat_options, index=cat_index, key=f"edit_exp_cat_{expense_id}")
                                     new_amount = st.number_input("Amount", value=float(selected_row['amount']), min_value=0.0, step=10.0, key=f"edit_exp_amt_{expense_id}")
-                                    new_comment = st.text_input("Comment", value=selected_row['comment'], key=f"edit_exp_cmt_{expense_id}")
+                                    
+                                    # Subcategory dropdown
+                                    subcategory_options = ["Investment", "Food - Online", "Food - Hotel", "Grocery - Online", "Grocery - Offline", "Others"]
+                                    current_subcategory = selected_row.get('subcategory', None) or "Investment"
+                                    subcat_index = subcategory_options.index(current_subcategory) if current_subcategory in subcategory_options else 0
+                                    new_subcategory = st.selectbox("Subcategory", options=subcategory_options, index=subcat_index, key=f"edit_exp_subcat_{expense_id}")
+                                    
+                                    new_comment = st.text_input("Comment", value=selected_row['comment'] if selected_row['comment'] else "", key=f"edit_exp_cmt_{expense_id}")
                                     
                                     col_a, col_b = st.columns(2)
                                     if col_a.button("💾 Save Changes", key=f"save_exp_{expense_id}"):
-                                        if not new_comment or new_comment.strip() == "":
-                                            st.error("Comment cannot be empty")
+                                        # Conditional validation: Comment required if subcategory is "Others"
+                                        if new_subcategory == "Others" and (not new_comment or new_comment.strip() == ""):
+                                            st.error("⚠️ Comment is required when subcategory is 'Others'")
                                         elif new_amount <= 0:
                                             st.error("Amount must be greater than 0")
                                         elif new_category not in categories:
@@ -1470,7 +1487,7 @@ def show_member_expense_tracking(user_id):
                                             old_category = selected_row['category']
                                             old_amount = float(selected_row['amount'])
                                             if db.update_expense(expense_id, user_id, new_date.strftime(config.DATE_FORMAT), 
-                                                               new_category, new_amount, old_category, old_amount, new_comment):
+                                                               new_category, new_amount, old_category, old_amount, new_comment, new_subcategory):
                                                 st.success("✅ Updated successfully!")
                                                 st.cache_resource.clear()
                                                 st.rerun()
