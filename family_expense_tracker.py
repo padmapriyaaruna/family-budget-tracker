@@ -1099,6 +1099,29 @@ def show_member_expense_tracking(user_id):
         import calendar
         period_display = f"{calendar.month_name[st.session_state.budget_month]} {st.session_state.budget_year}"
         
+        # Calculate budget metrics
+        total_income = db.get_total_income(user_id, st.session_state.budget_year, st.session_state.budget_month)
+        allocations_df_temp = db.get_allocations_with_ids(user_id, st.session_state.budget_year, st.session_state.budget_month)
+        total_allocated = allocations_df_temp['allocated_amount'].sum() if not allocations_df_temp.empty else 0.0
+        allocation_left = total_income - total_allocated
+        
+        # Display budget metrics
+        metric_col1, metric_col2, metric_col3 = st.columns(3)
+        with metric_col1:
+            st.metric("💵 Total Income", f"{config.CURRENCY_SYMBOL}{total_income:,.2f}")
+        with metric_col2:
+            st.metric("📈 Total Allocated", f"{config.CURRENCY_SYMBOL}{total_allocated:,.2f}")
+        with metric_col3:
+            # Color indicator based on remaining budget
+            if allocation_left > 0:
+                st.metric("💰 Allocation Amount Left", f"{config.CURRENCY_SYMBOL}{allocation_left:,.2f}", delta="Available", delta_color="normal")
+            elif allocation_left == 0:
+                st.metric("💰 Allocation Amount Left", f"{config.CURRENCY_SYMBOL}0.00", delta="Fully Allocated", delta_color="off")
+            else:
+                st.metric("💰 Allocation Amount Left", f"{config.CURRENCY_SYMBOL}{allocation_left:,.2f}", delta="Over-allocated!", delta_color="inverse")
+        
+        st.divider()
+        
         col1, col2 = st.columns([1, 2])
         
         with col1:

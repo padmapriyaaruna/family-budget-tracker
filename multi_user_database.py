@@ -991,6 +991,21 @@ class MultiUserDB:
             print(f"Error deleting income: {str(e)}")
             return False
     
+    def get_total_income(self, user_id, year, month):
+        """Get total income amount for a specific user and period"""
+        try:
+            cursor = self.conn.cursor()
+            self._execute(cursor, '''
+                SELECT SUM(amount) as total
+                FROM income
+                WHERE user_id = ? AND year = ? AND month = ?
+            ''', (user_id, year, month))
+            result = cursor.fetchone()
+            return float(result['total']) if result and result['total'] else 0.0
+        except Exception as e:
+            print(f"Error getting total income: {str(e)}")
+            return 0.0
+    
     # ==================== ALLOCATION OPERATIONS (USER-SCOPED) ====================
     
     def add_allocation(self, user_id, category, allocated_amount, year, month):
