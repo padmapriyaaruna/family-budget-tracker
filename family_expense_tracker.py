@@ -943,6 +943,9 @@ def show_member_expense_tracking(user_id):
             if selected_year != st.session_state.budget_year or selected_month != st.session_state.budget_month:
                 st.session_state.budget_year = selected_year
                 st.session_state.budget_month = selected_month
+                # Clear all caches to ensure fresh data on all tabs
+                st.cache_data.clear()
+                st.cache_resource.clear()
                 st.rerun()
             
             st.divider()
