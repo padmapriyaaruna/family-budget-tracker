@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 from datetime import datetime, date
 from multi_user_database import MultiUserDB
 import config
+from chatbot_widget import render_chatbot_sidebar
 
 # Page configuration
 st.set_page_config(
@@ -2233,11 +2234,15 @@ def main():
     else:
         user = st.session_state.user
         
+        # Render chatbot widget in sidebar (only when logged in)
+        render_chatbot_sidebar()
+        
+        # Route to appropriate dashboard
         if user['role'] == 'superadmin':
             show_super_admin_dashboard()
         elif user['role'] == 'admin':
             show_admin_dashboard()
-        else:
+        elif user['role'] == 'member':
             show_member_dashboard()
 
 if __name__ == "__main__":

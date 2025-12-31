@@ -1528,6 +1528,53 @@ class MultiUserDB:
             traceback.print_exc()
             return pd.DataFrame()
     
+    
+    def execute_chatbot_query(self, sql_query: str, user_id: int, family_id: int, role: str):
+        """
+        Execute a safe, read-only query for the chatbot
+        
+        Args:
+            sql_query: SQL query to execute (must be SELECT only)
+            user_id: Current user's ID
+            family_id: User's household ID
+            role: User's role ('member', 'admin', 'superadmin')
+        
+        Returns:
+            List of result rows or error message
+        """
+        try:
+            # Security validations
+            sql_upper = sql_query.upper().strip()
+            
+            # Must be SELECT only
+            if not sql_upper.startswith("SELECT"):
+                return {"error": "Only SELECT queries are allowed"}
+            
+            # Block dangerous keywords
+            dangerous_keywords = ["DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "TRUNCATE", "EXECUTE", "--"]
+            if any(keyword in sql_upper for keyword in dangerous_keywords):
+                return {"error": "Query contains forbidden operations"}
+            
+            # Execute query
+            self._ensure_connection()
+            cursor = self.conn.cursor()
+            cursor.execute(sql_query)
+            
+            # Fetch results
+            results = cursor.fetchall()
+            
+            # Convert to list of dicts
+            if self.use_postgres:
+                # RealDictCursor already returns dicts
+                return [dict(row) for row in results]
+            else:
+                # SQLite Row factory
+                return [dict(row) for row in results]
+                
+        except Exception as e:
+            print(f"❌ Chatbot query error: {e}")
+            return {"error": f"Query execution failed: {str(e)}"}
+    
     def close(self):
         """Close database connection"""
         if self.conn:
