@@ -917,36 +917,44 @@ def show_member_expense_tracking(user_id):
             # Budget Period Selection (Year -> Month -> Date)
             st.markdown("**📅 Select Budget Period**")
             
+            # Callback functions for immediate state update
+            def update_budget_year():
+                st.session_state.budget_year = st.session_state.income_year_select
+                st.cache_data.clear()
+                st.cache_resource.clear()
+            
+            def update_budget_month():
+                st.session_state.budget_month = st.session_state.income_month_select
+                st.cache_data.clear()
+                st.cache_resource.clear()
+            
             # Year selection
             current_year = datetime.now().year
             year_options = list(range(current_year - 4, current_year + 2))  # Last 5 years + next year
-            selected_year = st.selectbox(
+            st.selectbox(
                 "Year",
                 options=year_options,
                 index=year_options.index(st.session_state.budget_year) if st.session_state.budget_year in year_options else len(year_options) - 2,
-                key="income_year_select"
+                key="income_year_select",
+                on_change=update_budget_year
             )
             
             # Month selection
             import calendar
             month_names = [calendar.month_name[i] for i in range(1, 13)]
             month_options = list(range(1, 13))
-            selected_month = st.selectbox(
+            st.selectbox(
                 "Month",
                 options=month_options,
                 format_func=lambda x: month_names[x-1],
                 index=st.session_state.budget_month - 1,
-                key="income_month_select"
+                key="income_month_select",
+                on_change=update_budget_month
             )
             
-            # Update session state when year/month changes
-            if selected_year != st.session_state.budget_year or selected_month != st.session_state.budget_month:
-                st.session_state.budget_year = selected_year
-                st.session_state.budget_month = selected_month
-                # Clear all caches to ensure fresh data on all tabs
-                st.cache_data.clear()
-                st.cache_resource.clear()
-                st.rerun()
+            # Get final values from session state (already updated by callbacks)
+            selected_year = st.session_state.budget_year
+            selected_month = st.session_state.budget_month
             
             st.divider()
             
