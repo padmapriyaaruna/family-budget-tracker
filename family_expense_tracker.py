@@ -2245,34 +2245,72 @@ def main():
         user = st.session_state.user
         
         # VERSION MARKER - to confirm new code is deployed
-        st.write("🔴 **CODE VERSION: 2026-01-01-03:00 - CHATBOT IN MAIN AREA**")
+        st.write("🔴 **CODE VERSION: 2026-01-01-03:06 - FULL AI CHATBOT ACTIVE**")
         
-        # WORKAROUND: Put chatbot in MAIN area since sidebar won't show
+        # CHATBOT in MAIN area (sidebar workaround)
         with st.expander("🤖 **Budget Assistant Chatbot** (Click to expand)", expanded=False):
-            st.write("**Welcome to your Budget Assistant!**")
-            st.write("This is a temporary location. Sidebar integration is being debugged.")
+            st.write("**Welcome to your AI Budget Assistant!**")
+            st.write("Ask me about your expenses, income, allocations, or how to use the tracker.")
             st.write("")
             
             # Initialize chat state
-            if 'temp_chat_msgs' not in st.session_state:
-                st.session_state.temp_chat_msgs = []
+            if 'chat_msgs' not in st.session_state:
+                st.session_state.chat_msgs = []
             
             # Chat input
-            user_question = st.text_input("Ask me anything about your budget:", key="temp_chat_input")
+            user_question = st.text_input("Ask me anything:", key="chat_input", placeholder="e.g., How much did I spend on groceries?")
             
-            if st.button("Send", key="temp_send_btn"):
-                if user_question:
-                    # Add user message
-                    st.session_state.temp_chat_msgs.append(("You", user_question))
-                    # Simple response for now
-                    st.session_state.temp_chat_msgs.append(("Assistant", f"You asked: '{user_question}'. Full AI integration coming soon!"))
+            col1, col2 = st.columns([1, 5])
+            with col1:
+                send_clicked = st.button("Send", key="send_btn", use_container_width=True)
+            with col2:
+                if st.button("Clear Chat", key="clear_btn"):
+                    st.session_state.chat_msgs = []
+                    st.rerun()
+            
+            if send_clicked and user_question:
+                # Add user message
+                st.session_state.chat_msgs.append(("You", user_question))
+                
+                # Get AI response
+                try:
+                    # Import and initialize chatbot engine
+                    from chatbot_engine import ChatbotEngine
+                    
+                    with st.spinner("🤔 Thinking..."):
+                        chatbot = ChatbotEngine(
+                            docs_directory=config.CHATBOT_DOCS_DIR,
+                            api_key=config.GEMINI_API_KEY
+                        )
+                        
+                        response = chatbot.process_query(
+                            query=user_question,
+                            user_id=user['id'],
+                            family_id=user['household_id'],
+                            role=user['role'],
+                            full_name=user['full_name'],
+                            db_connection=db
+                        )
+                    
+                    # Add AI response
+                    st.session_state.chat_msgs.append(("Assistant", response))
+                    
+                except Exception as e:
+                    error_msg = f"⚠️ Error: {str(e)}"
+                    st.session_state.chat_msgs.append(("Assistant", error_msg))
+                
+                st.rerun()
             
             # Show chat history
-            for role, msg in st.session_state.temp_chat_msgs[-5:]:
-                if role == "You":
-                    st.info(f"**{role}:** {msg}")
-                else:
-                    st.success(f"**{role}:** {msg}")
+            st.divider()
+            if st.session_state.chat_msgs:
+                for role, msg in st.session_state.chat_msgs[-10:]:  # Show last 10 messages
+                    if role == "You":
+                        st.info(f"**{role}:** {msg}")
+                    else:
+                        st.success(f"**🤖 {role}:** {msg}")
+            else:
+                st.caption("_No messages yet. Ask me a question to get started!_")
         
         # Route to appropriate dashboard
         if user['role'] == 'superadmin':
