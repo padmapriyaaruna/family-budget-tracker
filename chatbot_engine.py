@@ -7,7 +7,8 @@ import re
 import json
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 
 class LLMClient:
