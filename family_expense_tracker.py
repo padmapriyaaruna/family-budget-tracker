@@ -1145,11 +1145,15 @@ def show_member_expense_tracking(user_id):
                 submit_alloc = st.form_submit_button("➕ Add Allocation", use_container_width=True)
                 
                 if submit_alloc and alloc_category and alloc_amount > 0:
-                    # Get year and month from session state
-                    year = st.session_state.budget_year
-                    month = st.session_state.budget_month
-                    
-                    if db.add_allocation(user_id, alloc_category, alloc_amount, year, month):
+                    # Check if allocation exceeds available budget
+                    if alloc_amount > allocation_left:
+                        st.error(f"⚠️ **Budget Exceeded**: You cannot allocate {config.CURRENCY_SYMBOL}{alloc_amount:,.2f}. You only have {config.CURRENCY_SYMBOL}{allocation_left:,.2f} remaining for this month.")
+                    else:
+                        # Get year and month from session state
+                        year = st.session_state.budget_year
+                        month = st.session_state.budget_month
+                        
+                        if db.add_allocation(user_id, alloc_category, alloc_amount, year, month):
                         st.success(f"✅ Created allocation: {alloc_category} for {period_display}")
                         st.cache_resource.clear()
                         st.rerun()
