@@ -2307,7 +2307,7 @@ def main():
                 padding: 20px;
                 background: linear-gradient(to bottom, #f0f2f5, #ffffff);
                 border-radius: 10px;
-                margin-bottom: 20px;
+                margin-bottom: 10px;
                 border: 1px solid #e0e0e0;
             }
             #chat-container::-webkit-scrollbar {
@@ -2402,7 +2402,7 @@ def main():
             
             # Render using components for better HTML support
             import streamlit.components.v1 as components
-            components.html(chat_html, height=600, scrolling=False)
+            components.html(chat_html, height=450, scrolling=False)
             
             # Chat input area (fixed at bottom of expander)
             st.markdown("---")
