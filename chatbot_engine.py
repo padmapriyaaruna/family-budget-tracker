@@ -335,8 +335,26 @@ If asked about non-budget topics, politely redirect:
         
         # Keywords that indicate data queries
         data_keywords = [
+            # Financial queries
+            'income', 'expense', 'spent', 'spend', 'balance', 'total', 'sum',
+            'how much', 'how many', 'count', 'number of',
+            # Categories  
+            'grocery', 'groceries', 'food', 'education', 'transport', 'entertainment',
+            # Time-based
+            'month', 'week', 'year', 'today', 'yesterday', 'last', 'this',
+            # Family/member queries
+            'family member', 'members', 'family size', 'household', 'users',
+            # Statistics
+            'average', 'highest', 'lowest', 'most', 'least',
+            # Allocations
+            'allocation', 'budget', 'allocated'
+        ]
         
-        return "data" if data_score > general_score else "general"
+        # Check if query contains data keywords
+        if any(keyword in query_lower for keyword in data_keywords):
+            return "data"
+        
+        return "general"
     
     def process_query(
         self, 
