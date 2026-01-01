@@ -2294,14 +2294,122 @@ def main():
             if 'chat_msgs' not in st.session_state:
                 st.session_state.chat_msgs = []
             
-            # Chat input
-            user_question = st.text_input("Ask me anything:", key="chat_input", placeholder="e.g., How much did I spend on groceries?")
+            # Display chat history in scrollable container FIRST
+            st.markdown("---")
+            
+            # Build chat HTML with scrollable container
+            chat_html = '''
+            <style>
+            #chat-container {
+                height: 70vh;
+                overflow-y: auto;
+                padding: 20px;
+                background: linear-gradient(to bottom, #f0f2f5, #ffffff);
+                border-radius: 10px;
+                margin-bottom: 20px;
+                border: 1px solid #e0e0e0;
+            }
+            #chat-container::-webkit-scrollbar {
+                width: 8px;
+            }
+            #chat-container::-webkit-scrollbar-track {
+                background: #f1f1f1;
+                border-radius: 10px;
+            }
+            #chat-container::-webkit-scrollbar-thumb {
+                background: #888;
+                border-radius: 10px;
+            }
+            #chat-container::-webkit-scrollbar-thumb:hover {
+                background: #555;
+            }
+            .user-message {
+                text-align: right;
+                margin: 10px 0;
+                clear: both;
+            }
+            .user-bubble {
+                display: inline-block;
+                background: #0084ff;
+                color: white;
+                padding: 12px 16px;
+                border-radius: 18px 18px 4px 18px;
+                max-width: 70%;
+                text-align: left;
+                word-wrap: break-word;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            }
+            .assistant-message {
+                text-align: left;
+                margin: 10px 0;
+                clear: both;
+            }
+            .assistant-bubble {
+                display: inline-block;
+                background: #e4e6eb;
+                color: #050505;
+                padding: 12px 16px;
+                border-radius: 18px 18px 18px 4px;
+                max-width: 70%;
+                text-align: left;
+                word-wrap: break-word;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            }
+            .empty-chat {
+                text-align: center;
+                color: #888;
+                margin-top: 30vh;
+                font-style: italic;
+            }
+            </style>
+            <div id="chat-container">
+            '''
+            
+            if st.session_state.chat_msgs:
+                for role, msg in st.session_state.chat_msgs:
+                    # Escape HTML in message
+                    msg_escaped = msg.replace('<', '&lt;').replace('>', '&gt;').replace('\n', '<br>')
+                    
+                    if role == "You":
+                        chat_html += f'''
+                        <div class="user-message">
+                            <div class="user-bubble">{msg_escaped}</div>
+                        </div>
+                        '''
+                    else:
+                        chat_html += f'''
+                        <div class="assistant-message">
+                            <div class="assistant-bubble">🤖 {msg_escaped}</div>
+                        </div>
+                        '''
+            else:
+                chat_html += '<div class="empty-chat">💬 No messages yet. Ask me a question to get started!</div>'
+            
+            chat_html += '</div>'
+            
+            # Auto-scroll JavaScript
+            chat_html += '''
+            <script>
+            setTimeout(function() {
+                var container = document.getElementById('chat-container');
+                if (container) {
+                    container.scrollTop = container.scrollHeight;
+                }
+            }, 100);
+            </script>
+            '''
+            
+            st.markdown(chat_html, unsafe_allow_html=True)
+            
+            # Chat input area (fixed at bottom of expander)
+            st.markdown("---")
+            user_question = st.text_input("💬 Type your message:", key="chat_input", placeholder="e.g., How much did I spend on groceries?")
             
             col1, col2 = st.columns([1, 5])
             with col1:
-                send_clicked = st.button("Send", key="send_btn", use_container_width=True)
+                send_clicked = st.button("📤 Send", key="send_btn", use_container_width=True, type="primary")
             with col2:
-                if st.button("Clear Chat", key="clear_btn"):
+                if st.button("🗑️ Clear Chat", key="clear_btn"):
                     st.session_state.chat_msgs = []
                     st.rerun()
             
@@ -2337,17 +2445,6 @@ def main():
                     st.session_state.chat_msgs.append(("Assistant", error_msg))
                 
                 st.rerun()
-            
-            # Show chat history
-            st.divider()
-            if st.session_state.chat_msgs:
-                for role, msg in st.session_state.chat_msgs[-10:]:  # Show last 10 messages
-                    if role == "You":
-                        st.info(f"**{role}:** {msg}")
-                    else:
-                        st.success(f"**🤖 {role}:** {msg}")
-            else:
-                st.caption("_No messages yet. Ask me a question to get started!_")
         
         # Route to appropriate dashboard
         if user['role'] == 'superadmin':
