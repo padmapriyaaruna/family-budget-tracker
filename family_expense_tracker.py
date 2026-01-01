@@ -2399,7 +2399,9 @@ def main():
             </script>
             '''
             
-            st.markdown(chat_html, unsafe_allow_html=True)
+            # Render using components for better HTML support
+            import streamlit.components.v1 as components
+            components.html(chat_html, height=600, scrolling=False)
             
             # Chat input area (fixed at bottom of expander)
             st.markdown("---")
