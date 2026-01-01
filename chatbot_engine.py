@@ -165,24 +165,67 @@ Table: allocations
 - allocated_amount (NUMERIC) - Allocated budget
 - spent_amount (NUMERIC) - Amount spent
 - balance (NUMERIC) - Remaining balance
+- year (INTEGER) - Allocation year
+- month (INTEGER) - Allocation month (1-12)
 
 Table: expenses
 - id (INTEGER PRIMARY KEY)
 - user_id (INTEGER) - Foreign key to users
 - date (TEXT) - Expense date format: 'YYYY-MM-DD'
 - category (TEXT) - Expense category
-- subcategory (TEXT) - Options: 'Investment', 'Food - Online', 'Food - Hotel', 
-                       'Grocery - Online', 'Grocery - Offline', 'School Fee',
-                       'Extra-Curricular', 'Co-Curricular', 'Others'
+- subcategory (TEXT) - Expense subcategory (IMPORTANT: Use this for detailed filtering)
+  Subcategory Values:
+  * 'Investment'
+  * 'Food - Online' (online food orders, food delivery)
+  * 'Food - Hotel' (restaurant, dining out)
+  * 'Grocery - Online' (online grocery shopping)
+  * 'Grocery - Offline' (supermarket, local stores)
+  * 'School Fee'
+  * 'Extra-Curricular' (sports, music lessons)
+  * 'Co-Curricular' (school activities)
+  * 'House Rent' (rent payments)
+  * 'Maintenance' (home/vehicle maintenance)
+  * 'Vehicle' (fuel, vehicle expenses)
+  * 'Gadgets' (electronics, tech purchases)
+  * 'Others' (miscellaneous)
 - amount (NUMERIC) - Expense amount
 - comment (TEXT) - Optional notes
 - created_at (TIMESTAMP)
 
+SUBCATEGORY QUERY MAPPING GUIDE:
+When users ask about expenses, check if they mention any of these terms and map to subcategory:
+- "online food", "food delivery", "swiggy", "zomato" → subcategory = 'Food - Online'
+- "restaurant", "dining out", "hotel" → subcategory = 'Food - Hotel'
+- "online grocery", "grocery delivery" → subcategory = 'Grocery - Online'
+- "supermarket", "grocery store" → subcategory = 'Grocery - Offline'
+- "house rent", "rent" → subcategory = 'House Rent'
+- "maintenance" → subcategory = 'Maintenance'
+- "vehicle", "fuel", "petrol", "car" → subcategory = 'Vehicle'
+- "gadgets", "electronics", "phone", "laptop" → subcategory = 'Gadgets'
+- "investment", "stocks", "mutual fund" → subcategory = 'Investment'
+
+QUERY EXAMPLES:
+Example 1: "How much spent on online food order in January?"
+SQL: SELECT SUM(amount) as total FROM expenses WHERE subcategory = 'Food - Online' AND EXTRACT(MONTH FROM date::date) = 1
+
+Example 2: "Show me expenses for house rent"
+SQL: SELECT * FROM expenses WHERE subcategory = 'House Rent'
+
+Example 3: "Total spending on groceries this month"
+SQL: SELECT SUM(amount) FROM expenses WHERE (subcategory = 'Grocery - Online' OR subcategory = 'Grocery - Offline') AND EXTRACT(MONTH FROM date::date) = EXTRACT(MONTH FROM CURRENT_DATE)
+
+MONTH NAME TO NUMBER MAPPING:
+- January = 1, February = 2, March = 3, April = 4, May = 5, June = 6
+- July = 7, August = 8, September = 9, October = 10, November = 11, December = 12
+
 IMPORTANT NOTES:
 - Currency symbol is ₹ (Indian Rupees)
-- Date format is 'YYYY-MM-DD'
+- Date format is 'YYYY-MM-DD' (stored as TEXT, cast to date using ::date)
 - Use CURRENT_DATE for today's date
-- Use DATE_TRUNC for period filtering
+- Use EXTRACT(MONTH FROM date::date) for month filtering
+- Use EXTRACT(YEAR FROM date::date) for year filtering
+- ALWAYS check subcategory field for detailed expense queries
+- Join users table using user_id to get household_id for family filtering
 """
     
     def generate_sql(self, query: str, user_id: int, family_id: int, role: str) -> Tuple[str, str]:
