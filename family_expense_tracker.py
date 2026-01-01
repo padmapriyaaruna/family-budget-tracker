@@ -2301,7 +2301,8 @@ def main():
             chat_html = '''
             <style>
             #chat-container {
-                height: 70vh;
+                height: 50vh;
+                max-height: 400px;
                 overflow-y: auto;
                 padding: 20px;
                 background: linear-gradient(to bottom, #f0f2f5, #ffffff);
