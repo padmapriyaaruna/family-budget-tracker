@@ -2402,7 +2402,7 @@ def main():
             
             # Render using components for better HTML support
             import streamlit.components.v1 as components
-            components.html(chat_html, height=450, scrolling=False)
+            components.html(chat_html, height=420, scrolling=False)
             
             # Chat input area (fixed at bottom of expander)
             st.markdown("---")
