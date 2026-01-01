@@ -410,10 +410,13 @@ If asked about non-budget topics, politely redirect:
                 print(f"🔍 DEBUG - Query blocked: {explanation}")
                 return f"I cannot process this query due to security restrictions.\n\n[DEBUG: {explanation}]"
             
-            # Execute query
-            cursor = db_connection.cursor()
-            cursor.execute(sql_query)
-            results = cursor.fetchall()
+            # Execute query using dedicated chatbot method
+            results = db_connection.execute_chatbot_query(
+                sql_query=sql_query,
+                user_id=user_id,
+                family_id=family_id,
+                role=role
+            )
             
             # Format results for LLM
             results_text = "\n".join([str(row) for row in results])
