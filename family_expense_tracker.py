@@ -1423,7 +1423,7 @@ def show_member_expense_tracking(user_id):
                     expense_amount = st.number_input(f"Amount ({config.CURRENCY_SYMBOL})", min_value=0.0, step=10.0)
                     
                     # Subcategory dropdown
-                    subcategory_options = ["Investment", "Food - Online", "Food - Hotel", "Grocery - Online", "Grocery - Offline", "School Fee", "Extra-Curricular", "Co-Curricular", "Others"]
+                    subcategory_options = ["Investment", "Food - Online", "Food - Hotel", "Grocery - Online", "Grocery - Offline", "School Fee", "Extra-Curricular", "Co-Curricular", "House Rent", "Maintenance", "Vehicle", "Gadgets", "Others"]
                     expense_subcategory = st.selectbox("Subcategory", options=subcategory_options)
                     
                     expense_comment = st.text_area("Comment", placeholder="Brief description")
@@ -1515,7 +1515,7 @@ def show_member_expense_tracking(user_id):
                                     new_amount = st.number_input("Amount", value=float(selected_row['amount']), min_value=0.0, step=10.0, key=f"edit_exp_amt_{expense_id}")
                                     
                                     # Subcategory dropdown
-                                    subcategory_options = ["Investment", "Food - Online", "Food - Hotel", "Grocery - Online", "Grocery - Offline", "School Fee", "Extra-Curricular", "Co-Curricular", "Others"]
+                                    subcategory_options = ["Investment", "Food - Online", "Food - Hotel", "Grocery - Online", "Grocery - Offline", "School Fee", "Extra-Curricular", "Co-Curricular", "House Rent", "Maintenance", "Vehicle", "Gadgets", "Others"]
                                     current_subcategory = selected_row.get('subcategory', None) or "Investment"
                                     subcat_index = subcategory_options.index(current_subcategory) if current_subcategory in subcategory_options else 0
                                     new_subcategory = st.selectbox("Subcategory", options=subcategory_options, index=subcat_index, key=f"edit_exp_subcat_{expense_id}")
