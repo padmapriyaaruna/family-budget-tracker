@@ -438,51 +438,6 @@ def get_user_available_periods(db, user_ids):
 def show_admin_dashboard():
     """Display family admin dashboard"""
     st.header("👨‍👩‍👧 Family Admin Dashboard")
-    
-    # Add Fix Allocations button
-    st.divider()
-    st.subheader("🔧 Database Maintenance")
-    col1, col2, col3 = st.columns([1, 2, 2])
-    with col1:
-        if st.button("🔧 Fix Allocations", help="Recalculate spent amounts from actual expenses"):
-            with st.spinner("Recalculating allocation spent amounts..."):
-                try:
-                    cursor = db.conn.cursor()
-                    # Get all allocations
-                    db._execute(cursor, 'SELECT id, user_id, category, allocated_amount FROM allocations')
-                    allocations = cursor.fetchall()
-                    
-                    fixed_count = 0
-                    for alloc in allocations:
-                        user_id = alloc['user_id'] # Corrected from alloc['id'] to alloc['user_id']
-                        category = alloc['category']
-                        allocated_amount = float(alloc['allocated_amount'])
-                        
-                        # Calculate total spent
-                        db._execute(cursor, 
-                            'SELECT SUM(amount) as total_spent FROM expenses WHERE user_id = ? AND category = ?',
-                            (user_id, category)
-                        )
-                        result = cursor.fetchone()
-                        total_spent = float(result['total_spent']) if result and result['total_spent'] else 0.0
-                        
-                        # Update allocation
-                        new_balance = allocated_amount - total_spent
-                        db._execute(cursor,
-                            'UPDATE allocations SET spent_amount = ?, balance = ? WHERE id = ?',
-                            (total_spent, new_balance, alloc['id'])
-                        )
-                        fixed_count += 1
-                    
-                    db.conn.commit()
-                    st.success(f"✅ Fixed {fixed_count} allocations! Please refresh the page.")
-                except Exception as e:
-                    st.error(f"❌ Error: {str(e)}")
-                    db.conn.rollback()
-    with col2:
-        st.caption("Use this if allocation Spent amounts show incorrect/negative values")
-    
-    st.divider()
     user = st.session_state.user
     household_id = user['household_id']
     
@@ -1379,6 +1334,43 @@ def show_member_expense_tracking(user_id):
             else:
                 st.warning(f"No allocations found for {period_display}")
                 st.caption("💡 Use the form on the left to create allocations for this period")
+            
+            # Fix Allocations button at bottom
+            st.divider()
+            if st.button("🔧 Fix Allocation Spent Amounts", help="Recalculate spent values from actual expenses"):
+                with st.spinner("Recalculating..."):
+                    try:
+                        cursor = db.conn.cursor()
+                        db._execute(cursor, 'SELECT id, user_id, category, allocated_amount FROM allocations')
+                        allocations = cursor.fetchall()
+                        
+                        fixed_count = 0
+                        for alloc in allocations:
+                            user_id_alloc = alloc['user_id']
+                            category = alloc['category']
+                            allocated_amount = float(alloc['allocated_amount'])
+                            
+                            db._execute(cursor, 
+                                'SELECT SUM(amount) as total_spent FROM expenses WHERE user_id = ? AND category = ?',
+                                (user_id_alloc, category)
+                            )
+                            result = cursor.fetchone()
+                            total_spent = float(result['total_spent']) if result and result['total_spent'] else 0.0
+                            
+                            new_balance = allocated_amount - total_spent
+                            db._execute(cursor,
+                                'UPDATE allocations SET spent_amount = ?, balance = ? WHERE id = ?',
+                                (total_spent, new_balance, alloc['id'])
+                            )
+                            fixed_count += 1
+                        
+                        db.conn.commit()
+                        st.success(f"✅ Fixed {fixed_count} allocations! Refresh the page to see updated values.")
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+                        db.conn.rollback()
+            st.caption("💡 Use this button if Spent amounts show incorrect or negative values")
+
 
 
 
