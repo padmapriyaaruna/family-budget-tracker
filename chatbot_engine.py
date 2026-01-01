@@ -329,26 +329,12 @@ If asked about non-budget topics, politely redirect:
 "I'm here to help with your budget and expenses. Please ask about your income, expenses, allocations, or how to use the tracker."
 """
     
-    def classify_intent(self, query: str) -> str:
+    def _classify_intent(self, query: str) -> str:
         """Classify user query as 'data' or 'general'"""
         query_lower = query.lower()
         
-        # Data query indicators
+        # Keywords that indicate data queries
         data_keywords = [
-            "how much", "total", "spent", "spend", "expense", "income", 
-            "balance", "allocation", "budget", "saved", "savings",
-            "amount", "₹", "rupees", "money"
-        ]
-        
-        # General query indicators
-        general_keywords = [
-            "how to", "how do", "what is", "where", "show me",
-            "explain", "add", "delete", "update", "create", "set up"
-        ]
-        
-        # Count matches
-        data_score = sum(1 for keyword in data_keywords if keyword in query_lower)
-        general_score = sum(1 for keyword in general_keywords if keyword in query_lower)
         
         return "data" if data_score > general_score else "general"
     
