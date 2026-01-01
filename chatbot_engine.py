@@ -383,7 +383,7 @@ If asked about non-budget topics, politely redirect:
         system_instruction = self._build_system_instruction(user_id, family_id, role, full_name)
         
         # Classify intent
-        intent = self.classify_intent(query)
+        intent = self._classify_intent(query)
         
         if intent == "data":
             # Data analytics query
