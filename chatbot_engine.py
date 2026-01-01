@@ -25,8 +25,8 @@ class LLMClient:
         
         # Initialize with old but working API
         genai.configure(api_key=self.api_key)
-        # Use same model name as JavaScript SDK
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        # Use current 2026 model
+        self.model = genai.GenerativeModel('gemini-2.5-flash')
         self.chat_session = None
     
     def generate_response(self, prompt: str, system_instruction: str = "") -> str:
