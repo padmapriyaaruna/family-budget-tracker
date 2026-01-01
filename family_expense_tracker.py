@@ -441,7 +441,6 @@ def show_admin_dashboard():
     user = st.session_state.user
     household_id = user['household_id']
     
-    st.title(f"👨‍👩‍👧‍👦 Family Budget Dashboard")
     st.caption(f"Admin: {user['full_name']}")
     
     # Logout button
