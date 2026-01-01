@@ -220,6 +220,17 @@ If the query is not possible or violates security rules, return: "UNSAFE_QUERY"
         sql_response = self.llm.generate_response(prompt)
         sql_query = sql_response.strip()
         
+        # Strip markdown code blocks if present (```sql ... ```)
+        if sql_query.startswith('```'):
+            lines = sql_query.split('\n')
+            # Remove first line (```sql)
+            if len(lines) > 1:
+                lines = lines[1:]
+            # Remove last line if it's ```
+            if lines and lines[-1].strip() == '```':
+                lines = lines[:-1]
+            sql_query = '\n'.join(lines).strip()
+        
         # Validate the query
         is_safe, debug_msg = self._is_safe_query(sql_query, user_id, family_id, role)
         if not is_safe:
