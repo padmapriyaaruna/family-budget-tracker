@@ -2404,8 +2404,9 @@ def main():
             import streamlit.components.v1 as components
             components.html(chat_html, height=410, scrolling=False)
             
-            # Chat input area (fixed at bottom of expander)
-            st.markdown("---")
+            
+            # Minimal spacing instead of divider (no blank space)
+            st.markdown('<div style="margin-top: 5px;"></div>', unsafe_allow_html=True)
             user_question = st.text_input("💬 Type your message:", key="chat_input", placeholder="e.g., How much did I spend on groceries?")
             
             col1, col2 = st.columns([1, 5])
