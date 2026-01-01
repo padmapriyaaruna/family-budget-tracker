@@ -2402,7 +2402,7 @@ def main():
             
             # Render using components for better HTML support
             import streamlit.components.v1 as components
-            components.html(chat_html, height=410, scrolling=False)
+            components.html(chat_html, height=350, scrolling=False)
             
             
             # Minimal spacing instead of divider (no blank space)
