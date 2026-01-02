@@ -913,11 +913,28 @@ def show_member_dashboard():
 def show_member_expense_tracking(user_id):
     """Shared expense tracking UI for both admin and members"""
     
-    # Create tabs - Review (Dashboard) moved to end
-    tab1, tab2, tab3, tab4 = st.tabs(["💵 Income", "🎯 Allocations", "💸 Expenses", "📊 Review"])
+    # Initialize tab state in session_state
+    if 'active_tab' not in st.session_state:
+        st.session_state.active_tab = 0  # Default to Income tab
+    
+    # Create tab navigation using radio buttons (preserves state across reruns)
+    tab_options = ["💵 Income", "🎯 Allocations", "💸 Expenses", "📊 Review"]
+    selected_tab = st.radio(
+        "Navigation", 
+        tab_options, 
+        index=st.session_state.active_tab,
+        horizontal=True, 
+        label_visibility="collapsed",
+        key="member_tab_selector"
+    )
+    
+    # Update active tab index
+    st.session_state.active_tab = tab_options.index(selected_tab)
+    
+    st.markdown("---")  # Visual separator
     
     # TAB 1: Income
-    with tab1:
+    if selected_tab == "💵 Income":
         st.header("💵 Income Management")
         
         col1, col2 = st.columns([1, 2])
@@ -1103,7 +1120,7 @@ def show_member_expense_tracking(user_id):
 
     
     # TAB 2: Allocations
-    with tab2:
+    elif selected_tab == "🎯 Allocations":
         st.header("🎯 Budget Allocations")
         
         # Show current budget period (read-only indicator)
@@ -1375,7 +1392,7 @@ def show_member_expense_tracking(user_id):
 
     
     # TAB 3: Expenses
-    with tab3:
+    elif selected_tab == "💸 Expenses":
         st.header("💸 Daily Expenses")
         
         # Show current budget period
@@ -1562,7 +1579,7 @@ def show_member_expense_tracking(user_id):
 
     
     # TAB 4: Review (Dashboard)
-    with tab4:
+    elif selected_tab == "📊 Review":
         st.header("📊 Financial Review")
         
         # Initialize review filter session state
