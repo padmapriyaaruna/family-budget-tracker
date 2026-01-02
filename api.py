@@ -5,7 +5,7 @@ Reuses existing MultiUserDB logic with JWT authentication
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime, timedelta
 import os
@@ -43,7 +43,7 @@ security = HTTPBearer()
 # ==================== Pydantic Models ====================
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 class AcceptInviteRequest(BaseModel):
