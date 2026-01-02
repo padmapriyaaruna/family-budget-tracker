@@ -5,10 +5,10 @@ psycopg2-binary>=2.9.9
 sqlalchemy>=2.0.0
 google-generativeai>=0.3.0
 
-# FastAPI Backend Dependencies
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-pydantic==2.6.0
+# FastAPI Backend Dependencies (Python 3.13 compatible)
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==1.10.13
 PyJWT==2.8.0
 python-multipart==0.0.6
 
