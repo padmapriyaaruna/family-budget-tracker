@@ -2299,7 +2299,7 @@ def main():
         user = st.session_state.user
         
         # VERSION MARKER - to confirm new code is deployed
-        st.write("🔴 **CODE VERSION: 2026-01-01-03:06 - FULL AI CHATBOT ACTIVE**")
+        # st.write("🔴 **CODE VERSION: 2026-01-01-03:06 - FULL AI CHATBOT ACTIVE**")
         
         # CHATBOT in MAIN area (sidebar workaround)
         with st.expander("🤖 **Budget Assistant Chatbot** (Click to expand)", expanded=False):
