@@ -125,13 +125,17 @@ def login(request: LoginRequest):
     """
     Authenticate user and return JWT token
     """
-    user = db.authenticate_user(request.email, request.password)
+    # authenticate_user returns (success: bool, user_dict or None)
+    success, user_data = db.authenticate_user(request.email, request.password)
     
-    if not user:
+    if not success or not user_data:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
+    
+    # user_data is already a dict
+    user = user_data
     
     # Create JWT token
     token = create_jwt_token(user['id'], user['email'], user['role'])
@@ -213,18 +217,30 @@ def get_dashboard(
         year = now.year
         month = now.month
     
-    # Get income
-    income_list = db.get_income(user_id, year, month)
-    total_income = sum(item['amount'] for item in income_list)
+    # Get income (returns DataFrame)
+    income_df = db.get_all_income(user_id)
+    income_list = income_df.to_dict('records') if not income_df.empty else []
+    # Filter by period
+    filtered_income = [i for i in income_list if str(i.get('Date', '')).startswith(f"{year}-{month:02d}")]
+    total_income = sum(item.get('Amount', 0) for item in filtered_income)
     
-    # Get expenses
-    expenses_list = db.get_expenses(user_id, year, month)
-    total_expenses = sum(item['amount'] for item in expenses_list)
+    # Get expenses (returns DataFrame)
+    expenses_df = db.get_all_expenses(user_id)
+    expenses_list = expenses_df.to_dict('records') if not expenses_df.empty else []
+    # Filter by period
+    filtered_expenses = [e for e in expenses_list if str(e.get('Date', '')).startswith(f"{year}-{month:02d}")]
+    total_expenses = sum(item.get('Amount', 0) for item in filtered_expenses)
     
-    # Get allocations
-    allocations_list = db.get_all_allocations(user_id, year, month)
-    total_allocated = sum(item['allocated_amount'] for item in allocations_list)
-    total_spent = sum(item['spent_amount'] for item in allocations_list)
+    # Get allocations (returns list of dicts)
+    allocations_result = db.get_all_allocations(user_id, year, month)
+    # Check if it's a DataFrame
+    if hasattr(allocations_result, 'to_dict'):
+        allocations_list = allocations_result.to_dict('records') if not allocations_result.empty else []
+    else:
+        allocations_list = allocations_result if allocations_result else []
+    
+    total_allocated = sum(item.get('allocated_amount', 0) for item in allocations_list)
+    total_spent = sum(item.get('spent_amount', 0) for item in allocations_list)
     
     return {
         "status": "success",
@@ -232,11 +248,11 @@ def get_dashboard(
             "period": {"year": year, "month": month},
             "income": {
                 "total": total_income,
-                "count": len(income_list)
+                "count": len(filtered_income)
             },
             "expenses": {
                 "total": total_expenses,
-                "count": len(expenses_list)
+                "count": len(filtered_expenses)
             },
             "allocations": {
                 "allocated": total_allocated,
@@ -260,7 +276,10 @@ def get_income(
     """
     Get income records for a user
     """
-    income_list = db.get_income(user_id, year, month)
+    income_list = db.get_all_income(user_id)
+    # Filter by period if provided
+    if year and month:
+        income_list = [i for i in income_list if i.get('date', '').startswith(f"{year}-{month:02d}")]
     
     return {
         "status": "success",
@@ -461,7 +480,10 @@ def get_expenses(
     """
     Get expenses for a user
     """
-    expenses = db.get_expenses(user_id, year, month)
+    expenses = db.get_all_expenses(user_id)
+    # Filter by period if provided
+    if year and month:
+        expenses = [e for e in expenses if e.get('date', '').startswith(f"{year}-{month:02d}")]
     
     return {
         "status": "success",
