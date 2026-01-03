@@ -12,29 +12,64 @@ import {
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { addExpense } from '../services/api';
+import { addExpense, getAllocations } from '../services/api';
 import { COLORS, EXPENSE_SUBCATEGORIES, EXPENSE_CATEGORIES } from '../config';
-import { formatDate } from '../utils/helpers';
+import { formatDate, getCurrentPeriod } from '../utils/helpers';
 
 const AddExpenseScreen = ({ navigation }) => {
     const [userId, setUserId] = useState(null);
     const [date, setDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
-    const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
+    const [category, setCategory] = useState('');
+    const [categories, setCategories] = useState([]);
     const [subcategory, setSubcategory] = useState(EXPENSE_SUBCATEGORIES[0]);
     const [amount, setAmount] = useState('');
     const [comment, setComment] = useState('');
     const [loading, setLoading] = useState(false);
+    const [loadingCategories, setLoadingCategories] = useState(true);
 
     useEffect(() => {
         loadUserId();
     }, []);
+
+    useEffect(() => {
+        if (userId) {
+            loadCategories();
+        }
+    }, [userId]);
 
     const loadUserId = async () => {
         const userData = await AsyncStorage.getItem('userData');
         if (userData) {
             const user = JSON.parse(userData);
             setUserId(user.id);
+        }
+    };
+
+    const loadCategories = async () => {
+        try {
+            setLoadingCategories(true);
+            const period = getCurrentPeriod();
+            const allocations = await getAllocations(userId, period.year, period.month);
+
+            // Extract unique categories from allocations
+            const uniqueCategories = [...new Set(allocations.map(a => a.category))];
+
+            if (uniqueCategories.length > 0) {
+                setCategories(uniqueCategories);
+                setCategory(uniqueCategories[0]); // Set first category as default
+            } else {
+                // Fallback to generic categories if no allocations exist
+                setCategories(EXPENSE_CATEGORIES);
+                setCategory(EXPENSE_CATEGORIES[0]);
+            }
+        } catch (error) {
+            console.error('Error loading categories:', error);
+            // Fallback to generic categories on error
+            setCategories(EXPENSE_CATEGORIES);
+            setCategory(EXPENSE_CATEGORIES[0]);
+        } finally {
+            setLoadingCategories(false);
         }
     };
 
@@ -94,16 +129,26 @@ const AddExpenseScreen = ({ navigation }) => {
 
                 {/* Category */}
                 <Text style={styles.label}>Category *</Text>
-                <View style={styles.pickerContainer}>
-                    <Picker
-                        selectedValue={category}
-                        onValueChange={setCategory}
-                        style={styles.picker}>
-                        {EXPENSE_CATEGORIES.map((item) => (
-                            <Picker.Item key={item} label={item} value={item} />
-                        ))}
-                    </Picker>
-                </View>
+                {loadingCategories ? (
+                    <View style={styles.input}>
+                        <Text style={styles.placeholderText}>Loading categories...</Text>
+                    </View>
+                ) : categories.length === 0 ? (
+                    <View style={styles.input}>
+                        <Text style={styles.placeholderText}>No allocations found. Add allocations first.</Text>
+                    </View>
+                ) : (
+                    <View style={styles.pickerContainer}>
+                        <Picker
+                            selectedValue={category}
+                            onValueChange={setCategory}
+                            style={styles.picker}>
+                            {categories.map((item) => (
+                                <Picker.Item key={item} label={item} value={item} />
+                            ))}
+                        </Picker>
+                    </View>
+                )}
 
                 {/* Subcategory */}
                 <Text style={styles.label}>Subcategory *</Text>
@@ -199,6 +244,10 @@ const styles = StyleSheet.create({
     },
     picker: {
         height: 50,
+    },
+    placeholderText: {
+        color: COLORS.gray,
+        fontSize: 14,
     },
     button: {
         backgroundColor: COLORS.primary,
