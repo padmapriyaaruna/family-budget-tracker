@@ -1,0 +1,32 @@
+services:
+  # Streamlit Web App
+  - type: web
+    name: family-budget-tracker
+    env: python
+    runtime: python-3.11
+    rootDir: Personal_Budget_Tracker_Commercial_Version
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run streamlit_app.py --server.port $PORT --server.address 0.0.0.0
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+
+  # FastAPI Backend for Mobile App
+  - type: web
+    name: family-budget-api
+    env: python
+    runtime: python-3.11
+    rootDir: Personal_Budget_Tracker_Commercial_Version
+    buildCommand: pip install -r requirements.txt
+    startCommand: python api.py
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: "*"
+      - key: PYTHON_VERSION
+        value: "3.11.0"
