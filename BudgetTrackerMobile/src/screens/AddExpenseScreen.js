@@ -52,17 +52,32 @@ const AddExpenseScreen = ({ navigation }) => {
             const period = getCurrentPeriod();
             const response = await getAllocations(userId, period.year, period.month);
 
+            console.log('Allocations response:', response); // Debug log
+
             // API returns response.data or direct array
             const allocations = Array.isArray(response) ? response : (response?.data || []);
 
-            // Extract unique categories from allocations
-            const uniqueCategories = [...new Set(allocations.map(a => a.category))].filter(Boolean);
+            console.log('Allocations array:', allocations); // Debug log
+
+            if (!Array.isArray(allocations) || allocations.length === 0) {
+                console.log('No allocations found, using fallback');
+                setCategories(EXPENSE_CATEGORIES);
+                setCategory(EXPENSE_CATEGORIES[0]);
+                return;
+            }
+
+            // Extract unique categories - handle both 'category' and 'Category'
+            const uniqueCategories = [...new Set(
+                allocations.map(a => a.category || a.Category).filter(Boolean)
+            )];
+
+            console.log('Extracted categories:', uniqueCategories); // Debug log
 
             if (uniqueCategories.length > 0) {
                 setCategories(uniqueCategories);
                 setCategory(uniqueCategories[0]); // Set first category as default
             } else {
-                // Fallback to generic categories if no allocations exist
+                // Fallback to generic categories if no categories found
                 setCategories(EXPENSE_CATEGORIES);
                 setCategory(EXPENSE_CATEGORIES[0]);
             }
