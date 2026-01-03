@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { getDashboard } from '../services/api';
 import { formatCurrency, getCurrentPeriod } from '../utils/helpers';
+import { COLORS } from '../config';
 
 const DashboardScreen = ({ user, onLogout, onNavigate }) => {
     const [dashboard, setDashboard] = useState(null);
