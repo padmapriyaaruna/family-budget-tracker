@@ -289,7 +289,14 @@ def get_income(
     """
     Get income records for a user
     """
-    income_list = db.get_all_income(user_id)
+    income_result = db.get_all_income(user_id)
+    
+    # Convert DataFrame to list of dicts if needed
+    if hasattr(income_result, 'to_dict'):
+        income_list = income_result.to_dict('records') if not income_result.empty else []
+    else:
+        income_list = income_result if income_result else []
+    
     # Filter by period if provided
     if year and month:
         income_list = [i for i in income_list if i.get('date', '').startswith(f"{year}-{month:02d}")]
@@ -499,7 +506,14 @@ def get_expenses(
     """
     Get expenses for a user
     """
-    expenses = db.get_all_expenses(user_id)
+    expenses_result = db.get_all_expenses(user_id)
+    
+    # Convert DataFrame to list of dicts if needed
+    if hasattr(expenses_result, 'to_dict'):
+        expenses = expenses_result.to_dict('records') if not expenses_result.empty else []
+    else:
+        expenses = expenses_result if expenses_result else []
+    
     # Filter by period if provided
     if year and month:
         expenses = [e for e in expenses if e.get('date', '').startswith(f"{year}-{month:02d}")]

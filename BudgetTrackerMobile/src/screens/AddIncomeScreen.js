@@ -70,6 +70,15 @@ const AddIncomeScreen = ({ navigation }) => {
 
     return (
         <ScrollView style={styles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                    <Text style={styles.backButton}>← Back</Text>
+                </TouchableOpacity>
+                <Text style={styles.title}>Add Income</Text>
+                <View style={styles.placeholder} />
+            </View>
+
             <View style={styles.form}>
                 <Text style={styles.label}>Date *</Text>
                 <TouchableOpacity
