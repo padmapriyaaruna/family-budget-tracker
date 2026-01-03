@@ -61,8 +61,12 @@ const AllocationsListScreen = ({ onNavigate }) => {
     };
 
     const renderAllocation = ({ item }) => {
-        const percentUsed = (item['Allocated Amount'] || item.allocated_amount) > 0
-            ? ((item['Spent Amount'] || item.spent_amount) / (item['Allocated Amount'] || item.allocated_amount) * 100).toFixed(1)
+        const allocatedAmount = item['Allocated Amount'] || item.allocated_amount || 0;
+        const spentAmount = item['Spent Amount'] || item.spent_amount || 0;
+        const balance = allocatedAmount - spentAmount;
+
+        const percentUsed = allocatedAmount > 0
+            ? (spentAmount / allocatedAmount * 100).toFixed(1)
             : 0;
 
         return (
@@ -71,16 +75,16 @@ const AllocationsListScreen = ({ onNavigate }) => {
                 <View style={styles.amountRow}>
                     <View>
                         <Text style={styles.label}>Allocated</Text>
-                        <Text style={styles.allocated}>{formatCurrency(item['Allocated Amount'] || item.allocated_amount)}</Text>
+                        <Text style={styles.allocated}>{formatCurrency(allocatedAmount)}</Text>
                     </View>
                     <View>
                         <Text style={styles.label}>Spent</Text>
-                        <Text style={styles.spent}>{formatCurrency(item['Spent Amount'] || item.spent_amount)}</Text>
+                        <Text style={styles.spent}>{formatCurrency(spentAmount)}</Text>
                     </View>
                     <View>
                         <Text style={styles.label}>Balance</Text>
-                        <Text style={[styles.balance, (item.Balance || item.balance) < 0 && styles.negative]}>
-                            {formatCurrency(item.Balance || item.balance)}
+                        <Text style={[styles.balance, balance < 0 && styles.negative]}>
+                            {formatCurrency(balance)}
                         </Text>
                     </View>
                 </View>

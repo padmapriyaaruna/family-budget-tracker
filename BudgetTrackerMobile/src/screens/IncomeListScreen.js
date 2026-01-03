@@ -27,7 +27,8 @@ const IncomeListScreen = ({ onNavigate }) => {
         try {
             const userData = await AsyncStorage.getItem('userData');
             const user = JSON.parse(userData);
-            const data = await getIncome(user.id, period.year, period.month);
+            // Get all income (no period filter)
+            const data = await getIncome(user.id);
             setIncome(data);
         } catch (error) {
             console.error('Error loading income:', error);

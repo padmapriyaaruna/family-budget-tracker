@@ -128,6 +128,15 @@ const AddExpenseScreen = ({ navigation }) => {
 
     return (
         <ScrollView style={styles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                    <Text style={styles.backButton}>← Back</Text>
+                </TouchableOpacity>
+                <Text style={styles.title}>Add Expense</Text>
+                <View style={styles.placeholder} />
+            </View>
+
             <View style={styles.form}>
                 {/* Date */}
                 <Text style={styles.label}>Date *</Text>

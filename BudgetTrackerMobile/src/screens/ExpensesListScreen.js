@@ -27,7 +27,8 @@ const ExpensesListScreen = ({ onNavigate }) => {
         try {
             const userData = await AsyncStorage.getItem('userData');
             const user = JSON.parse(userData);
-            const data = await getExpenses(user.id, period.year, period.month);
+            // Get all expenses (no period filter)
+            const data = await getExpenses(user.id);
             setExpenses(data);
         } catch (error) {
             console.error('Error loading expenses:', error);
