@@ -130,6 +130,28 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.background,
     },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: COLORS.white,
+        marginTop: 40,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.lightGray,
+    },
+    backButton: {
+        fontSize: 16,
+        color: COLORS.primary,
+    },
+    title: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: COLORS.text,
+    },
+    placeholder: {
+        width: 60,
+    },
     form: {
         padding: 16,
     },
