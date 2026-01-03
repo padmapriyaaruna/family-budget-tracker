@@ -95,6 +95,16 @@ const DashboardScreen = ({ user, onLogout }) => {
                 </View>
             </View>
 
+            {/* Quick Actions */}
+            <View style={styles.actionsSection}>
+                <Text style={styles.sectionTitle}>Quick Actions</Text>
+                <TouchableOpacity
+                    style={[styles.actionButton, styles.addExpenseButton]}
+                    onPress={() => alert('Add Expense feature - Coming soon!')}>
+                    <Text style={styles.actionButtonText}>+ Add Expense</Text>
+                </TouchableOpacity>
+            </View>
+
             <View style={styles.footer}>
                 <Text style={styles.footerText}>Pull down to refresh</Text>
             </View>
@@ -180,6 +190,30 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
         color: '#212121',
+    },
+    actionsSection: {
+        padding: 16,
+        marginTop: 8,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#212121',
+        marginBottom: 12,
+    },
+    actionButton: {
+        padding: 16,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    addExpenseButton: {
+        backgroundColor: '#F44336',
+    },
+    actionButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
     footer: {
         padding: 20,
