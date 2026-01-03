@@ -103,6 +103,36 @@ const DashboardScreen = ({ user, onLogout, onNavigate }) => {
                     onPress={() => onNavigate('AddExpense')}>
                     <Text style={styles.actionButtonText}>+ Add Expense</Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.actionButton, styles.addIncomeButton]}
+                    onPress={() => onNavigate('AddIncome')}>
+                    <Text style={styles.actionButtonText}>+ Add Income</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.actionButton, styles.addAllocationButton]}
+                    onPress={() => onNavigate('AddAllocation')}>
+                    <Text style={styles.actionButtonText}>+ Add Allocation</Text>
+                </TouchableOpacity>
+            </View>
+
+            {/* View Data Sections */}
+            <View style={styles.actionsSection}>
+                <Text style={styles.sectionTitle}>View Data</Text>
+                <TouchableOpacity
+                    style={[styles.actionButton, styles.viewButton]}
+                    onPress={() => onNavigate('ExpensesList')}>
+                    <Text style={styles.actionButtonText}>View All Expenses</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.actionButton, styles.viewButton]}
+                    onPress={() => onNavigate('IncomeList')}>
+                    <Text style={styles.actionButtonText}>View All Income</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.actionButton, styles.viewButton]}
+                    onPress={() => onNavigate('AllocationsList')}>
+                    <Text style={styles.actionButtonText}>View All Allocations</Text>
+                </TouchableOpacity>
             </View>
 
             <View style={styles.footer}>
@@ -208,7 +238,16 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     addExpenseButton: {
-        backgroundColor: '#F44336',
+        backgroundColor: COLORS.danger,
+    },
+    addIncomeButton: {
+        backgroundColor: COLORS.success,
+    },
+    addAllocationButton: {
+        backgroundColor: COLORS.secondary,
+    },
+    viewButton: {
+        backgroundColor: COLORS.primary,
     },
     actionButtonText: {
         color: '#FFFFFF',

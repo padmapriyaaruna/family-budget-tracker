@@ -5,10 +5,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import AddExpenseScreen from './src/screens/AddExpenseScreen';
+import ExpensesListScreen from './src/screens/ExpensesListScreen';
+import IncomeListScreen from './src/screens/IncomeListScreen';
+import AddIncomeScreen from './src/screens/AddIncomeScreen';
+import AllocationsListScreen from './src/screens/AllocationsListScreen';
+import AddAllocationScreen from './src/screens/AddAllocationScreen';
 
 const App = () => {
     const [currentScreen, setCurrentScreen] = useState('Login');
     const [user, setUser] = useState(null);
+    const [screenParams, setScreenParams] = useState(null);
 
     // Check if user is already logged in
     useEffect(() => {
@@ -39,7 +45,8 @@ const App = () => {
         setCurrentScreen('Login');
     };
 
-    const handleNavigate = (screenName) => {
+    const handleNavigate = (screenName, params = null) => {
+        setScreenParams(params);
         setCurrentScreen(screenName);
     };
 
@@ -54,6 +61,26 @@ const App = () => {
 
     if (currentScreen === 'AddExpense') {
         return <AddExpenseScreen navigation={{ goBack: () => setCurrentScreen('Dashboard') }} />;
+    }
+
+    if (currentScreen === 'ExpensesList') {
+        return <ExpensesListScreen onNavigate={handleNavigate} />;
+    }
+
+    if (currentScreen === 'IncomeList') {
+        return <IncomeListScreen onNavigate={handleNavigate} />;
+    }
+
+    if (currentScreen === 'AddIncome') {
+        return <AddIncomeScreen navigation={{ goBack: () => setCurrentScreen('Dashboard') }} />;
+    }
+
+    if (currentScreen === 'AllocationsList') {
+        return <AllocationsListScreen onNavigate={handleNavigate} />;
+    }
+
+    if (currentScreen === 'AddAllocation') {
+        return <AddAllocationScreen navigation={{ goBack: () => setCurrentScreen('Dashboard') }} />;
     }
 
     return null;
