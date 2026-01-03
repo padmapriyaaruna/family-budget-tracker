@@ -13,14 +13,14 @@ import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addExpense } from '../services/api';
-import { COLORS, EXPENSE_SUBCATEGORIES } from '../config';
+import { COLORS, EXPENSE_SUBCATEGORIES, EXPENSE_CATEGORIES } from '../config';
 import { formatDate } from '../utils/helpers';
 
 const AddExpenseScreen = ({ navigation }) => {
     const [userId, setUserId] = useState(null);
     const [date, setDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
-    const [category, setCategory] = useState('');
+    const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
     const [subcategory, setSubcategory] = useState(EXPENSE_SUBCATEGORIES[0]);
     const [amount, setAmount] = useState('');
     const [comment, setComment] = useState('');
@@ -94,12 +94,16 @@ const AddExpenseScreen = ({ navigation }) => {
 
                 {/* Category */}
                 <Text style={styles.label}>Category *</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="e.g., Groceries, Transport"
-                    value={category}
-                    onChangeText={setCategory}
-                />
+                <View style={styles.pickerContainer}>
+                    <Picker
+                        selectedValue={category}
+                        onValueChange={setCategory}
+                        style={styles.picker}>
+                        {EXPENSE_CATEGORIES.map((item) => (
+                            <Picker.Item key={item} label={item} value={item} />
+                        ))}
+                    </Picker>
+                </View>
 
                 {/* Subcategory */}
                 <Text style={styles.label}>Subcategory *</Text>

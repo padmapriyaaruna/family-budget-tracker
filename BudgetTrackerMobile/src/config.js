@@ -28,6 +28,21 @@ export const EXPENSE_SUBCATEGORIES = [
     'Others'
 ];
 
+// Category Options (Allocation Categories)
+export const EXPENSE_CATEGORIES = [
+    'Groceries',
+    'Transport',
+    'Entertainment',
+    'Healthcare',
+    'Education',
+    'Utilities',
+    'Shopping',
+    'Food & Dining',
+    'Housing',
+    'Personal Care',
+    'Others'
+];
+
 // Theme Colors
 export const COLORS = {
     primary: '#4CAF50',
