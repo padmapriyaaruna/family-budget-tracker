@@ -10,7 +10,7 @@ import {
 import { getDashboard } from '../services/api';
 import { formatCurrency, getCurrentPeriod } from '../utils/helpers';
 
-const DashboardScreen = ({ user, onLogout }) => {
+const DashboardScreen = ({ user, onLogout, onNavigate }) => {
     const [dashboard, setDashboard] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
     const period = getCurrentPeriod();
@@ -100,7 +100,7 @@ const DashboardScreen = ({ user, onLogout }) => {
                 <Text style={styles.sectionTitle}>Quick Actions</Text>
                 <TouchableOpacity
                     style={[styles.actionButton, styles.addExpenseButton]}
-                    onPress={() => alert('Add Expense feature - Coming soon!')}>
+                    onPress={() => onNavigate('AddExpense')}>
                     <Text style={styles.actionButtonText}>+ Add Expense</Text>
                 </TouchableOpacity>
             </View>

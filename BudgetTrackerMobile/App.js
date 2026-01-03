@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Import Screens
 import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
+import AddExpenseScreen from './src/screens/AddExpenseScreen';
 
 const App = () => {
     const [currentScreen, setCurrentScreen] = useState('Login');
@@ -38,16 +39,25 @@ const App = () => {
         setCurrentScreen('Login');
     };
 
+    const handleNavigate = (screenName) => {
+        setCurrentScreen(screenName);
+    };
+
     // Render current screen
     if (currentScreen === 'Login') {
         return <LoginScreen onLogin={handleLogin} />;
     }
 
     if (currentScreen === 'Dashboard') {
-        return <DashboardScreen user={user} onLogout={handleLogout} />;
+        return <DashboardScreen user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+
+    if (currentScreen === 'AddExpense') {
+        return <AddExpenseScreen navigation={{ goBack: () => setCurrentScreen('Dashboard') }} />;
     }
 
     return null;
 };
 
 export default App;
+
