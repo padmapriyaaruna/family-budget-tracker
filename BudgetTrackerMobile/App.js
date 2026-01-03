@@ -16,23 +16,7 @@ const App = () => {
     const [user, setUser] = useState(null);
     const [screenParams, setScreenParams] = useState(null);
 
-    // Check if user is already logged in
-    useEffect(() => {
-        checkLoginStatus();
-    }, []);
-
-    const checkLoginStatus = async () => {
-        try {
-            const token = await AsyncStorage.getItem('authToken');
-            const userData = await AsyncStorage.getItem('userData');
-            if (token && userData) {
-                setUser(JSON.parse(userData));
-                setCurrentScreen('Dashboard');
-            }
-        } catch (error) {
-            console.error('Error checking login status:', error);
-        }
-    };
+    // No auto-login - always start at login screen
 
     const handleLogin = (userData) => {
         setUser(userData);
@@ -40,6 +24,7 @@ const App = () => {
     };
 
     const handleLogout = async () => {
+        // Clear all stored data
         await AsyncStorage.clear();
         setUser(null);
         setCurrentScreen('Login');
