@@ -518,9 +518,9 @@ def add_expense(request: ExpenseRequest, current_user: dict = Depends(verify_jwt
         request.user_id,
         request.date,
         request.category,
-        request.subcategory,
         request.amount,
-        request.comment
+        request.comment,
+        request.subcategory
     )
     
     if not success:
