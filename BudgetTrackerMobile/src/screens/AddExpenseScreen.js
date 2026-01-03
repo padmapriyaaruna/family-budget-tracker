@@ -50,10 +50,13 @@ const AddExpenseScreen = ({ navigation }) => {
         try {
             setLoadingCategories(true);
             const period = getCurrentPeriod();
-            const allocations = await getAllocations(userId, period.year, period.month);
+            const response = await getAllocations(userId, period.year, period.month);
+
+            // API returns response.data or direct array
+            const allocations = Array.isArray(response) ? response : (response?.data || []);
 
             // Extract unique categories from allocations
-            const uniqueCategories = [...new Set(allocations.map(a => a.category))];
+            const uniqueCategories = [...new Set(allocations.map(a => a.category))].filter(Boolean);
 
             if (uniqueCategories.length > 0) {
                 setCategories(uniqueCategories);
