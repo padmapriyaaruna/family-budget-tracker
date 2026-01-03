@@ -3,8 +3,8 @@
  * Update API_BASE_URL with your local machine IP
  */
 
-// API Configuration - Use local IP for development
-export const API_BASE_URL = 'http://192.168.0.110:8000';
+// API Configuration - Use production Render URL
+export const API_BASE_URL = 'https://family-budget-api-seyi.onrender.com';
 
 // App Configuration
 export const APP_NAME = 'Family Budget Tracker';
