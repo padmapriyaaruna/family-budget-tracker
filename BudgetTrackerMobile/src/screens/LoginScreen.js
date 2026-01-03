@@ -11,32 +11,47 @@ import {
 import { login } from '../services/api';
 
 const LoginScreen = ({ onLogin }) => {
-    const [email, setEmail] = useState('');
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleLogin = async () => {
-        if (!email || !password) {
-            Alert.alert('Error', 'Please enter email and password');
+        if (!username || !password) {
+            Alert.alert('Error', 'Please enter both username and password');
             return;
         }
 
         setLoading(true);
-        try {
-            const response = await login(email, password);
+        let retries = 3;
 
-            if (response.status === 'success') {
-                // Pass user data to parent
-                onLogin(response.data.user);
+        for (let i = 0; i < retries; i++) {
+            try {
+                const response = await login(username, password);
+
+                await AsyncStorage.setItem('authToken', response.token);
+                await AsyncStorage.setItem('userData', JSON.stringify(response.user));
+
+                Alert.alert('Success', 'Login successful!');
+                onLogin(response.user);
+                setLoading(false);
+                return; // Success - exit function
+
+            } catch (error) {
+                console.error('Login error:', error);
+
+                // On last retry, show error
+                if (i === retries - 1) {
+                    const errorMsg = error.response?.data?.detail ||
+                        error.message === 'Network Error'
+                        ? 'Server is waking up. Please try again in 30 seconds.'
+                        : 'Invalid credentials';
+                    Alert.alert('Login Failed', errorMsg);
+                    setLoading(false);
+                } else {
+                    // Wait 2 seconds before retry
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
             }
-        } catch (error) {
-            console.error('Login error:', error);
-            Alert.alert(
-                'Login Failed',
-                error.response?.data?.detail || 'Invalid email or password'
-            );
-        } finally {
-            setLoading(false);
         }
     };
 
