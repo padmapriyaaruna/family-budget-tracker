@@ -29,6 +29,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize database connection with Render-compatible URL handling
+def get_database_url():
+    """Get database URL and ensure PostgreSQL dialect compatibility"""
+    db_url = os.getenv('DATABASE_URL')
+    if db_url and db_url.startswith('postgres://'):
+        # Fix for SQLAlchemy - replace postgres:// with postgresql://
+        db_url = db_url.replace('postgres://', 'postgresql://', 1)
+    return db_url
+
+# Set the corrected DATABASE_URL back to environment
+if get_database_url():
+    os.environ['DATABASE_URL'] = get_database_url()
+
 # Initialize Database
 db = MultiUserDB()
 
@@ -564,6 +577,17 @@ def delete_expense(expense_id: int, current_user: dict = Depends(verify_jwt_toke
 
 # ==================== Health Check ====================
 
+@app.get("/")
+def root():
+    """
+    Root endpoint - Render uses this to check if deployment succeeded
+    """
+    return {
+        "status": "alive",
+        "message": "Family Budget Tracker API is running",
+        "version": "1.0.0"
+    }
+
 @app.get("/health")
 def health_check():
     """
@@ -571,7 +595,8 @@ def health_check():
     """
     return {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0"
     }
 
 if __name__ == "__main__":

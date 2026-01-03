@@ -1,5 +1,5 @@
 services:
-  # Web App (existing Streamlit app)
+  # Streamlit Web App
   - type: web
     name: family-budget-tracker
     env: python
@@ -11,14 +11,14 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
-  
-  # API Backend (new for mobile app)
+
+  # FastAPI Backend for Mobile App
   - type: web
     name: family-budget-api
     env: python
     runtime: python-3.11
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn api:app --host 0.0.0.0 --port $PORT
+    startCommand: python api.py
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -26,3 +26,5 @@ services:
         generateValue: true
       - key: ALLOWED_ORIGINS
         value: "*"
+      - key: PYTHON_VERSION
+        value: "3.11.0"
