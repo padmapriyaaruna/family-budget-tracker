@@ -379,7 +379,13 @@ def get_allocations(
     """
     Get allocations for a user
     """
-    allocations = db.get_all_allocations(user_id, year, month)
+    allocations_result = db.get_all_allocations(user_id, year, month)
+    
+    # Convert DataFrame to list of dicts if needed
+    if hasattr(allocations_result, 'to_dict'):
+        allocations = allocations_result.to_dict('records') if not allocations_result.empty else []
+    else:
+        allocations = allocations_result if allocations_result else []
     
     return {
         "status": "success",
