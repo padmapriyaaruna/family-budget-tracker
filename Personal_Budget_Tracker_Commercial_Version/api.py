@@ -305,6 +305,132 @@ def create_household_member(
         }
     }
 
+@app.get("/api/households/{household_id}/members")
+def get_household_members_list(
+    household_id: int,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    """
+    Get all members of a household (Admin only)
+    """
+    # Verify user is admin of this household
+    user = db.get_user_by_id(current_user['user_id'])
+    if not user or user['household_id'] != household_id or user['role'] != 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only household admins can view members"
+        )
+    
+    members = db.get_household_members(household_id)
+    return {
+        "status": "success",
+        "data": {
+            "members": members
+        }
+    }
+
+@app.delete("/api/households/{household_id}/members/{member_id}")
+def delete_household_member(
+    household_id: int,
+    member_id: int,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    """
+    Delete a household member (Admin only)
+    """
+    # Verify user is admin of this household
+    user = db.get_user_by_id(current_user['user_id'])
+    if not user or user['household_id'] != household_id or user['role'] != 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only household admins can delete members"
+        )
+    
+    # Don't allow deleting yourself
+    if member_id == current_user['user_id']:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete yourself"
+        )
+    
+    success = db.delete_member(member_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to delete member"
+        )
+    
+    return {
+        "status": "success",
+        "message": "Member deleted successfully"
+    }
+
+@app.post("/api/households/{household_id}/members/{member_id}/promote")
+def promote_member(
+    household_id: int,
+    member_id: int,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    """
+    Promote a member to admin (Super Admin only)
+    """
+    if current_user.get('role') != 'superadmin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only super admin can promote members"
+        )
+    
+    success = db.promote_member_to_admin(member_id, household_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to promote member"
+        )
+    
+    return {
+        "status": "success",
+        "message": "Member promoted to admin successfully"
+    }
+
+class CreateFamilyAdminRequest(BaseModel):
+    household_name: str
+    admin_name: str
+    admin_email: str
+
+@app.post("/api/admin/create-family")
+def create_family_admin(
+    request: CreateFamilyAdminRequest,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    """
+    Create a new household with family admin (Super Admin only)
+    """
+    if current_user.get('role') != 'superadmin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only super admin can create families"
+        )
+    
+    success, result = db.create_household_with_admin(
+        household_name=request.household_name,
+        admin_email=request.admin_email,
+        admin_name=request.admin_name
+    )
+    
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result
+        )
+    
+    return {
+        "status": "success",
+        "data": {
+            "invite_token": result,
+            "message": f"Family '{request.household_name}' created. Share this token with {request.admin_name}."
+        }
+    }
+
 # ==================== User Endpoints ====================
 
 @app.get("/api/user/profile")

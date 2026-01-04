@@ -148,6 +148,11 @@ const DashboardScreen = ({ user, onLogout, onNavigate }) => {
                         onPress={() => onNavigate('AddMember')}>
                         <Text style={styles.actionButtonText}>+ Add Family Member</Text>
                     </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.actionButton, styles.viewButton]}
+                        onPress={() => onNavigate('ViewFamilyMembers')}>
+                        <Text style={styles.actionButtonText}>View Family Members</Text>
+                    </TouchableOpacity>
                 </View>
             )}
 

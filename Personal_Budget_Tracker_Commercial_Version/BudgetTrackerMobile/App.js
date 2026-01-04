@@ -12,6 +12,8 @@ import AllocationsListScreen from './src/screens/AllocationsListScreen';
 import AddAllocationScreen from './src/screens/AddAllocationScreen';
 import SuperAdminDashboard from './src/screens/SuperAdminDashboard';
 import AddMemberScreen from './src/screens/AddMemberScreen';
+import ViewFamilyMembersScreen from './src/screens/ViewFamilyMembersScreen';
+import AddFamilyAdminScreen from './src/screens/AddFamilyAdminScreen';
 
 const App = () => {
     const [currentScreen, setCurrentScreen] = useState('Login');
@@ -81,6 +83,14 @@ const App = () => {
 
     if (currentScreen === 'AddMember') {
         return <AddMemberScreen onNavigate={handleNavigate} />;
+    }
+
+    if (currentScreen === 'ViewFamilyMembers') {
+        return <ViewFamilyMembersScreen onNavigate={handleNavigate} />;
+    }
+
+    if (currentScreen === 'AddFamilyAdmin') {
+        return <AddFamilyAdminScreen onNavigate={handleNavigate} />;
     }
 
     return null;

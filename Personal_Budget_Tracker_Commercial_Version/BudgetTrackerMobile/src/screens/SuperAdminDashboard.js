@@ -85,6 +85,15 @@ const SuperAdminDashboard = ({ onLogout, onNavigate }) => {
                 </View>
             </View>
 
+            {/* Quick Actions */}
+            <View style={styles.section}>
+                <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => onNavigate('AddFamilyAdmin')}>
+                    <Text style={styles.actionButtonText}>+ Create Family Admin</Text>
+                </TouchableOpacity>
+            </View>
+
             {/* Households List */}
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>All Households</Text>
@@ -225,6 +234,17 @@ const styles = StyleSheet.create({
     },
     inactiveDot: {
         backgroundColor: COLORS.gray,
+    },
+    actionButton: {
+        backgroundColor: COLORS.primary,
+        padding: 16,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    actionButtonText: {
+        color: COLORS.white,
+        fontSize: 16,
+        fontWeight: 'bold',
     },
 });
 
