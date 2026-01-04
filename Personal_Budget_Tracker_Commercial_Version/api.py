@@ -321,13 +321,37 @@ def get_household_members_list(
             detail="Only household admins can view members"
         )
     
-    members = db.get_household_members(household_id)
-    return {
-        "status": "success",
-        "data": {
-            "members": members
+    try:
+        members_df = db.get_household_members(household_id)
+        
+        # Convert DataFrame to list of dicts
+        members = []
+        for _, row in members_df.iterrows():
+            members.append({
+                "id": int(row['id']),
+                "email": str(row['email']),
+                "full_name": str(row['full_name']),
+                "role": str(row['role']),
+                "relationship": str(row.get('relationship', 'N/A')),
+                "is_active": bool(row.get('is_active', True)),
+                "invite_token": str(row.get('invite_token', '')) if row.get('invite_token') else None
+            })
+        
+        print(f"DEBUG: Returning {len(members)} members for household {household_id}")
+        return {
+            "status": "success",
+            "data": {
+                "members": members
+            }
         }
-    }
+    except Exception as e:
+        print(f"ERROR in get_household_members: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch members: {str(e)}"
+        )
 
 @app.delete("/api/households/{household_id}/members/{member_id}")
 def delete_household_member(
@@ -508,12 +532,18 @@ def get_dashboard(
     
     # Calculate budget used percentage (total_expenses / total_income * 100)
     budget_used_percentage = 0
+    
+    print(f"DEBUG Budget Calc - Period: {year}-{month}")
+    print(f"DEBUG Budget Calc - Total Income: {total_income} (from {len(filtered_income)} income records)")
+    print(f"DEBUG Budget Calc - Total Expenses: {total_expenses} (from {len(filtered_expenses)} expense records)")
+    print(f"DEBUG Budget Calc - Allocations: allocated={total_allocated}, spent={total_spent}")
+    
     if total_income > 0:
         # Force float division and log values for debugging
         budget_used_percentage = round((float(total_expenses) / float(total_income)) * 100, 2)
-        print(f"DEBUG Budget Calc - Income: {total_income}, Expenses: {total_expenses}, Percentage: {budget_used_percentage}%")
+        print(f"DEBUG Budget Calc - Percentage: {budget_used_percentage}% (expenses/income * 100)")
     else:
-        print(f"DEBUG Budget Calc - No income for period {year}-{month}")
+        print(f"DEBUG Budget Calc - No income for period {year}-{month}, percentage set to 0")
     
     return {
         "status": "success",
