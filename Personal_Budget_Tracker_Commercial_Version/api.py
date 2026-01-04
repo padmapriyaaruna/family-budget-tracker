@@ -228,33 +228,35 @@ def get_all_households(current_user: dict = Depends(verify_jwt_token)):
             detail="Super admin access required"
         )
     
-    cursor = db.conn.cursor()
-    db._execute(cursor, '''
-        SELECT h.id, h.name, 
-               COUNT(DISTINCT u.id) as member_count,
-               MAX(CASE WHEN u.role = 'admin' THEN u.full_name END) as admin_name
-        FROM households h
-        LEFT JOIN users u ON h.id = u.household_id
-        GROUP BY h.id, h.name
-        ORDER BY h.name
-    ''')
-    
-    households = []
-    for row in cursor.fetchall():
-        households.append({
-            "id": row[0],
-            "name": row[1],
-            "member_count": row[2] or 0,
-            "admin_name": row[3] or "No Admin",
-            "is_active": True  # Add actual status field if needed
-        })
-    
-    return {
-        "status": "success",
-        "data": {
-            "households": households
+    try:
+        # Use the existing database method
+        households_df = db.get_all_households()
+        
+        households = []
+        for _, row in households_df.iterrows():
+            households.append({
+                "id": int(row['id']),
+                "name": str(row['name']),
+                "member_count": int(row.get('member_count', 0)),
+                "admin_name": str(row.get('admin_name', 'No Admin')),
+                "is_active": bool(row.get('is_active', True))
+            })
+        
+        print(f"DEBUG: Returning {len(households)} households to super admin")
+        return {
+            "status": "success",
+            "data": {
+                "households": households
+            }
         }
-    }
+    except Exception as e:
+        print(f"ERROR in get_all_households: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch households: {str(e)}"
+        )
 
 # ==================== Household/Family Admin Endpoints ====================
 

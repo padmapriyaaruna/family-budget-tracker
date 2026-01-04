@@ -22,7 +22,7 @@ const AddExpenseScreen = ({ navigation }) => {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [category, setCategory] = useState('');
     const [categories, setCategories] = useState([]);
-    const [subcategory, setSubcategory] = useState(EXPENSE_SUBCATEGORIES[0]);
+    const [subcategory, setSubcategory] = useState('');
     const [amount, setAmount] = useState('');
     const [comment, setComment] = useState('');
     const [loading, setLoading] = useState(false);
@@ -170,6 +170,7 @@ const AddExpenseScreen = ({ navigation }) => {
                             selectedValue={category}
                             onValueChange={setCategory}
                             style={styles.picker}>
+                            <Picker.Item label="Select category" value="" />
                             {categories.map((item) => (
                                 <Picker.Item key={item} label={item} value={item} />
                             ))}
@@ -177,13 +178,13 @@ const AddExpenseScreen = ({ navigation }) => {
                     </View>
                 )}
 
-                {/* Subcategory */}
                 <Text style={styles.label}>Subcategory *</Text>
                 <View style={styles.pickerContainer}>
                     <Picker
                         selectedValue={subcategory}
                         onValueChange={setSubcategory}
                         style={styles.picker}>
+                        <Picker.Item label="Select subcategory" value="" />
                         {EXPENSE_SUBCATEGORIES.map((item) => (
                             <Picker.Item key={item} label={item} value={item} />
                         ))}
