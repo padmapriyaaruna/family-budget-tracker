@@ -122,13 +122,15 @@ const ViewFamilyMembersScreen = ({ onNavigate }) => {
                                 )}
                             </View>
                         </View>
-                        <View style={styles.actions}>
-                            <TouchableOpacity
-                                style={styles.deleteButton}
-                                onPress={() => handleDelete(member.id, member.full_name)}>
-                                <Text style={styles.deleteButtonText}>Delete</Text>
-                            </TouchableOpacity>
-                        </View>
+                        {member.role !== 'admin' && (
+                            <View style={styles.actions}>
+                                <TouchableOpacity
+                                    style={styles.deleteButton}
+                                    onPress={() => handleDelete(member.id, member.full_name)}>
+                                    <Text style={styles.deleteButtonText}>Delete</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
                     </View>
                 ))}
                 {members.length === 0 && (
