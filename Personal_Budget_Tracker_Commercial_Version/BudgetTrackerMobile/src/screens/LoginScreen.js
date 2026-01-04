@@ -28,6 +28,8 @@ const LoginScreen = ({ onLogin }) => {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [setupLoading, setSetupLoading] = useState(false);
+    const [isNewPasswordVisible, setIsNewPasswordVisible] = useState(false);
+    const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
 
     const handleLogin = async () => {
         if (!username || !password) {
@@ -195,22 +197,46 @@ const LoginScreen = ({ onLogin }) => {
                             />
 
                             <Text style={styles.label}>New Password</Text>
-                            <TextInput
-                                style={styles.modalInput}
-                                value={newPassword}
-                                onChangeText={setNewPassword}
-                                placeholder="At least 6 characters"
-                                secureTextEntry={true}
-                            />
+                            <View style={styles.passwordContainer}>
+                                <TextInput
+                                    style={styles.passwordInput}
+                                    value={newPassword}
+                                    onChangeText={setNewPassword}
+                                    placeholder="At least 6 characters"
+                                    placeholderTextColor="#999"
+                                    secureTextEntry={!isNewPasswordVisible}
+                                />
+                                <TouchableOpacity
+                                    onPress={() => setIsNewPasswordVisible(!isNewPasswordVisible)}
+                                    style={styles.eyeIcon}>
+                                    <Ionicons
+                                        name={isNewPasswordVisible ? 'eye-off' : 'eye'}
+                                        size={24}
+                                        color="#666"
+                                    />
+                                </TouchableOpacity>
+                            </View>
 
                             <Text style={styles.label}>Confirm Password</Text>
-                            <TextInput
-                                style={styles.modalInput}
-                                value={confirmPassword}
-                                onChangeText={setConfirmPassword}
-                                placeholder="Re-enter password"
-                                secureTextEntry={true}
-                            />
+                            <View style={styles.passwordContainer}>
+                                <TextInput
+                                    style={styles.passwordInput}
+                                    value={confirmPassword}
+                                    onChangeText={setConfirmPassword}
+                                    placeholder="Re-enter password"
+                                    placeholderTextColor="#999"
+                                    secureTextEntry={!isConfirmPasswordVisible}
+                                />
+                                <TouchableOpacity
+                                    onPress={() => setIsConfirmPasswordVisible(!isConfirmPasswordVisible)}
+                                    style={styles.eyeIcon}>
+                                    <Ionicons
+                                        name={isConfirmPasswordVisible ? 'eye-off' : 'eye'}
+                                        size={24}
+                                        color="#666"
+                                    />
+                                </TouchableOpacity>
+                            </View>
 
                             <TouchableOpacity
                                 style={[styles.modalButton, setupLoading && styles.buttonDisabled]}
@@ -374,6 +400,24 @@ const styles = StyleSheet.create({
         fontSize: 16,
         borderWidth: 1,
         borderColor: '#E0E0E0',
+        color: '#212121',
+    },
+    passwordContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F5F5F5',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+    },
+    passwordInput: {
+        flex: 1,
+        padding: 12,
+        fontSize: 16,
+        color: '#212121',
+    },
+    eyeIcon: {
+        padding: 12,
     },
     modalButton: {
         backgroundColor: '#4CAF50',
