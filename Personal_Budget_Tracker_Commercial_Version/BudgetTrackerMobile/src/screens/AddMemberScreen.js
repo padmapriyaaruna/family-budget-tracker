@@ -126,6 +126,11 @@ const AddMemberScreen = ({ onNavigate }) => {
                                 ))}
                             </Picker>
                         </View>
+                        {relationship && relationship !== "" && (
+                            <Text style={styles.selectedValue}>
+                                Selected: {relationship}
+                            </Text>
+                        )}
 
                         <TouchableOpacity
                             style={[styles.button, loading && styles.buttonDisabled]}
@@ -222,6 +227,12 @@ const styles = StyleSheet.create({
     picker: {
         height: 50,
         color: COLORS.text,
+    },
+    selectedValue: {
+        marginTop: 8,
+        fontSize: 14,
+        color: COLORS.primary,
+        fontWeight: '600',
     },
     button: {
         backgroundColor: COLORS.primary,
