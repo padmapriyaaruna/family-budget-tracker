@@ -528,12 +528,14 @@ class MultiUserDB:
             self.conn.rollback()
             # Check if it's a unique constraint violation (email already exists)
             if 'unique' in error_msg.lower() or 'duplicate' in error_msg.lower():
-                return (False, None, None)
+                if 'email' in error_msg.lower():
+                    return (False, "DUPLICATE_EMAIL", None)
+                return (False, "DUPLICATE_ENTRY", None)
             else:
                 # Other error - log it
                 import traceback
                 traceback.print_exc()
-                return (False, None, None)
+                return (False, "ERROR", None)
     
     def accept_invite(self, invite_token, new_password):
         """Accept invite and set new password"""

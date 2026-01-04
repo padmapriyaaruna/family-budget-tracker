@@ -308,7 +308,7 @@ def create_household_member(
         )
     
     # Create member and get invite token
-    success, result = db.create_member(
+    success, member_id, invite_token = db.create_member(
         household_id=household_id,
         email=request.email,
         full_name=request.name,
@@ -317,15 +317,19 @@ def create_household_member(
     )
     
     if not success:
+        # Check if it's a duplicate email error
+        error_msg = "Failed to create member"
+        if member_id == "DUPLICATE_EMAIL":
+            error_msg = f"A user with email '{request.email}' already exists in the system"
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=result
+            detail=error_msg
         )
     
     return {
         "status": "success",
         "data": {
-            "invite_token": result,
+            "invite_token": invite_token,
             "message": f"Member {request.name} created successfully. Share this token with them."
         }
     }
