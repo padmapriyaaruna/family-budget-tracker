@@ -4,7 +4,7 @@ services:
     name: family-budget-tracker
     env: python
     runtime: python-3.11
-    buildCommand: cd Personal_Budget_Tracker_Commercial_Version && pip install -r requirements.txt
+    buildCommand: pip install -r Personal_Budget_Tracker_Commercial_Version/requirements.txt
     startCommand: cd Personal_Budget_Tracker_Commercial_Version && streamlit run streamlit_app.py --server.port $PORT --server.address 0.0.0.0
     envVars:
       - key: DATABASE_URL
@@ -17,7 +17,7 @@ services:
     name: family-budget-api
     env: python
     runtime: python-3.11
-    buildCommand: cd Personal_Budget_Tracker_Commercial_Version && pip install -r requirements.txt
+    buildCommand: pip install -r Personal_Budget_Tracker_Commercial_Version/requirements.txt
     startCommand: cd Personal_Budget_Tracker_Commercial_Version && python api.py
     envVars:
       - key: DATABASE_URL
