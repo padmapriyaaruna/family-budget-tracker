@@ -139,6 +139,18 @@ const DashboardScreen = ({ user, onLogout, onNavigate }) => {
                 </TouchableOpacity>
             </View>
 
+            {/* Family Management (Admin Only) */}
+            {user?.role === 'admin' && (
+                <View style={styles.actionsSection}>
+                    <Text style={styles.sectionTitle}>Family Management</Text>
+                    <TouchableOpacity
+                        style={[styles.actionButton, styles.manageButton]}
+                        onPress={() => onNavigate('AddMember')}>
+                        <Text style={styles.actionButtonText}>+ Add Family Member</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
             <View style={styles.footer}>
                 <Text style={styles.footerText}>Pull down to refresh</Text>
             </View>
@@ -258,6 +270,9 @@ const styles = StyleSheet.create({
     },
     viewButton: {
         backgroundColor: COLORS.primary,
+    },
+    manageButton: {
+        backgroundColor: '#FF9800', // Orange for management
     },
     actionButtonText: {
         color: '#FFFFFF',

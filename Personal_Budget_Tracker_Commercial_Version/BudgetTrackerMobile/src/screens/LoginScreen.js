@@ -10,6 +10,7 @@ import {
     Modal,
     ScrollView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { login } from '../services/api';
 import axios from 'axios';
@@ -19,6 +20,7 @@ const LoginScreen = ({ onLogin }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
     // Password setup modal state
     const [setupModalVisible, setSetupModalVisible] = useState(false);
@@ -124,13 +126,24 @@ const LoginScreen = ({ onLogin }) => {
                     autoCapitalize="none"
                 />
 
-                <TextInput
-                    style={styles.input}
-                    placeholder="Password"
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={true}
-                />
+                <View style={styles.passwordContainer}>
+                    <TextInput
+                        style={styles.passwordInput}
+                        placeholder="Password"
+                        value={password}
+                        onChangeText={setPassword}
+                        secureTextEntry={!isPasswordVisible}
+                    />
+                    <TouchableOpacity
+                        onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+                        style={styles.eyeIcon}>
+                        <Ionicons
+                            name={isPasswordVisible ? 'eye-off' : 'eye'}
+                            size={24}
+                            color="#757575"
+                        />
+                    </TouchableOpacity>
+                </View>
 
                 <TouchableOpacity
                     style={[styles.button, loading && styles.buttonDisabled]}
@@ -258,6 +271,25 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#E0E0E0',
         color: '#212121',
+    },
+    passwordContainer: {
+        width: '100%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 8,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+    },
+    passwordInput: {
+        flex: 1,
+        padding: 16,
+        fontSize: 16,
+        color: '#212121',
+    },
+    eyeIcon: {
+        padding: 16,
     },
     button: {
         width: '100%',

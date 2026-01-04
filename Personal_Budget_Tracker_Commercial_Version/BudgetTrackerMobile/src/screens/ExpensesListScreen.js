@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
-    FlatList,
     TouchableOpacity,
     StyleSheet,
     RefreshControl,
     Alert,
+    ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getExpenses, deleteExpense } from '../services/api';
@@ -20,6 +20,7 @@ const ExpensesListScreen = ({ onNavigate }) => {
     const [refreshing, setRefreshing] = useState(false);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [selectedExpense, setSelectedExpense] = useState(null);
+    const [expandedCategories, setExpandedCategories] = useState({});
     const period = getCurrentPeriod();
 
     useEffect(() => {
@@ -39,6 +40,23 @@ const ExpensesListScreen = ({ onNavigate }) => {
             setLoading(false);
             setRefreshing(false);
         }
+    };
+
+    // Group expenses by category
+    const groupedExpenses = expenses.reduce((acc, expense) => {
+        const category = expense.Category || expense.category || 'Uncategorized';
+        if (!acc[category]) {
+            acc[category] = [];
+        }
+        acc[category].push(expense);
+        return acc;
+    }, {});
+
+    const toggleCategory = (category) => {
+        setExpandedCategories(prev => ({
+            ...prev,
+            [category]: !prev[category]
+        }));
     };
 
     const handleEdit = (expense) => {
@@ -69,30 +87,6 @@ const ExpensesListScreen = ({ onNavigate }) => {
         );
     };
 
-    const renderExpense = ({ item }) => (
-        <View style={styles.expenseCard}>
-            <View style={styles.expenseHeader}>
-                <Text style={styles.category}>{item.Category || item.category}</Text>
-                <Text style={styles.amount}>{formatCurrency(item.Amount || item.amount)}</Text>
-            </View>
-            <Text style={styles.subcategory}>{item.Subcategory || item.subcategory}</Text>
-            <Text style={styles.date}>{item.Date || item.date}</Text>
-            {(item.Comment || item.comment) && <Text style={styles.comment}>{item.Comment || item.comment}</Text>}
-            <View style={styles.actions}>
-                <TouchableOpacity
-                    style={styles.editBtn}
-                    onPress={() => handleEdit(item)}>
-                    <Text style={styles.editBtnText}>Edit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.deleteBtn}
-                    onPress={() => handleDelete(item.id)}>
-                    <Text style={styles.deleteBtnText}>Delete</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    );
-
     return (
         <View style={styles.container}>
             {/* Header */}
@@ -106,17 +100,74 @@ const ExpensesListScreen = ({ onNavigate }) => {
                 </TouchableOpacity>
             </View>
 
-            <FlatList
-                data={expenses}
-                renderItem={renderExpense}
-                keyExtractor={(item, index) => item.id?.toString() || index.toString()}
+            <ScrollView
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={loadExpenses} />
-                }
-                ListEmptyComponent={
+                }>
+                {Object.keys(groupedExpenses).length === 0 ? (
                     <Text style={styles.emptyText}>No expenses yet</Text>
-                }
-            />
+                ) : (
+                    Object.entries(groupedExpenses).map(([category, categoryExpenses]) => {
+                        const total = categoryExpenses.reduce((sum, exp) =>
+                            sum + (exp.Amount || exp.amount || 0), 0);
+                        const isExpanded = expandedCategories[category];
+
+                        return (
+                            <View key={category} style={styles.categorySection}>
+                                {/* Category Header */}
+                                <TouchableOpacity
+                                    style={styles.categoryHeader}
+                                    onPress={() => toggleCategory(category)}>
+                                    <View style={styles.categoryHeaderLeft}>
+                                        <Text style={styles.categoryName}>{category}</Text>
+                                        <Text style={styles.categoryCount}>
+                                            ({categoryExpenses.length})
+                                        </Text>
+                                    </View>
+                                    <Text style={styles.categoryTotal}>
+                                        {formatCurrency(total)}
+                                    </Text>
+                                    <Text style={styles.categoryArrow}>
+                                        {isExpanded ? '▼' : '▶'}
+                                    </Text>
+                                </TouchableOpacity>
+
+                                {/* Expanded Expenses */}
+                                {isExpanded && categoryExpenses.map((item) => (
+                                    <View key={item.id} style={styles.expenseCard}>
+                                        <View style={styles.expenseHeader}>
+                                            <Text style={styles.subcategory}>
+                                                {item.Subcategory || item.subcategory}
+                                            </Text>
+                                            <Text style={styles.amount}>
+                                                {formatCurrency(item.Amount || item.amount)}
+                                            </Text>
+                                        </View>
+                                        <Text style={styles.date}>{item.Date || item.date}</Text>
+                                        {(item.Comment || item.comment) && (
+                                            <Text style={styles.comment}>
+                                                {item.Comment || item.comment}
+                                            </Text>
+                                        )}
+                                        <View style={styles.actions}>
+                                            <TouchableOpacity
+                                                style={styles.editBtn}
+                                                onPress={() => handleEdit(item)}>
+                                                <Text style={styles.editBtnText}>Edit</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={styles.deleteBtn}
+                                                onPress={() => handleDelete(item.id)}>
+                                                <Text style={styles.deleteBtnText}>Delete</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                ))}
+                            </View>
+                        );
+                    })
+                )}
+            </ScrollView>
 
             <EditExpenseModal
                 visible={editModalVisible}
@@ -159,6 +210,55 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: COLORS.primary,
         fontWeight: '600',
+    },
+    categorySection: {
+        marginBottom: 12,
+        marginHorizontal: 12,
+    },
+    categoryHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: COLORS.white,
+        padding: 16,
+        borderRadius: 10,
+        elevation: 4, // Android shadow
+        shadowColor: '#000', // iOS shadow
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        borderLeftWidth: 5,
+        borderLeftColor: COLORS.primary,
+    },
+    categoryHeaderLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    categoryName: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: COLORS.text,
+        flex: 1,
+    },
+    categoryCount: {
+        fontSize: 14,
+        color: COLORS.textLight,
+        fontStyle: 'italic',
+        marginRight: 12,
+    },
+    categoryTotal: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: COLORS.primary,
+        marginRight: 8,
+    },
+    categoryArrow: {
+        fontSize: 18,
+        color: COLORS.primary,
+        fontWeight: 'bold',
+        width: 24,
+        textAlign: 'center',
     },
     expenseCard: {
         backgroundColor: COLORS.white,

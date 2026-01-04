@@ -10,6 +10,8 @@ import IncomeListScreen from './src/screens/IncomeListScreen';
 import AddIncomeScreen from './src/screens/AddIncomeScreen';
 import AllocationsListScreen from './src/screens/AllocationsListScreen';
 import AddAllocationScreen from './src/screens/AddAllocationScreen';
+import SuperAdminDashboard from './src/screens/SuperAdminDashboard';
+import AddMemberScreen from './src/screens/AddMemberScreen';
 
 const App = () => {
     const [currentScreen, setCurrentScreen] = useState('Login');
@@ -20,7 +22,12 @@ const App = () => {
 
     const handleLogin = (userData) => {
         setUser(userData);
-        setCurrentScreen('Dashboard');
+        // Route to appropriate dashboard based on role
+        if (userData.role === 'superadmin') {
+            setCurrentScreen('SuperAdminDashboard');
+        } else {
+            setCurrentScreen('Dashboard');
+        }
     };
 
     const handleLogout = async () => {
@@ -66,6 +73,14 @@ const App = () => {
 
     if (currentScreen === 'AddAllocation') {
         return <AddAllocationScreen navigation={{ goBack: () => setCurrentScreen('Dashboard') }} />;
+    }
+
+    if (currentScreen === 'SuperAdminDashboard') {
+        return <SuperAdminDashboard onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+
+    if (currentScreen === 'AddMember') {
+        return <AddMemberScreen onNavigate={handleNavigate} />;
     }
 
     return null;

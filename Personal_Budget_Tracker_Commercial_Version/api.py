@@ -187,6 +187,122 @@ def setup_password(request: AcceptInviteRequest):
     """
     return accept_invite(request)
 
+# ==================== Super Admin Endpoints ====================
+
+@app.get("/api/admin/stats")
+def get_admin_stats(current_user: dict = Depends(verify_jwt_token)):
+    """
+    Get system statistics (Super Admin only)
+    """
+    if current_user.get('role') != 'superadmin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super admin access required"
+        )
+    
+    # Get total households
+    cursor = db.conn.cursor()
+    db._execute(cursor, 'SELECT COUNT(*) FROM households')
+    total_households = cursor.fetchone()[0]
+    
+    # Get total users
+    db._execute(cursor, 'SELECT COUNT(*) FROM users')
+    total_users = cursor.fetchone()[0]
+    
+    return {
+        "status": "success",
+        "data": {
+            "total_households": total_households,
+            "total_users": total_users
+        }
+    }
+
+@app.get("/api/admin/households")
+def get_all_households(current_user: dict = Depends(verify_jwt_token)):
+    """
+    Get all households (Super Admin only)
+    """
+    if current_user.get('role') != 'superadmin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super admin access required"
+        )
+    
+    cursor = db.conn.cursor()
+    db._execute(cursor, '''
+        SELECT h.id, h.name, 
+               COUNT(DISTINCT u.id) as member_count,
+               MAX(CASE WHEN u.role = 'admin' THEN u.full_name END) as admin_name
+        FROM households h
+        LEFT JOIN users u ON h.id = u.household_id
+        GROUP BY h.id, h.name
+        ORDER BY h.name
+    ''')
+    
+    households = []
+    for row in cursor.fetchall():
+        households.append({
+            "id": row[0],
+            "name": row[1],
+            "member_count": row[2] or 0,
+            "admin_name": row[3] or "No Admin",
+            "is_active": True  # Add actual status field if needed
+        })
+    
+    return {
+        "status": "success",
+        "data": {
+            "households": households
+        }
+    }
+
+# ==================== Household/Family Admin Endpoints ====================
+
+class CreateMemberRequest(BaseModel):
+    name: str
+    email: str
+    relationship: str
+
+@app.post("/api/households/{household_id}/members")
+def create_household_member(
+    household_id: int,
+    request: CreateMemberRequest,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    """
+    Create a new family member (Family Admin only)
+    """
+    # Verify user is admin of this household
+    user = db.get_user_by_id(current_user['user_id'])
+    if not user or user['household_id'] != household_id or user['role'] != 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only household admins can add members"
+        )
+    
+    # Create member and get invite token
+    success, result = db.create_member(
+        household_id=household_id,
+        email=request.email,
+        full_name=request.name,
+        relationship=request.relationship,
+        created_by_admin_id=current_user['user_id']
+    )
+    
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result
+        )
+    
+    return {
+        "status": "success",
+        "data": {
+            "invite_token": result,
+            "message": f"Member {request.name} created successfully. Share this token with them."
+        }
+    }
+
 # ==================== User Endpoints ====================
 
 @app.get("/api/user/profile")
@@ -262,10 +378,14 @@ def get_dashboard(
     total_allocated = sum(item.get('allocated_amount', 0) for item in allocations_list)
     total_spent = sum(item.get('spent_amount', 0) for item in allocations_list)
     
-    # Calculate budget used percentage (total_spent / total_income * 100)
+    # Calculate budget used percentage (total_expenses / total_income * 100)
     budget_used_percentage = 0
     if total_income > 0:
-        budget_used_percentage = round((total_expenses / total_income) * 100, 2)
+        # Force float division and log values for debugging
+        budget_used_percentage = round((float(total_expenses) / float(total_income)) * 100, 2)
+        print(f"DEBUG Budget Calc - Income: {total_income}, Expenses: {total_expenses}, Percentage: {budget_used_percentage}%")
+    else:
+        print(f"DEBUG Budget Calc - No income for period {year}-{month}")
     
     return {
         "status": "success",
