@@ -1784,10 +1784,30 @@ class MultiUserDB:
             self.conn.rollback()
             return False
     
-    def update_expense(self, expense_id, date, category, subcategory, amount, comment):
-        """Update an existing expense entry"""
+    def update_expense(self, expense_id, user_id_or_date=None, date_or_category=None, 
+                      category_or_subcategory=None, amount=None, old_category_or_comment=None,
+                      old_amount=None, comment=None, subcategory=None):
+        """Update an existing expense entry (supports both old and new signatures)"""
         try:
             cursor = self.conn.cursor()
+            
+            # Detect which signature is being used
+            if old_amount is not None:
+                # Website signature: (expense_id, user_id, new_date, new_category, new_amount, 
+                #                     old_category, old_amount, new_comment, new_subcategory)
+                date = date_or_category
+                category = category_or_subcategory
+                # amount is already correct
+                comment = comment or old_category_or_comment  # Use new_comment if provided
+                subcategory = subcategory
+            else:
+                # Mobile API signature: (expense_id, date, category, subcategory, amount, comment)
+                date = user_id_or_date
+                category = date_or_category
+                subcategory = category_or_subcategory
+                # amount is already correct
+                comment = old_category_or_comment
+            
             self._execute(cursor, '''
                 UPDATE expenses
                 SET date = ?, category = ?, subcategory = ?, amount = ?, comment = ?
@@ -1800,8 +1820,8 @@ class MultiUserDB:
             self.conn.rollback()
             return False
     
-    def delete_expense(self, expense_id):
-        """Delete an expense entry"""
+    def delete_expense(self, expense_id, user_id=None, category=None, amount=None):
+        """Delete an expense entry (supports both old and new signatures)"""
         try:
             cursor = self.conn.cursor()
             self._execute(cursor, 'DELETE FROM expenses WHERE id = ?', (expense_id,))
