@@ -276,7 +276,14 @@ def create_household_member(
     """
     # Verify user is admin of this household
     user = db.get_user_by_id(current_user['user_id'])
-    if not user or user['household_id'] != household_id or user['role'] != 'admin':
+    if not user or user['household_id'] != household_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied"
+        )
+    
+    # Check if user is admin
+    if user['role'] != 'admin':
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only household admins can add members"
@@ -315,7 +322,14 @@ def get_household_members_list(
     """
     # Verify user is admin of this household
     user = db.get_user_by_id(current_user['user_id'])
-    if not user or user['household_id'] != household_id or user['role'] != 'admin':
+    if not user or user['household_id'] != household_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied"
+        )
+    
+    # Check if user is admin
+    if user['role'] != 'admin':
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only household admins can view members"
