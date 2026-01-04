@@ -1,0 +1,19 @@
+streamlit>=1.39.0
+pandas>=2.2.0
+plotly>=5.18.0
+psycopg2-binary>=2.9.9
+sqlalchemy>=2.0.0
+google-generativeai>=0.3.0
+
+# FastAPI Backend Dependencies (Python 3.13 compatible)
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==1.10.13
+PyJWT==2.8.0
+python-multipart==0.0.6
+
+# Optional: Only needed if you want Google Sheets sync
+# gspread==5.12.0
+# google-auth==2.25.2
+# google-auth-oauthlib==1.2.0
+# google-auth-httplib2==0.2.0
