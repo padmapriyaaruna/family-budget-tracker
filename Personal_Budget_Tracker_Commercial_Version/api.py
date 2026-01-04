@@ -276,13 +276,31 @@ def create_household_member(
     """
     # Verify user is admin of this household
     user = db.get_user_by_id(current_user['user_id'])
-    if not user or user['household_id'] != household_id:
+    print(f"DEBUG create_household_member:")
+    print(f"  current_user: {current_user}")
+    print(f"  user_id from JWT: {current_user['user_id']}")
+    print(f"  user from DB: {user}")
+    print(f"  household_id param: {household_id}")
+    
+    if not user:
+        print(f"  ERROR: User not found")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied"
+            detail="User not found"
+        )
+    
+    print(f"  user household_id: {user['household_id']} (type: {type(user['household_id'])})")
+    print(f"  param household_id: {household_id} (type: {type(household_id)})")
+    print(f"  Match: {user['household_id'] == household_id}")
+    
+    if user['household_id'] != household_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access denied - wrong household (user: {user['household_id']}, requested: {household_id})"
         )
     
     # Check if user is admin
+    print(f"  user role: {user['role']}")
     if user['role'] != 'admin':
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -322,13 +340,31 @@ def get_household_members_list(
     """
     # Verify user is admin of this household
     user = db.get_user_by_id(current_user['user_id'])
-    if not user or user['household_id'] != household_id:
+    print(f"DEBUG get_household_members:")
+    print(f"  current_user: {current_user}")
+    print(f"  user_id from JWT: {current_user['user_id']}")
+    print(f"  user from DB: {user}")
+    print(f"  household_id param: {household_id}")
+    
+    if not user:
+        print(f"  ERROR: User not found")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied"
+            detail="User not found"
+        )
+    
+    print(f"  user household_id: {user['household_id']} (type: {type(user['household_id'])})")
+    print(f"  param household_id: {household_id} (type: {type(household_id)})")
+    print(f"  Match: {user['household_id'] == household_id}")
+    
+    if user['household_id'] != household_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access denied - wrong household (user: {user['household_id']}, requested: {household_id})"
         )
     
     # Check if user is admin
+    print(f"  user role: {user['role']}")
     if user['role'] != 'admin':
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
