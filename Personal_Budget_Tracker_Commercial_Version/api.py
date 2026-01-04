@@ -491,16 +491,17 @@ def create_family_admin(
             detail="Only super admin can create families"
         )
     
-    success, household_id, invite_token = db.create_household_with_admin(
+    success, household_id, invite_token, message = db.create_household_with_admin(
         household_name=request.household_name,
         admin_email=request.admin_email,
         admin_name=request.admin_name
     )
     
     if not success:
+        error_detail = message if message else "Failed to create family"
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=household_id if household_id else "Failed to create family"
+            detail=error_detail
         )
     
     return {
