@@ -10,8 +10,10 @@ import {
     Alert,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { updateExpense } from '../services/api';
+import { updateExpense, getAllocations } from '../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, EXPENSE_CATEGORIES, EXPENSE_SUBCATEGORIES } from '../config';
+import { getCurrentPeriod } from '../utils/helpers';
 
 const EditExpenseModal = ({ visible, expense, onClose, onSave }) => {
     const [date, setDate] = useState('');
@@ -20,6 +22,8 @@ const EditExpenseModal = ({ visible, expense, onClose, onSave }) => {
     const [amount, setAmount] = useState('');
     const [comment, setComment] = useState('');
     const [loading, setLoading] = useState(false);
+    const [categories, setCategories] = useState([]);
+    const [loadingCategories, setLoadingCategories] = useState(false);
 
     useEffect(() => {
         if (expense) {
@@ -28,8 +32,41 @@ const EditExpenseModal = ({ visible, expense, onClose, onSave }) => {
             setSubcategory(expense.Subcategory || expense.subcategory || '');
             setAmount((expense.Amount || expense.amount || '').toString());
             setComment(expense.Comment || expense.comment || '');
+            loadCategories();
         }
     }, [expense]);
+
+    const loadCategories = async () => {
+        try {
+            setLoadingCategories(true);
+            const userData = await AsyncStorage.getItem('userData');
+            const user = JSON.parse(userData);
+            const period = getCurrentPeriod();
+            const response = await getAllocations(user.id, period.year, period.month);
+
+            const allocations = Array.isArray(response) ? response : (response?.data || []);
+
+            if (!Array.isArray(allocations) || allocations.length === 0) {
+                setCategories(EXPENSE_CATEGORIES);
+                return;
+            }
+
+            const uniqueCategories = [...new Set(
+                allocations.map(a => a.category || a.Category).filter(Boolean)
+            )];
+
+            if (uniqueCategories.length > 0) {
+                setCategories(uniqueCategories);
+            } else {
+                setCategories(EXPENSE_CATEGORIES);
+            }
+        } catch (error) {
+            console.error('Error loading categories:', error);
+            setCategories(EXPENSE_CATEGORIES);
+        } finally {
+            setLoadingCategories(false);
+        }
+    };
 
     const handleSave = async () => {
         if (!expense) return;
@@ -88,17 +125,23 @@ const EditExpenseModal = ({ visible, expense, onClose, onSave }) => {
                         />
 
                         <Text style={styles.label}>Category</Text>
-                        <View style={styles.pickerContainer}>
-                            <Picker
-                                selectedValue={category}
-                                onValueChange={setCategory}
-                                style={styles.picker}>
-                                <Picker.Item label="Select category" value="" />
-                                {EXPENSE_CATEGORIES.map((cat) => (
-                                    <Picker.Item key={cat} label={cat} value={cat} />
-                                ))}
-                            </Picker>
-                        </View>
+                        {loadingCategories ? (
+                            <View style={styles.pickerContainer}>
+                                <Text style={styles.loadingText}>Loading categories...</Text>
+                            </View>
+                        ) : (
+                            <View style={styles.pickerContainer}>
+                                <Picker
+                                    selectedValue={category}
+                                    onValueChange={setCategory}
+                                    style={styles.picker}>
+                                    <Picker.Item label="Select category" value="" />
+                                    {categories.map((cat) => (
+                                        <Picker.Item key={cat} label={cat} value={cat} />
+                                    ))}
+                                </Picker>
+                            </View>
+                        )}
 
                         <Text style={styles.label}>Subcategory</Text>
                         <View style={styles.pickerContainer}>
@@ -214,6 +257,11 @@ const styles = StyleSheet.create({
     picker: {
         height: 50,
         color: COLORS.text, // Make picker text visible
+    },
+    loadingText: {
+        color: COLORS.gray,
+        fontSize: 14,
+        padding: 12,
     },
     saveButton: {
         backgroundColor: COLORS.primary,

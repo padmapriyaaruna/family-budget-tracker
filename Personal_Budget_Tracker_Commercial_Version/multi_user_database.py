@@ -172,6 +172,20 @@ class MultiUserDB:
             )
         ''')
         
+        # Savings table (with user_id)
+        cursor.execute(f'''
+            CREATE TABLE IF NOT EXISTS savings (
+                id {id_type},
+                user_id INTEGER NOT NULL,
+                date {text_type} NOT NULL,
+                category {text_type} NOT NULL,
+                amount {'NUMERIC' if self.use_postgres else 'REAL'} NOT NULL,
+                notes {text_type},
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        ''')
+        
         # Monthly settlements table (with user_id)
         cursor.execute(f'''
             CREATE TABLE IF NOT EXISTS monthly_settlements (
@@ -1574,6 +1588,155 @@ class MultiUserDB:
         except Exception as e:
             print(f"❌ Chatbot query error: {e}")
             return {"error": f"Query execution failed: {str(e)}"}
+    
+    # ==================== SAVINGS MANAGEMENT ====================
+    
+    def add_saving(self, user_id, date, category, amount, notes):
+        """Add a new saving entry"""
+        try:
+            cursor = self.conn.cursor()
+            self._execute(cursor, '''
+                INSERT INTO savings (user_id, date, category, amount, notes)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (user_id, date, category, amount, notes))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error adding saving: {str(e)}")
+            self.conn.rollback()
+            return False
+    
+    def get_all_savings(self, user_id, year=None, month=None):
+        """Get all savings for a user, optionally filtered by period"""
+        try:
+            param_placeholder = '%s' if self.use_postgres else '?'
+            
+            if year and month:
+                # Filter by specific month
+                query = f'''
+                    SELECT date, category, amount, notes
+                    FROM savings
+                    WHERE user_id = {param_placeholder}
+                    AND strftime('%Y', date) = {param_placeholder}
+                    AND strftime('%m', date) = {param_placeholder}
+                    ORDER BY date DESC
+                '''
+                params = (user_id, str(year), f'{month:02d}')
+            else:
+                # Get all savings
+                query = f'''
+                    SELECT date, category, amount, notes
+                    FROM savings
+                    WHERE user_id = {param_placeholder}
+                    ORDER BY date DESC
+                '''
+                params = (user_id,)
+            
+            conn_to_use = self.engine if (self.use_postgres and self.engine) else self.conn
+            df = pd.read_sql_query(query, conn_to_use, params=params)
+            
+            # Format columns for display
+            if not df.empty:
+                df['Date'] = df['date']
+                df['Category'] = df['category']
+                df['Amount'] = df['amount'].apply(lambda x: float(x))
+                df['Notes'] = df['notes'].fillna('')
+                df = df[['Date', 'Category', 'Amount', 'Notes']]
+            
+            return df
+        except Exception as e:
+            print(f"Error fetching savings: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return pd.DataFrame()
+    
+    def get_savings_with_ids(self, user_id, year=None, month=None):
+        """Get savings with IDs for editing"""
+        try:
+            param_placeholder = '%s' if self.use_postgres else '?'
+            
+            if year and month:
+                query = f'''
+                    SELECT id, date, category, amount, notes
+                    FROM savings
+                    WHERE user_id = {param_placeholder}
+                    AND strftime('%Y', date) = {param_placeholder}
+                    AND strftime('%m', date) = {param_placeholder}
+                    ORDER BY date DESC
+                '''
+                params = (user_id, str(year), f'{month:02d}')
+            else:
+                query = f'''
+                    SELECT id, date, category, amount, notes
+                    FROM savings
+                    WHERE user_id = {param_placeholder}
+                    ORDER BY date DESC
+                '''
+                params = (user_id,)
+            
+            conn_to_use = self.engine if (self.use_postgres and self.engine) else self.conn
+            df = pd.read_sql_query(query, conn_to_use, params=params)
+            return df
+        except Exception as e:
+            print(f"Error fetching savings with IDs: {str(e)}")
+            return pd.DataFrame()
+    
+    def update_saving(self, saving_id, date, category, amount, notes):
+        """Update an existing saving entry"""
+        try:
+            cursor = self.conn.cursor()
+            self._execute(cursor, '''
+                UPDATE savings
+                SET date = ?, category = ?, amount = ?, notes = ?
+                WHERE id = ?
+            ''', (date, category, amount, notes, saving_id))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error updating saving: {str(e)}")
+            self.conn.rollback()
+            return False
+    
+    def delete_saving(self, saving_id):
+        """Delete a saving entry"""
+        try:
+            cursor = self.conn.cursor()
+            self._execute(cursor, 'DELETE FROM savings WHERE id = ?', (saving_id,))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error deleting saving: {str(e)}")
+            self.conn.rollback()
+            return False
+    
+    def get_total_savings(self, user_id, year=None, month=None):
+        """Get total savings amount for a user, optionally filtered by period"""
+        try:
+            cursor = self.conn.cursor()
+            param_placeholder = '%s' if self.use_postgres else '?'
+            
+            if year and month:
+                query = f'''
+                    SELECT SUM(amount) as total
+                    FROM savings
+                    WHERE user_id = {param_placeholder}
+                    AND strftime('%Y', date) = {param_placeholder}
+                    AND strftime('%m', date) = {param_placeholder}
+                '''
+                self._execute(cursor, query, (user_id, str(year), f'{month:02d}'))
+            else:
+                query = f'''
+                    SELECT SUM(amount) as total
+                    FROM savings
+                    WHERE user_id = {param_placeholder}
+                '''
+                self._execute(cursor, query, (user_id,))
+            
+            result = cursor.fetchone()
+            return float(result['total']) if result and result['total'] else 0.0
+        except Exception as e:
+            print(f"Error calculating total savings: {str(e)}")
+            return 0.0
     
     def close(self):
         """Close database connection"""

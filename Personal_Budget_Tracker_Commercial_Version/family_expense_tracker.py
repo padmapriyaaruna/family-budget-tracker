@@ -918,7 +918,7 @@ def show_member_expense_tracking(user_id):
         st.session_state.active_tab = 0  # Default to Income tab
     
     # Create tab navigation using radio buttons (preserves state across reruns)
-    tab_options = ["💵 Income", "🎯 Allocations", "💸 Expenses", "📊 Review"]
+    tab_options = ["💵 Income", "🎯 Allocations", "💸 Expenses", "📊 Review", "💰 Savings"]
     selected_tab = st.radio(
         "Navigation", 
         tab_options, 
@@ -1862,6 +1862,211 @@ def show_member_expense_tracking(user_id):
                     st.dataframe(display_df_filtered, use_container_width=True, hide_index=True)
                 else:
                     st.info("ℹ️ No allocation data found for selected period(s). Try different years/months or create allocations first!")
+    
+    # TAB 5: Savings
+    elif selected_tab == "💰 Savings":
+        st.header("💰 Savings Tracker")
+        st.caption("Track your savings goals and progress")
+        
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            st.subheader("Add New Saving")
+            
+            # Budget Period Selection (reuse from Income tab)
+            st.markdown("**📅 Select Budget Period**")
+            
+            # Year selection
+            current_year = datetime.now().year
+            year_options = list(range(current_year - 4, current_year + 2))
+            selected_year = st.selectbox(
+                "Year",
+                options=year_options,
+                index=year_options.index(st.session_state.budget_year) if st.session_state.budget_year in year_options else len(year_options) - 2,
+                key="savings_year_select"
+            )
+            
+            # Month selection
+            import calendar
+            month_names = [calendar.month_name[i] for i in range(1, 13)]
+            month_options = list(range(1, 13))
+            selected_month = st.selectbox(
+                "Month",
+                options=month_options,
+                format_func=lambda x: month_names[x-1],
+                index=st.session_state.budget_month - 1,
+                key="savings_month_select"
+            )
+            
+            st.divider()
+            
+            # Add Saving Form
+            with st.form("saving_form", clear_on_submit=True):
+                # Calculate min/max dates for the selected month
+                _, last_day = calendar.monthrange(selected_year, selected_month)
+                min_date = date(selected_year, selected_month, 1)
+                max_date = date(selected_year, selected_month, last_day)
+                
+                # Default to today if within range, otherwise first day of month
+                default_date = date.today() if min_date <= date.today() <= max_date else min_date
+                
+                saving_date = st.date_input(
+                    "Date",
+                    value=default_date,
+                    min_value=min_date,
+                    max_value=max_date,
+                    help=f"Select a date within {month_names[selected_month-1]} {selected_year}"
+                )
+                
+                saving_category = st.selectbox(
+                    "Savings Goal",
+                    options=[
+                        "Emergency Fund",
+                        "Retirement",
+                        "House Down Payment",
+                        "Vacation",
+                        "Education",
+                        "Investment",
+                        "Car/Vehicle",
+                        "Medical",
+                        "Debt Repayment",
+                        "Other"
+                    ],
+                    help="Select your savings goal category"
+                )
+                
+                saving_amount = st.number_input(
+                    f"Amount ({config.CURRENCY_SYMBOL})",
+                    min_value=0.0,
+                    step=100.0,
+                    format="%.2f"
+                )
+                
+                saving_notes = st.text_area(
+                    "Notes (Optional)",
+                    placeholder="e.g., Monthly contribution, Bonus saving, etc.",
+                    max_chars=200
+                )
+                
+                submit_saving = st.form_submit_button("➕ Add Saving", use_container_width=True)
+                
+                if submit_saving:
+                    if saving_amount > 0:
+                        if db.add_saving(
+                            user_id,
+                            saving_date.strftime(config.DATE_FORMAT),
+                            saving_category,
+                            saving_amount,
+                            saving_notes
+                        ):
+                            st.success(f"✅ Added {config.CURRENCY_SYMBOL}{saving_amount:,.2f} to {saving_category}")
+                            st.cache_resource.clear()
+                            st.rerun()
+                        else:
+                            st.error("Failed to add saving. Please try again.")
+                    else:
+                        st.error("Please enter an amount greater than 0")
+        
+        with col2:
+            st.subheader("Savings History")
+            
+            # Display selected period prominently
+            period_display = f"{month_names[selected_month-1]} {selected_year}"
+            st.info(f"📅 **Showing:** {period_display}")
+            
+            # Get total savings for the period
+            total_savings = db.get_total_savings(user_id, selected_year, selected_month)
+            st.metric("💰 Total Saved This Period", f"{config.CURRENCY_SYMBOL}{total_savings:,.2f}")
+            
+            st.divider()
+            
+            # Get savings data
+            savings_df = db.get_all_savings(user_id, selected_year, selected_month)
+            
+            if not savings_df.empty:
+                # Edit/Delete section
+                savings_with_ids = db.get_savings_with_ids(user_id, selected_year, selected_month)
+                
+                with st.expander("✏️ Edit/Delete Saving Entry"):
+                    edit_saving_id = st.selectbox(
+                        "Select entry to edit",
+                        options=savings_with_ids['id'].tolist(),
+                        format_func=lambda x: f"{savings_with_ids[savings_with_ids['id']==x]['date'].values[0]} - {savings_with_ids[savings_with_ids['id']==x]['category'].values[0]} - {config.CURRENCY_SYMBOL}{savings_with_ids[savings_with_ids['id']==x]['amount'].values[0]:,.2f}",
+                        key="edit_saving_select"
+                    )
+                    
+                    if edit_saving_id:
+                        selected_saving = savings_with_ids[savings_with_ids['id'] == edit_saving_id].iloc[0]
+                        
+                        col_edit1, col_edit2 = st.columns(2)
+                        with col_edit1:
+                            edit_date = st.date_input(
+                                "Date",
+                                value=pd.to_datetime(selected_saving['date']),
+                                key="edit_saving_date"
+                            )
+                            edit_category = st.selectbox(
+                                "Category",
+                                options=[
+                                    "Emergency Fund", "Retirement", "House Down Payment",
+                                    "Vacation", "Education", "Investment", "Car/Vehicle",
+                                    "Medical", "Debt Repayment", "Other"
+                                ],
+                                index=[
+                                    "Emergency Fund", "Retirement", "House Down Payment",
+                                    "Vacation", "Education", "Investment", "Car/Vehicle",
+                                    "Medical", "Debt Repayment", "Other"
+                                ].index(selected_saving['category']) if selected_saving['category'] in [
+                                    "Emergency Fund", "Retirement", "House Down Payment",
+                                    "Vacation", "Education", "Investment", "Car/Vehicle",
+                                    "Medical", "Debt Repayment", "Other"
+                                ] else 9,
+                                key="edit_saving_cat"
+                            )
+                        
+                        with col_edit2:
+                            edit_amount = st.number_input(
+                                "Amount",
+                                value=float(selected_saving['amount']),
+                                min_value=0.0,
+                                step=100.0,
+                                key="edit_saving_amt"
+                            )
+                        
+                        edit_notes = st.text_area(
+                            "Notes",
+                            value=selected_saving['notes'] if pd.notna(selected_saving['notes']) else "",
+                            key="edit_saving_notes"
+                        )
+                        
+                        col_btn1, col_btn2 = st.columns(2)
+                        with col_btn1:
+                            if st.button("💾 Update", key="update_saving_btn", use_container_width=True):
+                                if db.update_saving(
+                                    edit_saving_id,
+                                    edit_date.strftime(config.DATE_FORMAT),
+                                    edit_category,
+                                    edit_amount,
+                                    edit_notes
+                                ):
+                                    st.success("✅ Saving updated!")
+                                    st.cache_resource.clear()
+                                    st.rerun()
+                        
+                        with col_btn2:
+                            if st.button("🗑️ Delete", key="delete_saving_btn", type="secondary", use_container_width=True):
+                                if db.delete_saving(edit_saving_id):
+                                    st.success("✅ Saving deleted!")
+                                    st.cache_resource.clear()
+                                    st.rerun()
+                
+                # Display savings table
+                st.subheader("📋 Savings Entries")
+                display_df = savings_df.copy()
+                display_df["Amount"] = display_df["Amount"].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
+                st.dataframe(display_df, use_container_width=True, hide_index=True)
+            else:
+                st.info(f"No savings recorded for {period_display}. Start saving today!")
 
 
 
