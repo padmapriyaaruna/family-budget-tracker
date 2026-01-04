@@ -12,11 +12,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getExpenses, deleteExpense } from '../services/api';
 import { COLORS } from '../config';
 import { formatCurrency, getCurrentPeriod } from '../utils/helpers';
+import EditExpenseModal from '../components/EditExpenseModal';
 
 const ExpensesListScreen = ({ onNavigate }) => {
     const [expenses, setExpenses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [editModalVisible, setEditModalVisible] = useState(false);
+    const [selectedExpense, setSelectedExpense] = useState(null);
     const period = getCurrentPeriod();
 
     useEffect(() => {
@@ -36,6 +39,11 @@ const ExpensesListScreen = ({ onNavigate }) => {
             setLoading(false);
             setRefreshing(false);
         }
+    };
+
+    const handleEdit = (expense) => {
+        setSelectedExpense(expense);
+        setEditModalVisible(true);
     };
 
     const handleDelete = (expenseId) => {
@@ -72,6 +80,11 @@ const ExpensesListScreen = ({ onNavigate }) => {
             {(item.Comment || item.comment) && <Text style={styles.comment}>{item.Comment || item.comment}</Text>}
             <View style={styles.actions}>
                 <TouchableOpacity
+                    style={styles.editBtn}
+                    onPress={() => handleEdit(item)}>
+                    <Text style={styles.editBtnText}>Edit</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
                     style={styles.deleteBtn}
                     onPress={() => handleDelete(item.id)}>
                     <Text style={styles.deleteBtnText}>Delete</Text>
@@ -103,6 +116,16 @@ const ExpensesListScreen = ({ onNavigate }) => {
                 ListEmptyComponent={
                     <Text style={styles.emptyText}>No expenses yet</Text>
                 }
+            />
+
+            <EditExpenseModal
+                visible={editModalVisible}
+                expense={selectedExpense}
+                onClose={() => setEditModalVisible(false)}
+                onSave={() => {
+                    setEditModalVisible(false);
+                    loadExpenses();
+                }}
             />
         </View>
     );
@@ -180,6 +203,19 @@ const styles = StyleSheet.create({
         marginTop: 12,
         flexDirection: 'row',
         justifyContent: 'flex-end',
+        gap: 8,
+    },
+    editBtn: {
+        backgroundColor: COLORS.secondary,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 4,
+        marginRight: 8,
+    },
+    editBtnText: {
+        color: COLORS.white,
+        fontWeight: '600',
+        fontSize: 14,
     },
     deleteBtn: {
         backgroundColor: COLORS.danger,

@@ -5,7 +5,7 @@ import { API_BASE_URL } from '../config';
 // Create axios instance
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 10000,
+    timeout: 60000, // 60 seconds for Render cold starts
     headers: {
         'Content-Type': 'application/json',
     },
@@ -39,14 +39,35 @@ apiClient.interceptors.response.use(
 );
 
 // Authentication API
-export const login = async (email, password) => {
-    const response = await apiClient.post('/api/auth/login', { email, password });
-    if (response.data.status === 'success') {
-        // Save token and user data
-        await AsyncStorage.setItem('authToken', response.data.data.token);
-        await AsyncStorage.setItem('userData', JSON.stringify(response.data.data.user));
+export const login = async (username, password) => {
+    console.log('=== LOGIN DEBUG START ===');
+    console.log('Username received:', username);
+    console.log('Password received:', password ? '***' : 'EMPTY');
+    console.log('API Base URL:', API_BASE_URL);
+
+    const payload = { email: username, password: password };
+    console.log('Payload to send:', JSON.stringify({ email: username, password: '***' }));
+
+    try {
+        const response = await apiClient.post('/api/auth/login', payload);
+        console.log('Response status:', response.status);
+        console.log('Response data:', response.data);
+
+        if (response.data.status === 'success') {
+            // Save token and user data
+            await AsyncStorage.setItem('authToken', response.data.data.token);
+            await AsyncStorage.setItem('userData', JSON.stringify(response.data.data.user));
+            console.log('Token and user data saved successfully');
+        }
+        console.log('=== LOGIN DEBUG END ===');
+        return response.data;
+    } catch (error) {
+        console.log('=== LOGIN ERROR ===');
+        console.log('Error:', error);
+        console.log('Error response:', error.response?.data);
+        console.log('Error status:', error.response?.status);
+        throw error;
     }
-    return response.data;
 };
 
 export const acceptInvite = async (inviteToken, password) => {

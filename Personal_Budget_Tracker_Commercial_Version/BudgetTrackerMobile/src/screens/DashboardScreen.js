@@ -86,11 +86,14 @@ const DashboardScreen = ({ user, onLogout, onNavigate }) => {
                     </Text>
                 </View>
 
-                <View style={[styles.summaryCard, styles.allocationCard]}>
+                <View style={[
+                    styles.summaryCard,
+                    dashboard.budget_used_percentage > 100 ? styles.budgetOverCard : styles.budgetUnderCard
+                ]}>
                     <Text style={styles.summaryLabel}>Budget Used</Text>
                     <Text style={styles.summaryAmount}>
-                        {dashboard.allocations.allocated > 0
-                            ? `${((dashboard.allocations.spent / dashboard.allocations.allocated) * 100).toFixed(1)}%`
+                        {dashboard.budget_used_percentage !== undefined
+                            ? `${dashboard.budget_used_percentage}%`
                             : '0%'}
                     </Text>
                 </View>
@@ -208,9 +211,15 @@ const styles = StyleSheet.create({
         borderLeftWidth: 4,
         borderLeftColor: '#4CAF50',
     },
-    allocationCard: {
+    budgetOverCard: {
         borderLeftWidth: 4,
-        borderLeftColor: '#2196F3',
+        borderLeftColor: '#F44336',
+        backgroundColor: '#FFEBEE', // Light red background  
+    },
+    budgetUnderCard: {
+        borderLeftWidth: 4,
+        borderLeftColor: '#4CAF50',
+        backgroundColor: '#E8F5E9', // Light green background
     },
     summaryLabel: {
         fontSize: 14,

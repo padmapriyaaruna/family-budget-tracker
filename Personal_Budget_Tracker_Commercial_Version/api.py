@@ -180,6 +180,13 @@ def accept_invite(request: AcceptInviteRequest):
         "message": message
     }
 
+@app.post("/api/auth/setup-password")
+def setup_password(request: AcceptInviteRequest):
+    """
+    Setup password for new user (alias for accept-invite)
+    """
+    return accept_invite(request)
+
 # ==================== User Endpoints ====================
 
 @app.get("/api/user/profile")
@@ -255,6 +262,11 @@ def get_dashboard(
     total_allocated = sum(item.get('allocated_amount', 0) for item in allocations_list)
     total_spent = sum(item.get('spent_amount', 0) for item in allocations_list)
     
+    # Calculate budget used percentage (total_spent / total_income * 100)
+    budget_used_percentage = 0
+    if total_income > 0:
+        budget_used_percentage = round((total_expenses / total_income) * 100, 2)
+    
     return {
         "status": "success",
         "data": {
@@ -273,7 +285,8 @@ def get_dashboard(
                 "balance": total_allocated - total_spent,
                 "count": len(allocations_list)
             },
-            "savings": total_income - total_expenses
+            "savings": total_income - total_expenses,
+            "budget_used_percentage": budget_used_percentage
         }
     }
 
