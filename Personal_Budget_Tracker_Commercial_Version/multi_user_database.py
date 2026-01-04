@@ -591,7 +591,7 @@ class MultiUserDB:
         """Get user details by ID"""
         try:
             cursor = self.conn.cursor()
-            cursor.execute('''
+            self._execute(cursor, '''
                 SELECT id, household_id, email, full_name, role, relationship, is_active
                 FROM users
                 WHERE id = ?
