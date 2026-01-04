@@ -202,12 +202,14 @@ def get_admin_stats(current_user: dict = Depends(verify_jwt_token)):
     
     # Get total households
     cursor = db.conn.cursor()
-    db._execute(cursor, 'SELECT COUNT(*) FROM households')
-    total_households = cursor.fetchone()[0]
+    db._execute(cursor, 'SELECT COUNT(*) as count FROM households')
+    result = cursor.fetchone()
+    total_households = result['count'] if result else 0
     
     # Get total users
-    db._execute(cursor, 'SELECT COUNT(*) FROM users')
-    total_users = cursor.fetchone()[0]
+    db._execute(cursor, 'SELECT COUNT(*) as count FROM users')
+    result = cursor.fetchone()
+    total_users = result['count'] if result else 0
     
     return {
         "status": "success",
@@ -489,7 +491,7 @@ def create_family_admin(
             detail="Only super admin can create families"
         )
     
-    success, result = db.create_household_with_admin(
+    success, household_id, invite_token = db.create_household_with_admin(
         household_name=request.household_name,
         admin_email=request.admin_email,
         admin_name=request.admin_name
@@ -498,13 +500,13 @@ def create_family_admin(
     if not success:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=result
+            detail=household_id if household_id else "Failed to create family"
         )
     
     return {
         "status": "success",
         "data": {
-            "invite_token": result,
+            "invite_token": invite_token,
             "message": f"Family '{request.household_name}' created. Share this token with {request.admin_name}."
         }
     }
