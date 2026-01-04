@@ -64,6 +64,7 @@ const ExpensesListScreen = ({ onNavigate }) => {
         setEditModalVisible(true);
     };
 
+
     const handleDelete = (expenseId) => {
         Alert.alert(
             'Delete Expense',
