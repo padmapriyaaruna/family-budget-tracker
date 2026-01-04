@@ -1738,6 +1738,80 @@ class MultiUserDB:
             print(f"Error calculating total savings: {str(e)}")
             return 0.0
     
+    # ==================== INCOME MANAGEMENT (Mobile API Support) ====================
+    
+    def add_income(self, user_id, date, source, amount):
+        """Add a new income entry"""
+        try:
+            cursor = self.conn.cursor()
+            self._execute(cursor, '''
+                INSERT INTO income (user_id, date, source, amount)
+                VALUES (?, ?, ?, ?)
+            ''', (user_id, date, source, amount))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error adding income: {str(e)}")
+            self.conn.rollback()
+            return False
+    
+    def delete_income(self, income_id):
+        """Delete an income entry"""
+        try:
+            cursor = self.conn.cursor()
+            self._execute(cursor, 'DELETE FROM income WHERE id = ?', (income_id,))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error deleting income: {str(e)}")
+            self.conn.rollback()
+            return False
+    
+    # ==================== EXPENSE MANAGEMENT (Mobile API Support) ====================
+    
+    def add_expense(self, user_id, date, category, amount, comment=None, subcategory=None):
+        """Add a new expense entry"""
+        try:
+            cursor = self.conn.cursor()
+            self._execute(cursor, '''
+                INSERT INTO expenses (user_id, date, category, subcategory, amount, comment)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (user_id, date, category, subcategory, amount, comment))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error adding expense: {str(e)}")
+            self.conn.rollback()
+            return False
+    
+    def update_expense(self, expense_id, date, category, subcategory, amount, comment):
+        """Update an existing expense entry"""
+        try:
+            cursor = self.conn.cursor()
+            self._execute(cursor, '''
+                UPDATE expenses
+                SET date = ?, category = ?, subcategory = ?, amount = ?, comment = ?
+                WHERE id = ?
+            ''', (date, category, subcategory, amount, comment, expense_id))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error updating expense: {str(e)}")
+            self.conn.rollback()
+            return False
+    
+    def delete_expense(self, expense_id):
+        """Delete an expense entry"""
+        try:
+            cursor = self.conn.cursor()
+            self._execute(cursor, 'DELETE FROM expenses WHERE id = ?', (expense_id,))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error deleting expense: {str(e)}")
+            self.conn.rollback()
+            return False
+    
     def close(self):
         """Close database connection"""
         if self.conn:
