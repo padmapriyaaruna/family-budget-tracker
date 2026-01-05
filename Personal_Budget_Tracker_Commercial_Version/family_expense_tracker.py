@@ -1308,15 +1308,7 @@ def show_member_expense_tracking(user_id):
                             if st.button("Cancel", key="cancel_export", use_container_width=True):
                                 st.session_state.show_export_allocations = False
                                 st.rerun()
-                                
-                                with col_cancel:
-                                    if st.button("Cancel", key="cancel_valid", use_container_width=True):
-                                        st.session_state.show_previous_allocations = False
-                                        st.rerun()
-                        else:
-                            if st.button("Close", key="close_no_selection"):
-                                st.session_state.show_previous_allocations = False
-                                st.rerun()
+        
         
         with col2:
             st.subheader(f"Allocations for {period_display}")
