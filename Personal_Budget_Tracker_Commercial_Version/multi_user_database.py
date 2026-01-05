@@ -1892,3 +1892,67 @@ class MultiUserDB:
         """Close database connection"""
         if self.conn:
             self.conn.close()
+
+    def get_available_allocation_periods(self, user_id):
+        """Get all periods where allocations exist for a user"""
+        try:
+            cursor = self.conn.cursor()
+            self._execute(cursor, '''
+                SELECT DISTINCT year, month 
+                FROM allocations 
+                WHERE user_id = ?
+                ORDER BY year DESC, month DESC
+            ''', (user_id,))
+            
+            periods = cursor.fetchall()
+            return [{'year': p['year'] if isinstance(p, dict) else p[0], 
+                    'month': p['month'] if isinstance(p, dict) else p[1]} 
+                   for p in periods]
+        except Exception as e:
+            print(f"Error getting allocation periods: {str(e)}")
+            return []
+    
+    def copy_allocations_from_period(self, user_id, from_year, from_month, to_year, to_month):
+        """Copy allocations from one period to another"""
+        try:
+            cursor = self.conn.cursor()
+            
+            # First check if target period already has allocations
+            self._execute(cursor, '''
+                SELECT COUNT(*) as count FROM allocations 
+                WHERE user_id = ? AND year = ? AND month = ?
+            ''', (user_id, to_year, to_month))
+            result = cursor.fetchone()
+            existing_count = result['count'] if isinstance(result, dict) else result[0]
+            
+            if existing_count > 0:
+                return (False, f"Target period {to_year}-{to_month} already has {existing_count} allocations")
+            
+            # Get source allocations
+            self._execute(cursor, '''
+                SELECT category, allocated_amount 
+                FROM allocations 
+                WHERE user_id = ? AND year = ? AND month = ?
+            ''', (user_id, from_year, from_month))
+            
+            source_allocations = cursor.fetchall()
+            
+            if not source_allocations:
+                return (False, f"No allocations found for {from_year}-{from_month}")
+            
+            # Copy to target period
+            for allocation in source_allocations:
+                category = allocation['category'] if isinstance(allocation, dict) else allocation[0]
+                amount = allocation['allocated_amount'] if isinstance(allocation, dict) else allocation[1]
+                
+                self._execute(cursor, '''
+                    INSERT INTO allocations (user_id, category, allocated_amount, spent_amount, year, month)
+                    VALUES (?, ?, ?, 0, ?, ?)
+                ''', (user_id, category, amount, to_year, to_month))
+            
+            self.conn.commit()
+            return (True, f"Copied {len(source_allocations)} allocations from {from_year}-{from_month} to {to_year}-{to_month}")
+        except Exception as e:
+            print(f"Error copying allocations: {str(e)}")
+            self.conn.rollback()
+            return (False, str(e))
