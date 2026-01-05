@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -29,6 +29,50 @@ const AddMemberScreen = ({ onNavigate }) => {
     const [relationship, setRelationship] = useState('');
     const [loading, setLoading] = useState(false);
     const [inviteToken, setInviteToken] = useState('');
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+    const [households, setHouseholds] = useState([]);
+    const [selectedHouseholdId, setSelectedHouseholdId] = useState(null);
+    const [loadingHouseholds, setLoadingHouseholds] = useState(false);
+
+    useEffect(() => {
+        checkUserRole();
+    }, []);
+
+    const checkUserRole = async () => {
+        try {
+            const userData = await AsyncStorage.getItem('userData');
+            const user = JSON.parse(userData);
+
+            if (user.role === 'superadmin') {
+                setIsSuperAdmin(true);
+                await loadHouseholds();
+            } else {
+                setSelectedHouseholdId(user.household_id);
+            }
+        } catch (error) {
+            console.error('Error checking role:', error);
+        }
+    };
+
+    const loadHouseholds = async () => {
+        try {
+            setLoadingHouseholds(true);
+            const token = await AsyncStorage.getItem('authToken');
+            const response = await axios.get(
+                `${API_BASE_URL}/api/admin/households`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            if (response.data.status === 'success') {
+                setHouseholds(response.data.data.households);
+            }
+        } catch (error) {
+            console.error('Error loading households:', error);
+            Alert.alert('Error', 'Failed to load households');
+        } finally {
+            setLoadingHouseholds(false);
+        }
+    };
 
     const handleAddMember = async () => {
         if (!name || !email || !relationship) {
@@ -36,14 +80,18 @@ const AddMemberScreen = ({ onNavigate }) => {
             return;
         }
 
+        if (isSuperAdmin && !selectedHouseholdId) {
+            Alert.alert('Error', 'Please select a household');
+            return;
+        }
+
         setLoading(true);
         try {
             const token = await AsyncStorage.getItem('authToken');
-            const userData = await AsyncStorage.getItem('userData');
-            const user = JSON.parse(userData);
+            const householdId = selectedHouseholdId;
 
             const response = await axios.post(
-                `${API_BASE_URL}/api/households/${user.household_id}/members`,
+                `${API_BASE_URL}/api/households/${householdId}/members`,
                 {
                     name,
                     email,
@@ -96,6 +144,39 @@ const AddMemberScreen = ({ onNavigate }) => {
             <View style={styles.form}>
                 {!inviteToken ? (
                     <>
+                        {/* Super Admin Household Selection */}
+                        {isSuperAdmin && (
+                            <>
+                                <Text style={styles.label}>Select Household *</Text>
+                                {loadingHouseholds ? (
+                                    <ActivityIndicator size="small" color={COLORS.primary} />
+                                ) : (
+                                    <>
+                                        <View style={styles.pickerContainer}>
+                                            <Picker
+                                                selectedValue={selectedHouseholdId}
+                                                onValueChange={setSelectedHouseholdId}
+                                                style={styles.picker}>
+                                                <Picker.Item label="Select household" value={null} />
+                                                {households.map((household) => (
+                                                    <Picker.Item
+                                                        key={household.id}
+                                                        label={household.name}
+                                                        value={household.id}
+                                                    />
+                                                ))}
+                                            </Picker>
+                                        </View>
+                                        {selectedHouseholdId && (
+                                            <Text style={styles.selectedValue}>
+                                                Selected: {households.find(h => h.id === selectedHouseholdId)?.name}
+                                            </Text>
+                                        )}
+                                    </>
+                                )}
+                            </>
+                        )}
+
                         <Text style={styles.label}>Full Name *</Text>
                         <TextInput
                             style={styles.input}
