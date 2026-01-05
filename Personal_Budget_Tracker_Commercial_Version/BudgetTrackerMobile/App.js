@@ -14,6 +14,8 @@ import SuperAdminDashboard from './src/screens/SuperAdminDashboard';
 import AddMemberScreen from './src/screens/AddMemberScreen';
 import ViewFamilyMembersScreen from './src/screens/ViewFamilyMembersScreen';
 import AddFamilyAdminScreen from './src/screens/AddFamilyAdminScreen';
+import HouseholdDetailScreen from './src/screens/HouseholdDetailScreen';
+
 
 const App = () => {
     const [currentScreen, setCurrentScreen] = useState('Login');
@@ -91,6 +93,10 @@ const App = () => {
 
     if (currentScreen === 'AddFamilyAdmin') {
         return <AddFamilyAdminScreen onNavigate={handleNavigate} />;
+    }
+
+    if (currentScreen === 'HouseholdDetail') {
+        return <HouseholdDetailScreen route={{ params: screenParams }} onNavigate={handleNavigate} />;
     }
 
     return null;

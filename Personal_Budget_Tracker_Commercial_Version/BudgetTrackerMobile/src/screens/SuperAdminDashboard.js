@@ -98,7 +98,13 @@ const SuperAdminDashboard = ({ onLogout, onNavigate }) => {
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>All Households</Text>
                 {households.map((household) => (
-                    <View key={household.id} style={styles.householdItem}>
+                    <TouchableOpacity
+                        key={household.id}
+                        style={styles.householdItem}
+                        onPress={() => onNavigate('HouseholdDetail', {
+                            householdId: household.id,
+                            householdName: household.name,
+                        })}>
                         <View style={styles.householdInfo}>
                             <Text style={styles.householdName}>{household.name}</Text>
                             <Text style={styles.householdDetails}>
@@ -112,8 +118,9 @@ const SuperAdminDashboard = ({ onLogout, onNavigate }) => {
                                     household.is_active ? styles.activeDot : styles.inactiveDot,
                                 ]}
                             />
+                            <Text style={styles.arrow}>›</Text>
                         </View>
-                    </View>
+                    </TouchableOpacity>
                 ))}
             </View>
         </ScrollView>
@@ -234,6 +241,11 @@ const styles = StyleSheet.create({
     },
     inactiveDot: {
         backgroundColor: COLORS.gray,
+    },
+    arrow: {
+        fontSize: 24,
+        color: COLORS.textLight,
+        marginLeft: 8,
     },
     actionButton: {
         backgroundColor: COLORS.primary,
