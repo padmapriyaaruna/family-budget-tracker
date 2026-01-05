@@ -797,6 +797,25 @@ class MultiUserDB:
             print(f"Error deleting household: {str(e)}")
             return (False, str(e))
     
+    def get_household_members_for_admin(self, household_id):
+        """Get all members of a household (for super admin view)"""
+        try:
+            cursor = self.conn.cursor()
+            self._execute(cursor, '''
+                SELECT id, email, full_name, role, relationship, is_active, created_at
+                FROM users
+                WHERE household_id = ?
+                ORDER BY role DESC, full_name
+            ''', (household_id,))
+            
+            members = cursor.fetchall()
+            return [dict(member) for member in members]
+        except Exception as e:
+            print(f"Error fetching household members: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return []
+    
     def get_all_users_super_admin(self):
         """Get all users across all households (for super admin)"""
         try:

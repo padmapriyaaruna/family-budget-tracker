@@ -512,6 +512,106 @@ def create_family_admin(
         }
     }
 
+@app.get("/api/admin/households/{household_id}") 
+def get_household_detail(
+    household_id: int,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    """
+    Get household details with members list (Super Admin only)
+    """
+    if current_user.get('role') != 'superadmin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super admin access required"
+        )
+    
+    try:
+        # Get household info
+        cursor = db.conn.cursor()
+        db._execute(cursor, 'SELECT id, name, is_active, created_at FROM households WHERE id = ?', (household_id,))
+        household = cursor.fetchone()
+        
+        if not household:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Household not found"
+            )
+        
+        # Get members
+        members = db.get_household_members_for_admin(household_id)
+        
+        return {
+            "status": "success",
+            "data": {
+                "household": dict(household),
+                "members": members
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR in get_household_detail: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch household details: {str(e)}"
+        )
+
+@app.patch("/api/admin/households/{household_id}/deactivate")
+def deactivate_household(
+    household_id: int,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    """
+    Deactivate household (soft delete) - Super Admin only
+    """
+    if current_user.get('role') != 'superadmin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super admin access required"
+        )
+    
+    success = db.toggle_household_status(household_id)
+    
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to toggle household status"
+        )
+    
+    return {
+        "status": "success",
+        "message": "Household status toggled successfully"
+    }
+
+@app.delete("/api/admin/households/{household_id}")
+def delete_household_permanently(
+    household_id: int,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    """
+    Permanently delete household and ALL associated data (Super Admin only)
+    WARNING: This is irreversible!
+    """
+    if current_user.get('role') != 'superadmin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super admin access required"
+        )
+    
+    success, message = db.delete_household(household_id)
+    
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=message
+        )
+    
+    return {
+        "status": "success",
+        "message": message
+    }
+
 # ==================== User Endpoints ====================
 
 @app.get("/api/user/profile")
