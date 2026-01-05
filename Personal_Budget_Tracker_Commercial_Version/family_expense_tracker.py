@@ -1425,25 +1425,79 @@ def show_member_expense_tracking(user_id):
                 ].copy()
                 
                 if not filtered_df.empty:
-                    total_exp = filtered_df["amount"].apply(lambda x: float(x)).sum()
-                    st.metric(f"💸 Total for {period_display}", f"{config.CURRENCY_SYMBOL}{total_exp:,.2f}")
+                    # Calculate original total
+                    original_total = filtered_df["amount"].apply(lambda x: float(x)).sum()
                     
-                    # Prepare display dataframe
+                    # Excel-like Filters - Multiselect for each column
+                    st.markdown("**🔍 Filters** (Select to filter, leave empty to show all)")
+                    
+                    filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
+                    
+                    # Get unique values for each column
+                    all_dates = sorted(filtered_df['date'].unique().tolist())
+                    all_categories = sorted(filtered_df['category'].unique().tolist())
+                    all_subcategories = sorted(filtered_df['subcategory'].dropna().unique().tolist())
+                    all_comments = sorted(filtered_df['comment'].dropna().unique().tolist())
+                    
+                    with filter_col1:
+                        selected_dates = st.multiselect("Date", options=all_dates, default=[], key="filter_date")
+                    
+                    with filter_col2:
+                        selected_categories = st.multiselect("Category", options=all_categories, default=[], key="filter_category")
+                    
+                    with filter_col3:
+                        selected_subcategories = st.multiselect("Subcategory", options=all_subcategories, default=[], key="filter_subcategory")
+                    
+                    with filter_col4:
+                        selected_comments = st.multiselect("Comment", options=all_comments, default=[], key="filter_comment")
+                    
+                    # Apply filters
                     display_df = filtered_df.copy()
-                    display_df['Amount'] = display_df['amount'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
-                    display_df = display_df.rename(columns={
-                        'date': 'Date',
-                        'category': 'Category',
-                        'subcategory': 'Subcategory',
-                        'comment': 'Comment'
-                    })
                     
-                    # Show as dataframe (Excel-like)
-                    st.dataframe(
-                        display_df[['Date', 'Category', 'Amount', 'Subcategory', 'Comment']],
-                        use_container_width=True,
-                        hide_index=True
-                    )
+                    if selected_dates:
+                        display_df = display_df[display_df['date'].isin(selected_dates)]
+                    
+                    if selected_categories:
+                        display_df = display_df[display_df['category'].isin(selected_categories)]
+                    
+                    if selected_subcategories:
+                        display_df = display_df[display_df['subcategory'].isin(selected_subcategories)]
+                    
+                    if selected_comments:
+                        display_df = display_df[display_df['comment'].isin(selected_comments)]
+                    
+                    # Calculate filtered total
+                    if not display_df.empty:
+                        filtered_total = display_df["amount"].apply(lambda x: float(x)).sum()
+                    else:
+                        filtered_total = 0
+                    
+                    # Show totals side by side
+                    metric_col1, metric_col2 = st.columns(2)
+                    with metric_col1:
+                        st.metric(f"💸 Total for {period_display}", f"{config.CURRENCY_SYMBOL}{original_total:,.2f}")
+                    with metric_col2:
+                        st.metric(f"📊 Filtered Total", f"{config.CURRENCY_SYMBOL}{filtered_total:,.2f}")
+                    
+                    # Prepare display
+                    if not display_df.empty:
+                        display_df_formatted = display_df.copy()
+                        display_df_formatted['Amount'] = display_df_formatted['amount'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
+                        display_df_formatted = display_df_formatted.rename(columns={
+                            'date': 'Date',
+                            'category': 'Category',
+                            'subcategory': 'Subcategory',
+                            'comment': 'Comment'
+                        })
+                        
+                        # Show as dataframe
+                        st.dataframe(
+                            display_df_formatted[['Date', 'Category', 'Amount', 'Subcategory', 'Comment']],
+                            use_container_width=True,
+                            hide_index=True
+                        )
+                    else:
+                        st.info("No expenses match the selected filters")
                     
                     # Edit/Delete controls below table
                     st.caption("Select an expense to edit or delete:")
