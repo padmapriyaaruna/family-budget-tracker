@@ -1269,6 +1269,45 @@ def show_member_expense_tracking(user_id):
                                         st.session_state.show_previous_allocations = False
                                         st.cache_resource.clear()
                                         st.rerun()
+            
+            # Export Previous Month Allocations - Enhanced Version  
+            st.markdown("---")
+            if st.button("📥 Export Previous Month Allocations", use_container_width=True, key="btn_export_prev_alloc_new"):
+                st.session_state.show_export_allocations = True
+            
+            if st.session_state.get('show_export_allocations', False):
+                with st.expander("📥 Export Allocations from Previous Period", expanded=True):
+                    available_periods = db.get_available_allocation_periods(user_id)
+                    
+                    if not available_periods:
+                        st.info("No previous allocations found to export")
+                        if st.button("Close", key="close_no_export"):
+                            st.session_state.show_export_allocations = False
+                            st.rerun()
+                    else:
+                        years = sorted(set(p['year'] for p in available_periods), reverse=True)
+                        selected_year = st.selectbox("Select Year", options=years, key="export_year_select")
+                        
+                        months_for_year = sorted([p['month'] for p in available_periods if p['year'] == selected_year], reverse=True)
+                        selected_month = st.selectbox("Select Month", options=months_for_year, format_func=lambda x: calendar.month_name[x], key="export_month_select")
+                        
+                        st.info(f"📅 **From:** {calendar.month_name[selected_month]} {selected_year} → **To:** {calendar.month_name[st.session_state.budget_month]} {st.session_state.budget_year}")
+                        
+                        col_export, col_cancel = st.columns(2)
+                        with col_export:
+                            if st.button("✅ Copy All", key="confirm_export", use_container_width=True):
+                                success, message = db.copy_allocations_from_period(user_id, selected_year, selected_month, st.session_state.budget_year, st.session_state.budget_month)
+                                if success:
+                                    st.success(f"✅ {message}")
+                                    st.session_state.show_export_allocations = False
+                                    st.cache_resource.clear()
+                                    st.rerun()
+                                else:
+                                    st.error(f"❌ {message}")
+                        with col_cancel:
+                            if st.button("Cancel", key="cancel_export", use_container_width=True):
+                                st.session_state.show_export_allocations = False
+                                st.rerun()
                                 
                                 with col_cancel:
                                     if st.button("Cancel", key="cancel_valid", use_container_width=True):
