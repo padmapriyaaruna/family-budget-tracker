@@ -27,6 +27,8 @@ const EditExpenseModal = ({ visible, expense, onClose, onSave }) => {
 
     useEffect(() => {
         if (expense) {
+            console.log('EditExpenseModal - expense object:', expense);
+            console.log('EditExpenseModal - expense.id:', expense.id, 'expense.ID:', expense.ID);
             setDate(expense.Date || expense.date || '');
             setCategory(expense.Category || expense.category || '');
             setSubcategory(expense.Subcategory || expense.subcategory || '');
@@ -78,8 +80,15 @@ const EditExpenseModal = ({ visible, expense, onClose, onSave }) => {
 
         setLoading(true);
         try {
-            await updateExpense(expense.id, {
-                user_id: expense.user_id,
+            const expenseId = expense.id || expense.ID;
+            const userId = expense.user_id || expense.UserID || expense.user_id;
+
+            if (!expenseId) {
+                throw new Error('Expense ID is missing');
+            }
+
+            await updateExpense(expenseId, {
+                user_id: userId,
                 date,
                 category,
                 subcategory,
@@ -92,7 +101,7 @@ const EditExpenseModal = ({ visible, expense, onClose, onSave }) => {
             onClose();
         } catch (error) {
             console.error('Update error:', error);
-            Alert.alert('Error', 'Failed to update expense');
+            Alert.alert('Error', error.message || 'Failed to update expense');
         } finally {
             setLoading(false);
         }
