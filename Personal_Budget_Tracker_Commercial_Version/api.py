@@ -206,8 +206,8 @@ def get_admin_stats(current_user: dict = Depends(verify_jwt_token)):
     result = cursor.fetchone()
     total_households = result['count'] if result else 0
     
-    # Get total users
-    db._execute(cursor, 'SELECT COUNT(*) as count FROM users')
+    # Get total users (excluding superadmin)
+    db._execute(cursor, 'SELECT COUNT(*) as count FROM users WHERE role != %s', ('superadmin',))
     result = cursor.fetchone()
     total_users = result['count'] if result else 0
     
