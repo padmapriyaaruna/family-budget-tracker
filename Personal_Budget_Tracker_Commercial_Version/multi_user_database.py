@@ -75,10 +75,45 @@ class MultiUserDB:
             # Convert ? placeholders to %s for PostgreSQL
             query = query.replace('?', '%s')
         
-        if params:
-            cursor.execute(query, params)
-        else:
-            cursor.execute(query)
+        # Try to execute with connection recovery
+        try:
+            if params:
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
+        except Exception as e:
+            error_msg = str(e)
+            # Check if it's a connection error
+            if 'closed' in error_msg.lower() or ('connection' in error_msg.lower() and 'unexpectedly' in error_msg.lower()):
+                print(f"⚠️ Connection error detected: {error_msg[:100]}")
+                print("🔄 Attempting to reconnect...")
+                try:
+                    # Reconnect based on database type
+                    if self.use_postgres:
+                        import psycopg2
+                        from psycopg2.extras import RealDictCursor
+                        self.conn = psycopg2.connect(self.db_path if self.db_path else DATABASE_URL, cursor_factory=RealDictCursor)
+                        self.conn.autocommit = False
+                        print("✅ Reconnected to PostgreSQL")
+                    else:
+                        import sqlite3
+                        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+                        self.conn.row_factory = sqlite3.Row
+                        print("✅ Reconnected to SQLite")
+                    
+                    # Get new cursor and retry query
+                    cursor = self.conn.cursor()
+                    if params:
+                        cursor.execute(query, params)
+                    else:
+                        cursor.execute(query)
+                    print("✅ Query executed successfully after reconnection")
+                except Exception as reconnect_error:
+                    print(f"❌ Reconnection failed: {reconnect_error}")
+                    raise
+            else:
+                # Not a connection error, re-raise original
+                raise
         
         return cursor
         
