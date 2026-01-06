@@ -2181,19 +2181,24 @@ class MultiUserDB:
                     data.append({'month': month, 'member': member, 'liquidity': liquidity})
             else:
                 # For members
-                income_dict = {row['month'] if isinstance(row, dict) else row[0]: 
-                             float((row['total_income'] if isinstance(row, dict) else row[1]) or 0) 
-                             for row in income_rows}
-                alloc_dict = {row['month'] if isinstance(row, dict) else row[0]: 
-                            float((row['total_allocated'] if isinstance(row, dict) else row[1]) or 0) 
-                            for row in alloc_rows}
+                income_dict = {}
+                for row in income_rows:
+                    month = row['month'] if isinstance(row, dict) else row[0]
+                    income = row['total_income'] if isinstance(row, dict) else row[1]
+                    income_dict[month] = float(income or 0)
+                
+                alloc_dict = {}
+                for row in alloc_rows:
+                    month = row['month'] if isinstance(row, dict) else row[0]
+                    allocated = row['total_allocated'] if isinstance(row, dict) else row[1]
+                    alloc_dict[month] = float(allocated or 0)
                 
                 all_months = set(income_dict.keys()) | set(alloc_dict.keys())
                 for month in all_months:
                     income = income_dict.get(month, 0)
                     allocated = alloc_dict.get(month, 0)
                     liquidity = income - allocated
-                    data.append({'month': month, 'liquidity': liquidity})
+                    data.append({'month': int(month), 'liquidity': liquidity})
             
             return pd.DataFrame(data)
         except Exception as e:
