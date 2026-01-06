@@ -1992,6 +1992,12 @@ def show_member_expense_tracking(user_id):
                         else:
                             # For member: Show Year, Month, and Liquidity
                             display_df = liquidity_df.copy()
+                            
+                            # Debug
+                            st.caption(f"Debug: liquidity_df has {len(display_df)} rows, columns: {list(display_df.columns)}")
+                            if len(display_df) > 0:
+                                st.caption(f"Debug: First row data: {display_df.iloc[0].to_dict()}")
+                            
                             display_df['Year'] = year
                             display_df['Member'] = current_user['full_name']
                             display_df['Month'] = display_df['month'].apply(lambda x: calendar.month_name[int(x)])
