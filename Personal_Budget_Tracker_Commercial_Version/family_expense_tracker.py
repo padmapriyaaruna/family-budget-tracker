@@ -1990,13 +1990,15 @@ def show_member_expense_tracking(user_id):
                             
                             st.dataframe(styled_df, use_container_width=True)
                         else:
-                            # For member: Simple month and liquidity table
+                            # For member: Show Year, Month, and Liquidity
                             display_df = liquidity_df.copy()
-                            display_df['Month'] = display_df['month'].apply(lambda x: calendar.month_name[x])
+                            display_df['Year'] = year
+                            display_df['Member'] = current_user['full_name']
+                            display_df['Month'] = display_df['month'].apply(lambda x: calendar.month_name[int(x)])
                             display_df['Liquidity'] = display_df['liquidity'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
                             
                             st.dataframe(
-                                display_df[['Month', 'Liquidity']],
+                                display_df[['Member', 'Year', 'Month', 'Liquidity']],
                                 use_container_width=True,
                                 hide_index=True
                             )
