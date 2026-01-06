@@ -1935,32 +1935,25 @@ def show_member_expense_tracking(user_id):
             current_user = st.session_state.user
             is_admin = current_user['role'] == 'admin'  # Role is 'admin' not 'family_admin'
             household_id = current_user['household_id']
-            
-            # Debug: Show what we're checking
-            st.caption(f"Debug: user_id={user_id}, is_admin={is_admin}, household_id={household_id}, role={current_user['role']}")
+
             
            # Get all years with data
             years = db.get_savings_years(user_id, is_admin, household_id)
-            
-            # Debug: Show years returned
-            st.caption(f"Debug: Years returned = {years}")
+
             
             if not years:
                 st.info("💡 No income/allocation data found. Add income in the Income tab to see liquidity here!")
             else:
                 st.caption(f"**Liquidity** = Income - Total Allocations for each month")
-                
-                # Debug: About to loop through years
-                st.caption(f"Debug: About to display {len(years)} year(s)")
+
                 
                 # Display year-wise expandable sections
                 for year in years:
-                    st.caption(f"Debug: Processing year {year}")
                     
                     # Get monthly liquidity data for this year
                     try:
                         liquidity_df = db.get_monthly_liquidity_by_member_simple(household_id, year, is_admin, user_id)
-                        st.caption(f"Debug: Got {len(liquidity_df)} rows for year {year}")
+
                     except Exception as e:
                         st.error(f"Error getting liquidity for {year}: {str(e)}")
                         continue
