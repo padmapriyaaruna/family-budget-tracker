@@ -1950,10 +1950,20 @@ def show_member_expense_tracking(user_id):
             else:
                 st.caption(f"**Liquidity** = Income - Total Allocations for each month")
                 
+                # Debug: About to loop through years
+                st.caption(f"Debug: About to display {len(years)} year(s)")
+                
                 # Display year-wise expandable sections
                 for year in years:
+                    st.caption(f"Debug: Processing year {year}")
+                    
                     # Get monthly liquidity data for this year
-                    liquidity_df = db.get_monthly_liquidity_by_member(household_id, year, is_admin, user_id)
+                    try:
+                        liquidity_df = db.get_monthly_liquidity_by_member(household_id, year, is_admin, user_id)
+                        st.caption(f"Debug: Got {len(liquidity_df)} rows for year {year}")
+                    except Exception as e:
+                        st.error(f"Error getting liquidity for {year}: {str(e)}")
+                        continue
                     
                     if liquidity_df.empty:
                         continue
