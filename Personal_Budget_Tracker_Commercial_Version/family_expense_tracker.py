@@ -2235,9 +2235,9 @@ def show_super_admin_dashboard():
                         if st.button("✅ Login", use_container_width=True, type="primary"):
                             if password:
                                 # Verify superadmin password
-                                super_user = db.authenticate_user(st.session_state.user['email'], password)
+                                success, super_user = db.authenticate_user(st.session_state.user['email'], password)
                                 
-                                if super_user and super_user.get('role') == 'superadmin':
+                                if success and super_user and super_user.get('role') == 'superadmin':
                                     # Get family admin user
                                     family_admin = db.get_household_admin(household_id)
                                     
