@@ -2011,13 +2011,25 @@ def show_member_expense_tracking(user_id):
 
 # ==================== SUPER ADMIN DASHBOARD ====================
 
+#superadmin superpower - START
+# Login as Family feature
+# Comment out this entire block to disable family name hyperlinks
+ENABLE_LOGIN_AS_FAMILY = True
+#superadmin superpower - END
 
 def show_super_admin_dashboard():
     """Super admin dashboard for managing multiple households"""
     user = st.session_state.user
     
-    # Header with logout
-    col1, col2 = st.columns([6, 1])
+    # Check if logged in as family via superadmin
+    is_superadmin_impersonating = st.session_state.get('original_superadmin') is not None
+    
+    # Header with logout and optional return button
+    if is_superadmin_impersonating:
+        col1, col2, col3 = st.columns([5, 1, 1])
+    else:
+        col1, col2 = st.columns([6, 1])
+    
     with col1:
         st.title("🔱 Super Admin Dashboard")
         st.caption(f"Welcome, {user['full_name']}")
@@ -2026,7 +2038,20 @@ def show_super_admin_dashboard():
         if st.button("Logout", key="super_logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.user = None
+            st.session_state.original_superadmin = None  # Clear impersonation
             st.rerun()
+    
+    #superadmin superpower - START
+    if is_superadmin_impersonating:
+        with col3:
+            st.write("")  # Spacer
+            if st.button("↩️ Return", key="return_to_superadmin", use_container_width=True, help="Return to Super Admin"):
+                # Restore original superadmin user
+                st.session_state.user = st.session_state.original_superadmin
+                st.session_state.original_superadmin = None
+                st.success("Returned to Super Admin")
+                st.rerun()
+    #superadmin superpower - END
     
     st.divider()
     
@@ -2133,11 +2158,21 @@ def show_super_admin_dashboard():
                         with col_info:
                             # Handle both PostgreSQL (True/False) and SQLite (1/0)
                             status_icon = "✅" if household['is_active'] else "❌"
-                            st.markdown(f"""
-                            **{household['name']}** {status_icon}  
-                            👤 Admin: {household['admin_name']} ({household['admin_email']})  
-                            👥 Members: {household['member_count']} | 📅 Created: {str(household['created_at'])[:10]}
-                            """)
+                            
+                            #superadmin superpower - START
+                            # Make family name clickable to login as that family
+                            if ENABLE_LOGIN_AS_FAMILY:
+                                if st.button(f"{status_icon} {household['name']}", key=f"login_{household_id}", type="secondary"):
+                                    st.session_state.show_password_modal = household_id
+                                    st.session_state.selected_household_name = household['name']
+                                st.caption(f"👤 Admin: {household['admin_name']} ({household['admin_email']})  |  👥 Members: {household['member_count']} | 📅 Created: {str(household['created_at'])[:10]}")
+                            else:
+                            #superadmin superpower - END
+                                st.markdown(f"""
+                                **{household['name']}** {status_icon}  
+                                👤 Admin: {household['admin_name']} ({household['admin_email']})  
+                                👥 Members: {household['member_count']} | 📅 Created: {str(household['created_at'])[:10]}
+                                """)
                         
                         with col_actions:
                             col_toggle, col_delete = st.columns(2)
@@ -2177,6 +2212,57 @@ def show_super_admin_dashboard():
                         st.divider()
             else:
                 st.info("No families created yet. Create one using the form on the left.")
+            
+            #superadmin superpower - START
+            # Password verification modal for "Login as Family"
+            if st.session_state.get('show_password_modal'):
+                household_id = st.session_state.show_password_modal
+                household_name = st.session_state.get('selected_household_name', 'Unknown')
+                
+                st.divider()
+                with st.expander(f"🔐 Verify Password to Login as {household_name}", expanded=True):
+                    st.warning(f"You are about to log in as the admin of **{household_name}**")
+                    
+                    password = st.text_input(
+                        "Super Admin Password", 
+                        type="password", 
+                        key="verify_pwd",
+                        placeholder="Enter your superadmin password"
+                    )
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("✅ Login", use_container_width=True, type="primary"):
+                            if password:
+                                # Verify superadmin password
+                                super_user = db.verify_user(st.session_state.user['email'], password)
+                                
+                                if super_user and super_user.get('role') == 'superadmin':
+                                    # Get family admin user
+                                    family_admin = db.get_household_admin(household_id)
+                                    
+                                    if family_admin:
+                                        # Store original superadmin
+                                        st.session_state.original_superadmin = st.session_state.user.copy()
+                                        # Switch to family admin
+                                        st.session_state.user = family_admin
+                                        st.session_state.show_password_modal = None
+                                        st.session_state.selected_household_name = None
+                                        st.success(f"✅ Logged in as {family_admin['full_name']} ({household_name})")
+                                        st.rerun()
+                                    else:
+                                        st.error(f"❌ No admin found for {household_name}")
+                                else:
+                                    st.error("❌ Invalid password")
+                            else:
+                                st.error("Please enter your password")
+                    
+                    with col2:
+                        if st.button("❌ Cancel", use_container_width=True):
+                            st.session_state.show_password_modal = None
+                            st.session_state.selected_household_name = None
+                            st.rerun()
+            #superadmin superpower - END
     
     # TAB 3: Manage Members (Family-Filtered)
     with tab3:
