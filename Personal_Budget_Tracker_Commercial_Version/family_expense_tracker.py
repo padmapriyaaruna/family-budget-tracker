@@ -1931,13 +1931,13 @@ def show_member_expense_tracking(user_id):
         with col2:
             st.subheader("📊 Savings History - Liquidity by Year")
             
-            # Determine if user is admin - get from user data
-            user = db.get_user_by_id(user_id)
-            is_admin = user['role'] == 'family_admin' if user else False
-            household_id = user['household_id'] if user else None
+            # Get user info from session state (same as other tabs)
+            current_user = st.session_state.user
+            is_admin = current_user['role'] == 'family_admin'
+            household_id = current_user['household_id']
             
             # Debug: Show what we're checking
-            st.caption(f"Debug: user_id={user_id}, is_admin={is_admin}, household_id={household_id}")
+            st.caption(f"Debug: user_id={user_id}, is_admin={is_admin}, household_id={household_id}, role={current_user['role']}")
             
            # Get all years with data
             years = db.get_savings_years(user_id, is_admin, household_id)
