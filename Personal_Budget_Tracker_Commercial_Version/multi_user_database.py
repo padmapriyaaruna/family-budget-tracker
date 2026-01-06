@@ -1963,19 +1963,20 @@ class MultiUserDB:
         try:
             cursor = self.conn.cursor()
             
+            # Use database-agnostic date extraction (works for both SQLite and PostgreSQL)
             if is_admin:
                 self._execute(cursor, '''
-                    SELECT DISTINCT CAST(strftime('%Y', i.date) as INTEGER) as year
+                    SELECT DISTINCT EXTRACT(YEAR FROM CAST(i.date AS DATE)) as year
                     FROM income i JOIN users u ON i.user_id = u.id
-                    WHERE u.household_id = ? ORDER BY year DESC
+                   WHERE u.household_id = ? ORDER BY year DESC
                 ''', (household_id,))
             else:
                 self._execute(cursor, '''
-                    SELECT DISTINCT CAST(strftime('%Y', date) as INTEGER) as year
+                    SELECT DISTINCT EXTRACT(YEAR FROM CAST(date AS DATE)) as year
                     FROM income WHERE user_id = ? ORDER BY year DESC
                 ''', (user_id,))
             
-            years = [row['year'] if isinstance(row, dict) else row[0] for row in cursor.fetchall()]
+            years = [int(row['year']) if isinstance(row, dict) else int(row[0]) for row in cursor.fetchall()]
             return years
         except Exception as e:
             print(f"Error getting savings years: {str(e)}")
@@ -1989,28 +1990,28 @@ class MultiUserDB:
             if is_admin:
                 self._execute(cursor, '''
                     SELECT 
-                        CAST(strftime('%m', i.date) as INTEGER) as month,
+                        EXTRACT(MONTH FROM CAST(i.date AS DATE)) as month,
                         u.full_name as member,
                         COALESCE(SUM(CAST(i.amount as REAL)), 0) as total_income,
                         COALESCE((SELECT SUM(CAST(a.allocated_amount as REAL))
                              FROM allocations a WHERE a.user_id = u.id
-                             AND a.year = ? AND a.month = CAST(strftime('%m', i.date) as INTEGER)), 0) as total_allocated
+                             AND a.year = ? AND a.month = EXTRACT(MONTH FROM CAST(i.date AS DATE))), 0) as total_allocated
                     FROM income i JOIN users u ON i.user_id = u.id
-                    WHERE u.household_id = ? AND CAST(strftime('%Y', i.date) as INTEGER) = ?
-                    GROUP BY CAST(strftime('%m', i.date) as INTEGER), u.full_name, u.id
+                    WHERE u.household_id = ? AND EXTRACT(YEAR FROM CAST(i.date AS DATE)) = ?
+                    GROUP BY EXTRACT(MONTH FROM CAST(i.date AS DATE)), u.full_name, u.id
                     ORDER BY month, u.full_name
                 ''', (year, household_id, year))
             else:
                 self._execute(cursor, '''
                     SELECT 
-                        CAST(strftime('%m', i.date) as INTEGER) as month,
+                        EXTRACT(MONTH FROM CAST(i.date AS DATE)) as month,
                         COALESCE(SUM(CAST(i.amount as REAL)), 0) as total_income,
                         COALESCE((SELECT SUM(CAST(a.allocated_amount as REAL))
                              FROM allocations a WHERE a.user_id = ?
-                             AND a.year = ? AND a.month = CAST(strftime('%m', i.date) as INTEGER)), 0) as total_allocated
+                             AND a.year = ? AND a.month = EXTRACT(MONTH FROM CAST(i.date AS DATE))), 0) as total_allocated
                     FROM income i
-                    WHERE user_id = ? AND CAST(strftime('%Y', i.date) as INTEGER) = ?
-                    GROUP BY CAST(strftime('%m', i.date) as INTEGER)
+                    WHERE user_id = ? AND EXTRACT(YEAR FROM CAST(i.date AS DATE)) = ?
+                    GROUP BY EXTRACT(MONTH FROM CAST(i.date AS DATE))
                     ORDER BY month
                 ''', (user_id, year, user_id, year))
             
