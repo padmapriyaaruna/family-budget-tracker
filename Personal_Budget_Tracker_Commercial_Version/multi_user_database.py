@@ -2226,5 +2226,5 @@ class MultiUserDB:
                 }
             return None
         except Exception as e:
-            print(f\"Error getting household admin: {str(e)}\")
+            print(f"Error getting household admin: {str(e)}")
             return None
