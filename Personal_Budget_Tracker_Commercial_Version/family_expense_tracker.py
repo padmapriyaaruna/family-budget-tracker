@@ -1933,7 +1933,7 @@ def show_member_expense_tracking(user_id):
             
             # Get user info from session state (same as other tabs)
             current_user = st.session_state.user
-            is_admin = current_user['role'] == 'family_admin'
+            is_admin = current_user['role'] == 'admin'  # Role is 'admin' not 'family_admin'
             household_id = current_user['household_id']
             
             # Debug: Show what we're checking
