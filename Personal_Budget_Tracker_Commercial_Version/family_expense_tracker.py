@@ -1931,8 +1931,10 @@ def show_member_expense_tracking(user_id):
         with col2:
             st.subheader("📊 Savings History - Liquidity by Year")
             
-            # Determine if user is admin
-            is_admin = user_role == 'family_admin'
+            # Determine if user is admin - get from user data
+            user = db.get_user_by_id(user_id)
+            is_admin = user['role'] == 'family_admin' if user else False
+            household_id = user['household_id'] if user else None
             
            # Get all years with data
             years = db.get_savings_years(user_id, is_admin, household_id)
