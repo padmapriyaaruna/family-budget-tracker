@@ -1942,6 +1942,9 @@ def show_member_expense_tracking(user_id):
            # Get all years with data
             years = db.get_savings_years(user_id, is_admin, household_id)
             
+            # Debug: Show years returned
+            st.caption(f"Debug: Years returned = {years}")
+            
             if not years:
                 st.info("💡 No income/allocation data found. Add income in the Income tab to see liquidity here!")
             else:
