@@ -1991,6 +1991,8 @@ def show_member_expense_tracking(user_id):
                             )
                 
                 st.divider()
+                st.caption("💡 **Tip:** Liquidity shows unallocated funds. Positive values mean you have extra money, negative means you over-allocated!")
+
 
 
 
