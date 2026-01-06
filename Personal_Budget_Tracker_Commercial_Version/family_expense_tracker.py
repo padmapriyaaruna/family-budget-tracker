@@ -1872,9 +1872,129 @@ def show_member_expense_tracking(user_id):
     # TAB 5: Savings
     elif selected_tab == "💰 Savings":
         st.header("💰 Savings Tracker")
-        st.caption("Track your savings goals and progress")
+        st.caption("Track your household's liquid funds (Income - Allocations)")
         
         col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            st.subheader("➕ Add New Saving")
+            
+            # Simplified Add Saving Form (no budget period selector)
+            with st.form("saving_form", clear_on_submit=True):
+                saving_date = st.date_input("Date", value=date.today())
+                
+                saving_category = st.selectbox(
+                    "Savings Goal",
+                    options=[
+                        "Emergency Fund",
+                        "Retirement",
+                        "House Down Payment",
+                        "Vacation",
+                        "Education",
+                        "Investment",
+                        "Car/Vehicle",
+                        "Medical",
+                        "Debt Repayment",
+                        "Other"
+                    ],
+                    help="Select your savings goal category"
+                )
+                
+                saving_amount = st.number_input(
+                    f"Amount ({config.CURRENCY_SYMBOL})",
+                    min_value=0.0,
+                    step=100.0,
+                    format="%.2f"
+                )
+                
+                saving_notes = st.text_area("Notes (optional)", placeholder="Add notes about this saving...")
+                
+                submit_saving = st.form_submit_button("💾 Add Saving", use_container_width=True)
+                
+                if submit_saving:
+                    if saving_amount > 0:
+                        if db.add_saving(
+                            user_id,
+                            saving_date.strftime(config.DATE_FORMAT),
+                            saving_category,
+                            saving_amount,
+                            saving_notes
+                        ):
+                            st.success(f"✅ Added {config.CURRENCY_SYMBOL}{saving_amount:,.2f} to {saving_category}")
+                            st.cache_resource.clear()
+                            st.rerun()
+                        else:
+                            st.error("Failed to add saving. Please try again.")
+                    else:
+                        st.error("Please enter an amount greater than 0")
+        
+        with col2:
+            st.subheader("📊 Savings History - Liquidity by Year")
+            
+            # Determine if user is admin
+            is_admin = user_role == 'family_admin'
+            
+           # Get all years with data
+            years = db.get_savings_years(user_id, is_admin, household_id)
+            
+            if not years:
+                st.info("💡 No income/allocation data found. Add income in the Income tab to see liquidity here!")
+            else:
+                st.caption(f"**Liquidity** = Income - Total Allocations for each month")
+                
+                # Display year-wise expandable sections
+                for year in years:
+                    # Get monthly liquidity data for this year
+                    liquidity_df = db.get_monthly_liquidity_by_member(household_id, year, is_admin, user_id)
+                    
+                    if liquidity_df.empty:
+                        continue
+                    
+                    # Calculate year total
+                    year_total = liquidity_df['liquidity'].sum()
+                    
+                    # Create expandable section
+                    with st.expander(f"📅 **{year}** - Total Liquidity: {config.CURRENCY_SYMBOL}{year_total:,.2f}", expanded=False):
+                        if is_admin:
+                            # For admin: Pivot to show members as columns
+                            # Create pivot table: Month x Members
+                            pivot_df = liquidity_df.pivot(
+                                index='month',
+                                columns='member',
+                                values='liquidity'
+                            ).fillna(0)
+                            
+                            # Add Total column (sum across all members)
+                            pivot_df['Total'] = pivot_df.sum(axis=1)
+                            
+                            # Format month names
+                            import calendar
+                            pivot_df.index = pivot_df.index.map(lambda x: calendar.month_name[x])
+                            pivot_df.index.name = 'Month'
+                            
+                            # Format currency
+                            styled_df = pivot_df.copy()
+                            for col in styled_df.columns:
+                                styled_df[col] = styled_df[col].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
+                            
+                            st.dataframe(styled_df, use_container_width=True)
+                        else:
+                            # For member: Simple month and liquidity table
+                            display_df = liquidity_df.copy()
+                            display_df['Month'] = display_df['month'].apply(lambda x: calendar.month_name[x])
+                            display_df['Liquidity'] = display_df['liquidity'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
+                            
+                            st.dataframe(
+                                display_df[['Month', 'Liquidity']],
+                                use_container_width=True,
+                                hide_index=True
+                            )
+                
+                st.divider()
+                st.caption("💡 **Tip:** Liquidity shows unallocated funds. Positive values mean you have extra money, negative means you over-allocated!")
+
+
+
         
         with col1:
             st.subheader("Add New Saving")
