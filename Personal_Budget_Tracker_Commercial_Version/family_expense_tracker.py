@@ -1959,7 +1959,7 @@ def show_member_expense_tracking(user_id):
                     
                     # Get monthly liquidity data for this year
                     try:
-                        liquidity_df = db.get_monthly_liquidity_by_member(household_id, year, is_admin, user_id)
+                        liquidity_df = db.get_monthly_liquidity_by_member_simple(household_id, year, is_admin, user_id)
                         st.caption(f"Debug: Got {len(liquidity_df)} rows for year {year}")
                     except Exception as e:
                         st.error(f"Error getting liquidity for {year}: {str(e)}")
