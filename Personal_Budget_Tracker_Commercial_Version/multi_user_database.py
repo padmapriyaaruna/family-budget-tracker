@@ -1988,30 +1988,43 @@ class MultiUserDB:
             cursor = self.conn.cursor()
             
             if is_admin:
+                # For admin - get all household members' liquidity
                 self._execute(cursor, '''
                     SELECT 
-                        EXTRACT(MONTH FROM CAST(i.date AS DATE)) as month,
+                        EXTRACT(MONTH FROM i.date::date)::integer as month,
                         u.full_name as member,
-                        COALESCE(SUM(CAST(i.amount as REAL)), 0) as total_income,
-                        COALESCE((SELECT SUM(CAST(a.allocated_amount as REAL))
-                             FROM allocations a WHERE a.user_id = u.id
-                             AND a.year = ? AND a.month = EXTRACT(MONTH FROM CAST(i.date AS DATE))), 0) as total_allocated
-                    FROM income i JOIN users u ON i.user_id = u.id
-                    WHERE u.household_id = ? AND EXTRACT(YEAR FROM CAST(i.date AS DATE)) = ?
-                    GROUP BY EXTRACT(MONTH FROM CAST(i.date AS DATE)), u.full_name, u.id
+                        COALESCE(SUM(i.amount::numeric), 0) as total_income,
+                        COALESCE((
+                            SELECT SUM(a.allocated_amount::numeric)
+                            FROM allocations a 
+                            WHERE a.user_id = u.id
+                              AND a.year = %s
+                              AND a.month = EXTRACT(MONTH FROM i.date::date)::integer
+                        ), 0) as total_allocated
+                    FROM income i 
+                    JOIN users u ON i.user_id = u.id
+                    WHERE u.household_id = %s 
+                      AND EXTRACT(YEAR FROM i.date::date)::integer = %s
+                    GROUP BY EXTRACT(MONTH FROM i.date::date)::integer, u.full_name, u.id
                     ORDER BY month, u.full_name
                 ''', (year, household_id, year))
             else:
+                # For member - get just their liquidity
                 self._execute(cursor, '''
                     SELECT 
-                        EXTRACT(MONTH FROM CAST(i.date AS DATE)) as month,
-                        COALESCE(SUM(CAST(i.amount as REAL)), 0) as total_income,
-                        COALESCE((SELECT SUM(CAST(a.allocated_amount as REAL))
-                             FROM allocations a WHERE a.user_id = ?
-                             AND a.year = ? AND a.month = EXTRACT(MONTH FROM CAST(i.date AS DATE))), 0) as total_allocated
+                        EXTRACT(MONTH FROM i.date::date)::integer as month,
+                        COALESCE(SUM(i.amount::numeric), 0) as total_income,
+                        COALESCE((
+                            SELECT SUM(a.allocated_amount::numeric)
+                            FROM allocations a 
+                            WHERE a.user_id = %s
+                              AND a.year = %s
+                              AND a.month = EXTRACT(MONTH FROM i.date::date)::integer
+                        ), 0) as total_allocated
                     FROM income i
-                    WHERE user_id = ? AND EXTRACT(YEAR FROM CAST(i.date AS DATE)) = ?
-                    GROUP BY EXTRACT(MONTH FROM CAST(i.date AS DATE))
+                    WHERE i.user_id = %s 
+                      AND EXTRACT(YEAR FROM i.date::date)::integer = %s
+                    GROUP BY EXTRACT(MONTH FROM i.date::date)::integer
                     ORDER BY month
                 ''', (user_id, year, user_id, year))
             
