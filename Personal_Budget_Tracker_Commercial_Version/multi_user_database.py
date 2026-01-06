@@ -2202,8 +2202,9 @@ class MultiUserDB:
             traceback.print_exc()
             return pd.DataFrame()
     
+    
     def get_household_admin(self, household_id):
-        \"\"\"Get the admin user for a household\"\"\"
+        """Get the admin user for a household"""
         try:
             cursor = self.conn.cursor()
             self._execute(cursor, '''
