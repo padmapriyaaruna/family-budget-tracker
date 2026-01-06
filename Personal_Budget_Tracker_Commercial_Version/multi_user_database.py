@@ -1956,8 +1956,8 @@ class MultiUserDB:
             print(f"Error copying allocations: {str(e)}")
             self.conn.rollback()
             return (False, str(e))
- 
- 
+
+
     def get_savings_years(self, user_id, is_admin, household_id):
         """Get all years where income/allocation data exists for savings view"""
         try:
