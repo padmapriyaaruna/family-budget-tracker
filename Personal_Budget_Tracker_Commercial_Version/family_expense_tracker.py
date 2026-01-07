@@ -1991,23 +1991,35 @@ def show_member_expense_tracking(user_id):
                             st.dataframe(styled_df, use_container_width=True)
                         else:
                             # For member: Show Year, Month, and Liquidity
-                            display_df = liquidity_df.copy()
-                            
-                            # Debug
-                            st.caption(f"Debug: liquidity_df has {len(display_df)} rows, columns: {list(display_df.columns)}")
-                            if len(display_df) > 0:
-                                st.caption(f"Debug: First row data: {display_df.iloc[0].to_dict()}")
-                            
-                            display_df['Year'] = year
-                            display_df['Member'] = current_user['full_name']
-                            display_df['Month'] = display_df['month'].apply(lambda x: calendar.month_name[int(x)])
-                            display_df['Liquidity'] = display_df['liquidity'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
-                            
-                            st.dataframe(
-                                display_df[['Member', 'Year', 'Month', 'Liquidity']],
-                                use_container_width=True,
-                                hide_index=True
-                            )
+                            try:
+                                display_df = liquidity_df.copy()
+                                
+                                # Debug
+                                st.caption(f"Debug: liquidity_df has {len(display_df)} rows, columns: {list(display_df.columns)}")
+                                if len(display_df) > 0:
+                                    st.caption(f"Debug: First row data: {display_df.iloc[0].to_dict()}")
+                                
+                                # Add columns
+                                display_df['Year'] = year
+                                display_df['Member'] = current_user['full_name']
+                                
+                                # Convert month (handle both int and float)
+                                import calendar
+                                display_df['Month'] = display_df['month'].apply(lambda x: calendar.month_name[int(float(x))])
+                                
+                                # Format liquidity
+                                display_df['Liquidity'] = display_df['liquidity'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
+                                
+                                # Display
+                                st.dataframe(
+                                    display_df[['Member', 'Year', 'Month', 'Liquidity']],
+                                    use_container_width=True,
+                                    hide_index=True
+                                )
+                            except Exception as e:
+                                st.error(f"Error displaying member liquidity: {str(e)}")
+                                import traceback
+                                st.code(traceback.format_exc())
                 
                 st.divider()
                 st.caption("💡 **Tip:** Liquidity shows unallocated funds. Positive values mean you have extra money, negative means you over-allocated!")
