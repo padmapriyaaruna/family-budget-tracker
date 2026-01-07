@@ -1990,17 +1990,11 @@ def show_member_expense_tracking(user_id):
                             
                             st.dataframe(styled_df, use_container_width=True)
                         else:
-                            # For member: Show Year, Month, and Liquidity
+                            # For member: Show Member, Month, and Liquidity
                             try:
                                 display_df = liquidity_df.copy()
                                 
-                                # Debug
-                                st.caption(f"Debug: liquidity_df has {len(display_df)} rows, columns: {list(display_df.columns)}")
-                                if len(display_df) > 0:
-                                    st.caption(f"Debug: First row data: {display_df.iloc[0].to_dict()}")
-                                
                                 # Add columns
-                                display_df['Year'] = year
                                 display_df['Member'] = current_user['full_name']
                                 
                                 # Convert month (handle both int and float)
@@ -2010,9 +2004,9 @@ def show_member_expense_tracking(user_id):
                                 # Format liquidity
                                 display_df['Liquidity'] = display_df['liquidity'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
                                 
-                                # Display
+                                # Display (without Year column)
                                 st.dataframe(
-                                    display_df[['Member', 'Year', 'Month', 'Liquidity']],
+                                    display_df[['Member', 'Month', 'Liquidity']],
                                     use_container_width=True,
                                     hide_index=True
                                 )
