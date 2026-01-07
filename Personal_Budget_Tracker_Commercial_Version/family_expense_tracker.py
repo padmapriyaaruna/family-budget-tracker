@@ -2226,48 +2226,111 @@ def show_super_admin_dashboard():
                 household_name = st.session_state.get('selected_household_name', 'Unknown')
                 
                 st.divider()
-                with st.expander(f"🔐 Verify Password to Login as {household_name}", expanded=True):
-                    st.warning(f"You are about to log in as the admin of **{household_name}**")
-                    
-                    password = st.text_input(
-                        "Super Admin Password", 
-                        type="password", 
-                        key="verify_pwd",
-                        placeholder="Enter your superadmin password"
-                    )
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if st.button("✅ Login", use_container_width=True, type="primary"):
-                            if password:
-                                # Verify superadmin password
-                                success, super_user = db.authenticate_user(st.session_state.user['email'], password)
-                                
-                                if success and super_user and super_user.get('role') == 'superadmin':
-                                    # Get family admin user
-                                    family_admin = db.get_household_admin(household_id)
+                
+                # Step 1: Password verification (if not yet verified)
+                if not st.session_state.get('password_verified'):
+                    with st.expander(f"🔐 Verify Password to Login as {household_name}", expanded=True):
+                        st.warning(f"You are about to log in as a member of **{household_name}**")
+                        
+                        password = st.text_input(
+                            "Super Admin Password", 
+                            type="password", 
+                            key="verify_pwd",
+                            placeholder="Enter your superadmin password"
+                        )
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("✅ Verify", use_container_width=True, type="primary"):
+                                if password:
+                                    # Verify superadmin password
+                                    success, super_user = db.authenticate_user(st.session_state.user['email'], password)
                                     
-                                    if family_admin:
-                                        # Store original superadmin
-                                        st.session_state.original_superadmin = st.session_state.user.copy()
-                                        # Switch to family admin
-                                        st.session_state.user = family_admin
-                                        st.session_state.show_password_modal = None
-                                        st.session_state.selected_household_name = None
-                                        st.success(f"✅ Logged in as {family_admin['full_name']} ({household_name})")
+                                    if success and super_user and super_user.get('role') == 'superadmin':
+                                        st.session_state.password_verified = True
+                                        st.success("✅ Password verified! Select a member below.")
                                         st.rerun()
                                     else:
-                                        st.error(f"❌ No admin found for {household_name}")
+                                        st.error("❌ Invalid password")
                                 else:
-                                    st.error("❌ Invalid password")
-                            else:
-                                st.error("Please enter your password")
-                    
-                    with col2:
-                        if st.button("❌ Cancel", use_container_width=True):
-                            st.session_state.show_password_modal = None
-                            st.session_state.selected_household_name = None
-                            st.rerun()
+                                    st.error("Please enter your password")
+                        
+                        with col2:
+                            if st.button("❌ Cancel", use_container_width=True):
+                                st.session_state.show_password_modal = None
+                                st.session_state.selected_household_name = None
+                                st.session_state.password_verified = False
+                                st.rerun()
+                
+                # Step 2: Member selection (after password is verified)
+                else:
+                    with st.expander(f"👥 Select Member from {household_name}", expanded=True):
+                        st.success("✅ Password verified")
+                        st.info(f"Select which member of **{household_name}** to log in as:")
+                        
+                        # Get all household members
+                        cursor = db.conn.cursor()
+                        db._execute(cursor, '''
+                            SELECT id, full_name, email, role, relationship
+                            FROM users
+                            WHERE household_id = %s
+                            ORDER BY 
+                                CASE WHEN role = 'admin' THEN 0 ELSE 1 END,
+                                full_name
+                        ''', (household_id,))
+                        
+                        members = cursor.fetchall()
+                        
+                        if members:
+                            # Display members as buttons
+                            for member in members:
+                                member_id = member['id'] if isinstance(member, dict) else member[0]
+                                member_name = member['full_name'] if isinstance(member, dict) else member[1]
+                                member_email = member['email'] if isinstance(member, dict) else member[2]
+                                member_role = member['role'] if isinstance(member, dict) else member[3]
+                                member_relationship = member['relationship'] if isinstance(member, dict) else member[4]
+                                
+                                # Icon based on role
+                                icon = "👑" if member_role == 'admin' else "👤"
+                                role_badge = "Admin" if member_role == 'admin' else "Member"
+                                
+                                col1, col2 = st.columns([3, 1])
+                                with col1:
+                                    st.markdown(f"{icon} **{member_name}** ({role_badge})")
+                                    st.caption(f"📧 {member_email} | {member_relationship}")
+                                
+                                with col2:
+                                    if st.button("Login", key=f"login_as_{member_id}", use_container_width=True, type="primary"):
+                                        # Create user dict for selected member
+                                        selected_member = {
+                                            'id': member_id,
+                                            'full_name': member_name,
+                                            'email': member_email,
+                                            'role': member_role,
+                                            'household_id': household_id,
+                                            'relationship': member_relationship
+                                        }
+                                        
+                                        # Store original superadmin
+                                        st.session_state.original_superadmin = st.session_state.user.copy()
+                                        # Switch to selected member
+                                        st.session_state.user = selected_member
+                                        st.session_state.show_password_modal = None
+                                        st.session_state.selected_household_name = None
+                                        st.session_state.password_verified = False
+                                        st.success(f"✅ Logged in as {member_name} ({household_name})")
+                                        st.rerun()
+                                
+                                st.divider()
+                            
+                            # Cancel button at bottom
+                            if st.button("❌ Cancel", key="cancel_member_selection", use_container_width=True):
+                                st.session_state.show_password_modal = None
+                                st.session_state.selected_household_name = None
+                                st.session_state.password_verified = False
+                                st.rerun()
+                        else:
+                            st.error(f"❌ No members found in {household_name}")
             #superadmin superpower - END
     
     # TAB 3: Manage Members (Family-Filtered)
