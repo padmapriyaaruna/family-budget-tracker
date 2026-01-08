@@ -2014,27 +2014,27 @@ def show_member_expense_tracking(user_id):
                         else:
                             st.info("No personal liquidity data for this year")
                     else:
-                            # For member: Show only Month and Liquidity
-                            try:
-                                display_df = liquidity_df.copy()
-                                
-                                # Convert month (handle both int and float)
-                                import calendar
-                                display_df['Month'] = display_df['month'].apply(lambda x: calendar.month_name[int(float(x))])
-                                
-                                # Format liquidity
-                                display_df['Liquidity'] = display_df['liquidity'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
-                                
-                                # Display only Month and Liquidity
-                                st.dataframe(
-                                    display_df[['Month', 'Liquidity']],
-                                    use_container_width=True,
-                                    hide_index=True
-                                )
-                            except Exception as e:
-                                st.error(f"Error displaying member liquidity: {str(e)}")
-                                import traceback
-                                st.code(traceback.format_exc())
+                        # For member: Show only Month and Liquidity
+                        try:
+                            display_df = liquidity_df.copy()
+                            
+                            # Convert month (handle both int and float)
+                            import calendar
+                            display_df['Month'] = display_df['month'].apply(lambda x: calendar.month_name[int(float(x))])
+                            
+                            # Format liquidity
+                            display_df['Liquidity'] = display_df['liquidity'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
+                            
+                            # Display only Month and Liquidity
+                            st.dataframe(
+                                display_df[['Month', 'Liquidity']],
+                                use_container_width=True,
+                                hide_index=True
+                            )
+                        except Exception as e:
+                            st.error(f"Error displaying member liquidity: {str(e)}")
+                            import traceback
+                            st.code(traceback.format_exc())
                 
                 st.divider()
                 st.caption("💡 **Tip:** Liquidity shows unallocated funds. Positive values mean you have extra money, negative means you over-allocated!")
