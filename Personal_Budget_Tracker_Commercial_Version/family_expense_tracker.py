@@ -1961,11 +1961,11 @@ def show_member_expense_tracking(user_id):
                     if liquidity_df.empty:
                         continue
                     
-                    # Calculate year total
+                    # Calculate year total for family
                     year_total = liquidity_df['liquidity'].sum()
                     
-                    # Create expandable section
-                    with st.expander(f"📅 **{year}** - Total Liquidity: {config.CURRENCY_SYMBOL}{year_total:,.2f}", expanded=False):
+                    # Create expandable section for Family Total
+                    with st.expander(f"📅 **{year}** - Family Total Liquidity: {config.CURRENCY_SYMBOL}{year_total:,.2f}", expanded=False):
                         if is_admin:
                             # For admin: Pivot to show members as columns
                             # Create pivot table: Month x Members
@@ -1989,7 +1989,31 @@ def show_member_expense_tracking(user_id):
                                 styled_df[col] = styled_df[col].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
                             
                             st.dataframe(styled_df, use_container_width=True)
+                        
+                        # Add personal liquidity section for admin
+                        st.divider()
+                        st.subheader(f"My Personal Liquidity - {year}")
+                        
+                        # Get admin's personal liquidity
+                        admin_liquidity_df = db.get_monthly_liquidity_by_member_simple(household_id, year, False, user_id)
+                        
+                        if not admin_liquidity_df.empty:
+                            display_df = admin_liquidity_df.copy()
+                            
+                            # Convert month and format liquidity
+                            import calendar
+                            display_df['Month'] = display_df['month'].apply(lambda x: calendar.month_name[int(float(x))])
+                            display_df['Liquidity'] = display_df['liquidity'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
+                            
+                            # Display only Month and Liquidity
+                            st.dataframe(
+                                display_df[['Month', 'Liquidity']],
+                                use_container_width=True,
+                                hide_index=True
+                            )
                         else:
+                            st.info("No personal liquidity data for this year")
+                    else:
                             # For member: Show Member, Month, and Liquidity
                             try:
                                 display_df = liquidity_df.copy()
