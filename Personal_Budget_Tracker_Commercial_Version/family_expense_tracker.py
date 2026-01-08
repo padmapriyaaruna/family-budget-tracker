@@ -1964,8 +1964,11 @@ def show_member_expense_tracking(user_id):
                     # Calculate year total for family
                     year_total = liquidity_df['liquidity'].sum()
                     
-                    # Create expandable section for Family Total
-                    with st.expander(f"📅 **{year}** - Family Total Liquidity: {config.CURRENCY_SYMBOL}{year_total:,.2f}", expanded=False):
+                    # Create expandable section
+                    # For admin: show Family Total, for member: show My Personal Liquidity
+                    expander_label = f"📅 **{year}** - Family Total Liquidity: {config.CURRENCY_SYMBOL}{year_total:,.2f}" if is_admin else f"👤 **My Personal Liquidity - {year}**: {config.CURRENCY_SYMBOL}{year_total:,.2f}"
+                    
+                    with st.expander(expander_label, expanded=False):
                         if is_admin:
                             # For admin: Pivot to show members as columns
                             # Create pivot table: Month x Members
