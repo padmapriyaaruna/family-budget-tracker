@@ -2015,27 +2015,31 @@ def show_member_expense_tracking(user_id):
                     # Add personal liquidity section for admin (outside expander)
                     if is_admin:
                         st.divider()
-                        st.subheader(f"My Personal Liquidity - {year}")
                         
                         # Get admin's personal liquidity
                         admin_liquidity_df = db.get_monthly_liquidity_by_member_simple(household_id, year, False, user_id)
                         
                         if not admin_liquidity_df.empty:
-                            display_df = admin_liquidity_df.copy()
+                            # Calculate personal total
+                            personal_total = admin_liquidity_df['liquidity'].sum()
                             
-                            # Convert month and format liquidity
-                            import calendar
-                            display_df['Month'] = display_df['month'].apply(lambda x: calendar.month_name[int(float(x))])
-                            display_df['Liquidity'] = display_df['liquidity'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
-                            
-                            # Display only Month and Liquidity
-                            st.dataframe(
-                                display_df[['Month', 'Liquidity']],
-                                use_container_width=True,
-                                hide_index=True
-                            )
+                            # Create expander for personal liquidity
+                            with st.expander(f"👤 **My Personal Liquidity - {year}**: {config.CURRENCY_SYMBOL}{personal_total:,.2f}", expanded=False):
+                                display_df = admin_liquidity_df.copy()
+                                
+                                # Convert month and format liquidity
+                                import calendar
+                                display_df['Month'] = display_df['month'].apply(lambda x: calendar.month_name[int(float(x))])
+                                display_df['Liquidity'] = display_df['liquidity'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
+                                
+                                # Display only Month and Liquidity
+                                st.dataframe(
+                                    display_df[['Month', 'Liquidity']],
+                                    use_container_width=True,
+                                    hide_index=True
+                                )
                         else:
-                            st.info("No personal liquidity data for this year")
+                            st.info("💡 No personal liquidity data for this year")
                 
                 st.divider()
                 st.caption("💡 **Tip:** Liquidity shows unallocated funds. Positive values mean you have extra money, negative means you over-allocated!")
