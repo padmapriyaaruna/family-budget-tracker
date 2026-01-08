@@ -2014,12 +2014,9 @@ def show_member_expense_tracking(user_id):
                         else:
                             st.info("No personal liquidity data for this year")
                     else:
-                            # For member: Show Member, Month, and Liquidity
+                            # For member: Show only Month and Liquidity
                             try:
                                 display_df = liquidity_df.copy()
-                                
-                                # Add columns
-                                display_df['Member'] = current_user['full_name']
                                 
                                 # Convert month (handle both int and float)
                                 import calendar
@@ -2028,9 +2025,9 @@ def show_member_expense_tracking(user_id):
                                 # Format liquidity
                                 display_df['Liquidity'] = display_df['liquidity'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
                                 
-                                # Display (without Year column)
+                                # Display only Month and Liquidity
                                 st.dataframe(
-                                    display_df[['Member', 'Month', 'Liquidity']],
+                                    display_df[['Month', 'Liquidity']],
                                     use_container_width=True,
                                     hide_index=True
                                 )
