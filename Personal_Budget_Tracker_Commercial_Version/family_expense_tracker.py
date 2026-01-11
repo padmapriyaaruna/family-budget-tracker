@@ -1176,9 +1176,17 @@ def show_member_expense_tracking(user_id):
                 if submit_alloc and alloc_category and alloc_amount > 0:
                     # Check if allocation exceeds available budget
                     if alloc_amount > allocation_left:
-                        st.error(f"⚠️ **Budget Exceeded**: You cannot allocate {config.CURRENCY_SYMBOL}{alloc_amount:,.2f}. You only have {config.CURRENCY_SYMBOL}{allocation_left:,.2f} remaining for this month.")
+                        # Show warning and ask for confirmation
+                        st.session_state.pending_allocation = {
+                            'category': alloc_category,
+                            'amount': alloc_amount,
+                            'year': st.session_state.budget_year,
+                            'month': st.session_state.budget_month
+                        }
+                        st.session_state.show_allocation_warning = True
+                        st.rerun()
                     else:
-                        # Get year and month from session state
+                        # Proceed directly if within budget
                         year = st.session_state.budget_year
                         month = st.session_state.budget_month
                         
@@ -1188,6 +1196,42 @@ def show_member_expense_tracking(user_id):
                             st.rerun()
                         else:
                             st.error(f"Category '{alloc_category}' already exists for {period_display}!")
+            
+            # Show confirmation dialog for over-allocation
+            if st.session_state.get('show_allocation_warning', False):
+                pending = st.session_state.pending_allocation
+                over_amount = pending['amount'] - allocation_left
+                
+                st.warning(f"⚠️ **Budget Exceeded Warning**")
+                st.markdown(f"""
+                You are trying to allocate **{config.CURRENCY_SYMBOL}{pending['amount']:,.2f}** for **{pending['category']}**.
+                
+                - Available budget: **{config.CURRENCY_SYMBOL}{allocation_left:,.2f}**
+                - Over-allocation: **{config.CURRENCY_SYMBOL}{over_amount:,.2f}**
+                
+                **You may go into debt for this month. Do you want to proceed?**
+                """)
+                
+                col_ok, col_cancel = st.columns(2)
+                with col_ok:
+                    if st.button("✅ OK, Proceed", use_container_width=True, type="primary"):
+                        # Add the allocation
+                        if db.add_allocation(user_id, pending['category'], pending['amount'], pending['year'], pending['month']):
+                            st.success(f"✅ Created allocation: {pending['category']} (over-allocated)")
+                            st.session_state.show_allocation_warning = False
+                            st.session_state.pending_allocation = None
+                            st.cache_resource.clear()
+                            st.rerun()
+                        else:
+                            st.error(f"Category '{pending['category']}' already exists!")
+                            st.session_state.show_allocation_warning = False
+                            st.session_state.pending_allocation = None
+                
+                with col_cancel:
+                    if st.button("❌ Cancel", use_container_width=True):
+                        st.session_state.show_allocation_warning = False
+                        st.session_state.pending_allocation = None
+                        st.rerun()
             
             st.divider()
             
