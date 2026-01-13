@@ -1918,178 +1918,123 @@ def show_member_expense_tracking(user_id):
         st.header("💰 Savings Tracker")
         st.caption("Track your household's liquid funds (Income - Allocations)")
         
-        col1, col2 = st.columns([1, 2])
+        st.subheader("📊 Savings History - Liquidity by Year")
         
-        with col1:
-            st.subheader("➕ Add New Saving")
-            
-            # Simplified Add Saving Form (no budget period selector)
-            with st.form("saving_form", clear_on_submit=True):
-                saving_date = st.date_input("Date", value=date.today())
-                
-                saving_category = st.selectbox(
-                    "Savings Goal",
-                    options=[
-                        "Emergency Fund",
-                        "Retirement",
-                        "House Down Payment",
-                        "Vacation",
-                        "Education",
-                        "Investment",
-                        "Car/Vehicle",
-                        "Medical",
-                        "Debt Repayment",
-                        "Other"
-                    ],
-                    help="Select your savings goal category"
-                )
-                
-                saving_amount = st.number_input(
-                    f"Amount ({config.CURRENCY_SYMBOL})",
-                    min_value=0.0,
-                    step=100.0,
-                    format="%.2f"
-                )
-                
-                saving_notes = st.text_area("Notes (optional)", placeholder="Add notes about this saving...")
-                
-                submit_saving = st.form_submit_button("💾 Add Saving", use_container_width=True)
-                
-                if submit_saving:
-                    if saving_amount > 0:
-                        if db.add_saving(
-                            user_id,
-                            saving_date.strftime(config.DATE_FORMAT),
-                            saving_category,
-                            saving_amount,
-                            saving_notes
-                        ):
-                            st.success(f"✅ Added {config.CURRENCY_SYMBOL}{saving_amount:,.2f} to {saving_category}")
-                            st.cache_resource.clear()
-                            st.rerun()
-                        else:
-                            st.error("Failed to add saving. Please try again.")
-                    else:
-                        st.error("Please enter an amount greater than 0")
+        # Get user info from session state (same as other tabs)
+        current_user = st.session_state.user
+        is_admin = current_user['role'] == 'admin'  # Role is 'admin' not 'family_admin'
+        household_id = current_user['household_id']
+
         
-        with col2:
-            st.subheader("📊 Savings History - Liquidity by Year")
-            
-            # Get user info from session state (same as other tabs)
-            current_user = st.session_state.user
-            is_admin = current_user['role'] == 'admin'  # Role is 'admin' not 'family_admin'
-            household_id = current_user['household_id']
+        # Get all years with data
+        years = db.get_savings_years(user_id, is_admin, household_id)
+
+        
+        if not years:
+            st.info("💡 No income/allocation data found. Add income in the Income tab to see liquidity here!")
+        else:
+            st.caption(f"**Liquidity** = Income - Total Allocations for each month")
 
             
-           # Get all years with data
-            years = db.get_savings_years(user_id, is_admin, household_id)
-
-            
-            if not years:
-                st.info("💡 No income/allocation data found. Add income in the Income tab to see liquidity here!")
-            else:
-                st.caption(f"**Liquidity** = Income - Total Allocations for each month")
-
+            # Display year-wise expandable sections
+            for year in years:
                 
-                # Display year-wise expandable sections
-                for year in years:
-                    
-                    # Get monthly liquidity data for this year
-                    try:
-                        liquidity_df = db.get_monthly_liquidity_by_member_simple(household_id, year, is_admin, user_id)
+                # Get monthly liquidity data for this year
+                try:
+                    liquidity_df = db.get_monthly_liquidity_by_member_simple(household_id, year, is_admin, user_id)
 
-                    except Exception as e:
-                        st.error(f"Error getting liquidity for {year}: {str(e)}")
-                        continue
-                    
-                    if liquidity_df.empty:
-                        continue
-                    
-                    # Calculate year total for family
-                    year_total = liquidity_df['liquidity'].sum()
-                    
-                    # Create expandable section
-                    # For admin: show Family Total, for member: show My Personal Liquidity
-                    expander_label = f"📅 **{year}** - Family Total Liquidity: {config.CURRENCY_SYMBOL}{year_total:,.2f}" if is_admin else f"👤 **My Personal Liquidity - {year}**: {config.CURRENCY_SYMBOL}{year_total:,.2f}"
-                    
-                    with st.expander(expander_label, expanded=False):
-                        if is_admin:
-                            # For admin: Pivot to show members as columns
-                            # Create pivot table: Month x Members
-                            pivot_df = liquidity_df.pivot(
-                                index='month',
-                                columns='member',
-                                values='liquidity'
-                            ).fillna(0)
-                            
-                            # Add Total column (sum across all members)
-                            pivot_df['Total'] = pivot_df.sum(axis=1)
-                            
-                            # Format month names
-                            import calendar
-                            pivot_df.index = pivot_df.index.map(lambda x: calendar.month_name[x])
-                            pivot_df.index.name = 'Month'
-                            
-                            # Format currency
-                            styled_df = pivot_df.copy()
-                            for col in styled_df.columns:
-                                styled_df[col] = styled_df[col].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
-                            
-                            st.dataframe(styled_df, use_container_width=True)
-                        else:
-                            # For member: Show only Month and Liquidity
-                            try:
-                                display_df = liquidity_df.copy()
-                                
-                                # Convert month (handle both int and float)
-                                import calendar
-                                display_df['Month'] = display_df['month'].apply(lambda x: calendar.month_name[int(float(x))])
-                                
-                                # Format liquidity
-                                display_df['Liquidity'] = display_df['liquidity'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
-                                
-                                # Display only Month and Liquidity
-                                st.dataframe(
-                                    display_df[['Month', 'Liquidity']],
-                                    use_container_width=True,
-                                    hide_index=True
-                                )
-                            except Exception as e:
-                                st.error(f"Error displaying member liquidity: {str(e)}")
-                                import traceback
-                                st.code(traceback.format_exc())
-                    
-                    # Add personal liquidity section for admin (outside expander)
+                except Exception as e:
+                    st.error(f"Error getting liquidity for {year}: {str(e)}")
+                    continue
+                
+                if liquidity_df.empty:
+                    continue
+                
+                # Calculate year total for family
+                year_total = liquidity_df['liquidity'].sum()
+                
+                # Create expandable section
+                # For admin: show Family Total, for member: show My Personal Liquidity
+                expander_label = f"📅 **{year}** - Family Total Liquidity: {config.CURRENCY_SYMBOL}{year_total:,.2f}" if is_admin else f"👤 **My Personal Liquidity - {year}**: {config.CURRENCY_SYMBOL}{year_total:,.2f}"
+                
+                with st.expander(expander_label, expanded=False):
                     if is_admin:
-                        st.divider()
+                        # For admin: Pivot to show members as columns
+                        # Create pivot table: Month x Members
+                        pivot_df = liquidity_df.pivot(
+                            index='month',
+                            columns='member',
+                            values='liquidity'
+                        ).fillna(0)
                         
-                        # Get admin's personal liquidity
-                        admin_liquidity_df = db.get_monthly_liquidity_by_member_simple(household_id, year, False, user_id)
+                        # Add Total column (sum across all members)
+                        pivot_df['Total'] = pivot_df.sum(axis=1)
                         
-                        if not admin_liquidity_df.empty:
-                            # Calculate personal total
-                            personal_total = admin_liquidity_df['liquidity'].sum()
+                        # Format month names
+                        import calendar
+                        pivot_df.index = pivot_df.index.map(lambda x: calendar.month_name[x])
+                        pivot_df.index.name = 'Month'
+                        
+                        # Format currency
+                        styled_df = pivot_df.copy()
+                        for col in styled_df.columns:
+                            styled_df[col] = styled_df[col].apply(lambda x: f"{config.CURRENCY_SYMBOL}{x:,.2f}")
+                        
+                        st.dataframe(styled_df, use_container_width=True)
+                    else:
+                        # For member: Show only Month and Liquidity
+                        try:
+                            display_df = liquidity_df.copy()
                             
-                            # Create expander for personal liquidity
-                            with st.expander(f"👤 **My Personal Liquidity - {year}**: {config.CURRENCY_SYMBOL}{personal_total:,.2f}", expanded=False):
-                                display_df = admin_liquidity_df.copy()
-                                
-                                # Convert month and format liquidity
-                                import calendar
-                                display_df['Month'] = display_df['month'].apply(lambda x: calendar.month_name[int(float(x))])
-                                display_df['Liquidity'] = display_df['liquidity'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
-                                
-                                # Display only Month and Liquidity
-                                st.dataframe(
-                                    display_df[['Month', 'Liquidity']],
-                                    use_container_width=True,
-                                    hide_index=True
-                                )
-                        else:
-                            st.info("💡 No personal liquidity data for this year")
+                            # Convert month (handle both int and float)
+                            import calendar
+                            display_df['Month'] = display_df['month'].apply(lambda x: calendar.month_name[int(float(x))])
+                            
+                            # Format liquidity
+                            display_df['Liquidity'] = display_df['liquidity'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
+                            
+                            # Display only Month and Liquidity
+                            st.dataframe(
+                                display_df[['Month', 'Liquidity']],
+                                use_container_width=True,
+                                hide_index=True
+                            )
+                        except Exception as e:
+                            st.error(f"Error displaying member liquidity: {str(e)}")
+                            import traceback
+                            st.code(traceback.format_exc())
                 
-                st.divider()
-                st.caption("💡 **Tip:** Liquidity shows unallocated funds. Positive values mean you have extra money, negative means you over-allocated!")
+                # Add personal liquidity section for admin (outside expander)
+                if is_admin:
+                    st.divider()
+                    
+                    # Get admin's personal liquidity
+                    admin_liquidity_df = db.get_monthly_liquidity_by_member_simple(household_id, year, False, user_id)
+                    
+                    if not admin_liquidity_df.empty:
+                        # Calculate personal total
+                        personal_total = admin_liquidity_df['liquidity'].sum()
+                        
+                        # Create expander for personal liquidity
+                        with st.expander(f"👤 **My Personal Liquidity - {year}**: {config.CURRENCY_SYMBOL}{personal_total:,.2f}", expanded=False):
+                            display_df = admin_liquidity_df.copy()
+                            
+                            # Convert month and format liquidity
+                            import calendar
+                            display_df['Month'] = display_df['month'].apply(lambda x: calendar.month_name[int(float(x))])
+                            display_df['Liquidity'] = display_df['liquidity'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
+                            
+                            # Display only Month and Liquidity
+                            st.dataframe(
+                                display_df[['Month', 'Liquidity']],
+                                use_container_width=True,
+                                hide_index=True
+                            )
+                    else:
+                        st.info("💡 No personal liquidity data for this year")
+            
+            st.divider()
+            st.caption("💡 **Tip:** Liquidity shows unallocated funds. Positive values mean you have extra money, negative means you over-allocated!")
 
 
 
