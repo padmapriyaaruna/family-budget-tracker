@@ -106,7 +106,7 @@ Send the `https://abc123.ngrok.io` link to your family members - they can access
 
 ```bash
 # Start the app (Terminal 1)
-cd Personal_Budget_Tracker_Commercial_Version
+cd PBTCV
 py -m streamlit run family_expense_tracker.py
 
 # Start ngrok tunnel (Terminal 2 - for remote access)

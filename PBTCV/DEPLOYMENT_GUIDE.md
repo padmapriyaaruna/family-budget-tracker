@@ -27,14 +27,14 @@
 ### Step 1: Prepare Your Project
 
 Already done! Your project is ready in:
-`Personal_Budget_Tracker_Commercial_Version`
+`PBTCV`
 
 ### Step 2: Initialize Git Repository
 
 Open terminal in your project folder and run:
 
 ```bash
-cd Personal_Budget_Tracker_Commercial_Version
+cd PBTCV
 git init
 git add .
 git commit -m "Initial commit - Family Budget Tracker"

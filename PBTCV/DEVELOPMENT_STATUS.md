@@ -74,7 +74,7 @@ If you want a working prototype faster, consider:
 
 ## Files Created So Far
 
-📁 `Personal_Budget_Tracker_Commercial_Version/`
+📁 `PBTCV/`
 - `multi_user_database.py` - Multi-user database layer (partial)
 - `config.py` - Configuration (copied from offline version)
 - `database.py` - Original single-user database (for reference)

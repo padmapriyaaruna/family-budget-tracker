@@ -107,7 +107,7 @@ family-budget-tracker/
 You can add `app.py` to your GitHub repo instead:
 
 ```bash
-cd Personal_Budget_Tracker_Commercial_Version
+cd PBTCV
 
 # Create app.py
 echo 'import os' > app.py

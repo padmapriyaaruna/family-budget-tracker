@@ -32,7 +32,7 @@ Upload these files to your Space (click "Files" → "Add file" → "Upload files
 **Alternative: Push Dockerfile to GitHub then import**
 
 ```bash
-cd Personal_Budget_Tracker_Commercial_Version
+cd PBTCV
 git add Dockerfile
 git commit -m "Add Dockerfile for Hugging Face"
 git push

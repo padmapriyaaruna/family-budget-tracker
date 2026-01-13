@@ -4,7 +4,7 @@ This repository contains two versions of budget tracking applications:
 
 ## 📊 Projects
 
-### 1. [Personal Budget Tracker - Commercial Version](./Personal_Budget_Tracker_Commercial_Version/)
+### 1. [Personal Budget Tracker - Commercial Version](./PBTCV/)
 
 Full-featured family budget tracker with multi-user support, mobile apps, and cloud deployment options.
 
@@ -19,12 +19,12 @@ Full-featured family budget tracker with multi-user support, mobile apps, and cl
 
 **Quick Start:**
 ```powershell
-cd Personal_Budget_Tracker_Commercial_Version
+cd PBTCV
 pip install -r requirements.txt
 streamlit run family_expense_tracker.py
 ```
 
-📖 [View Full Documentation](./Personal_Budget_Tracker_Commercial_Version/README.md)
+📖 [View Full Documentation](./PBTCV/README.md)
 
 ---
 

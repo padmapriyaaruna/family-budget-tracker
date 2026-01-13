@@ -37,7 +37,7 @@ The code has been updated to automatically use the persistent disk!
 Just push to GitHub:
 
 ```bash
-cd Personal_Budget_Tracker_Commercial_Version
+cd PBTCV
 git add multi_user_database.py
 git commit -m "Add persistent disk support for data persistence"
 git push
