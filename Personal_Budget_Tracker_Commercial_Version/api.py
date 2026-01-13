@@ -1043,6 +1043,95 @@ def delete_expense(expense_id: int, current_user: dict = Depends(verify_jwt_toke
         "message": "Expense deleted successfully"
     }
 
+# ==================== Savings/Liquidity Endpoints ====================
+
+@app.get("/api/savings/years/{user_id}")
+def get_savings_years(
+    user_id: int,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    """
+    Get all years where income/allocation data exists for liquidity view
+    """
+    try:
+        # Get user info to determine if admin
+        user = db.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        is_admin = user['role'] == 'admin'
+        household_id = user['household_id']
+        
+        years = db.get_savings_years(user_id, is_admin, household_id)
+        
+        return {
+            "status": "success",
+            "data": years
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR in get_savings_years: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch savings years: {str(e)}"
+        )
+
+@app.get("/api/savings/liquidity/{user_id}/{year}")
+def get_monthly_liquidity(
+    user_id: int,
+    year: int,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    """
+    Get monthly liquidity (Income - Allocations) for a specific year
+    Returns different data structure for admin vs member
+    """
+    try:
+        # Get user info to determine if admin
+        user = db.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        is_admin = user['role'] == 'admin'
+        household_id = user['household_id']
+        
+        # Get liquidity data
+        liquidity_df = db.get_monthly_liquidity_by_member_simple(
+            household_id, year, is_admin, user_id
+        )
+        
+        # Convert DataFrame to list of dicts
+        if hasattr(liquidity_df, 'to_dict'):
+            liquidity_data = liquidity_df.to_dict('records') if not liquidity_df.empty else []
+        else:
+            liquidity_data = liquidity_df if liquidity_df else []
+        
+        return {
+            "status": "success",
+            "data": {
+                "year": year,
+                "is_admin": is_admin,
+                "liquidity": liquidity_data
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR in get_monthly_liquidity: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch monthly liquidity: {str(e)}"
+        )
+
 # ==================== Health Check ====================
 
 @app.get("/")

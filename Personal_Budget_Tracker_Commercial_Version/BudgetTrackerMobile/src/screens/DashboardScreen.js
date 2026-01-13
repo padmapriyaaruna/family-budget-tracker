@@ -137,6 +137,11 @@ const DashboardScreen = ({ user, onLogout, onNavigate }) => {
                     onPress={() => onNavigate('AllocationsList')}>
                     <Text style={styles.actionButtonText}>View All Allocations</Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.actionButton, styles.savingsButton]}
+                    onPress={() => onNavigate('Savings')}>
+                    <Text style={styles.actionButtonText}>💰 View Savings/Liquidity</Text>
+                </TouchableOpacity>
             </View>
 
             {/* Family Management (Admin Only) */}
@@ -278,6 +283,9 @@ const styles = StyleSheet.create({
     },
     manageButton: {
         backgroundColor: '#FF9800', // Orange for management
+    },
+    savingsButton: {
+        backgroundColor: '#009688', // Teal for savings
     },
     actionButtonText: {
         color: '#FFFFFF',

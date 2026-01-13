@@ -15,6 +15,7 @@ import AddMemberScreen from './src/screens/AddMemberScreen';
 import ViewFamilyMembersScreen from './src/screens/ViewFamilyMembersScreen';
 import AddFamilyAdminScreen from './src/screens/AddFamilyAdminScreen';
 import HouseholdDetailScreen from './src/screens/HouseholdDetailScreen';
+import SavingsScreen from './src/screens/SavingsScreen';
 
 
 const App = () => {
@@ -97,6 +98,10 @@ const App = () => {
 
     if (currentScreen === 'HouseholdDetail') {
         return <HouseholdDetailScreen route={{ params: screenParams }} onNavigate={handleNavigate} />;
+    }
+
+    if (currentScreen === 'Savings') {
+        return <SavingsScreen user={user} onNavigate={handleNavigate} />;
     }
 
     return null;
