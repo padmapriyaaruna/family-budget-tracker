@@ -1,0 +1,23 @@
+﻿    
+    def get_savings_years(self, user_id, is_admin, household_id):
+        \"\"\"Get all years where income/allocation data exists for savings view\"\"\"
+        try:
+            cursor = self.conn.cursor()
+            
+            if is_admin:
+                self._execute(cursor, '''
+                    SELECT DISTINCT CAST(strftime('%%Y', i.date) as INTEGER) as year
+                    FROM income i JOIN users u ON i.user_id = u.id
+                    WHERE u.household_id = ? ORDER BY year DESC
+                ''', (household_id,))
+            else:
+                self._execute(cursor, '''
+                    SELECT DISTINCT CAST(strftime('%%Y', date) as INTEGER) as year
+                    FROM income WHERE user_id = ? ORDER BY year DESC
+                ''', (user_id,))
+            
+            years = [row['year'] if isinstance(row, dict) else row[0] for row in cursor.fetchall()]
+            return years
+        except Exception as e:
+            print(f\"Error getting savings years: {str(e)}\")
+            return []

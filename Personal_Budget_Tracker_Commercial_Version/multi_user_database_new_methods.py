@@ -1,0 +1,103 @@
+# New methods to add to MultiUserDB class
+
+def deactivate_household(self, household_id):
+    """Soft delete - mark household and all its users as inactive"""
+    try:
+        cursor = self.conn.cursor()
+        
+        # Deactivate household
+        self._execute(cursor, '''
+            UPDATE households
+            SET is_active = ?
+            WHERE id = ?
+        ''', (False if self.use_postgres else 0, household_id))
+        
+        # Deactivate all users in household
+        self._execute(cursor, '''
+            UPDATE users
+            SET is_active = ?
+            WHERE household_id = ?
+        ''', (False if self.use_postgres else 0, household_id))
+        
+        self.conn.commit()
+        return (True, "Household deactivated successfully")
+    except Exception as e:
+        self.conn.rollback()
+        print(f"Error deactivating household: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return (False, str(e))
+
+def delete_household_cascade(self, household_id):
+    """Hard delete - permanently remove household and ALL associated data"""
+    try:
+        cursor = self.conn.cursor()
+        
+        # Get all user IDs in this household first
+        self._execute(cursor, '''
+            SELECT id FROM users WHERE household_id = ?
+        ''', (household_id,))
+        user_ids = [row['id'] if isinstance(row, dict) else row[0] for row in cursor.fetchall()]
+        
+        if user_ids:
+            # Convert to format for IN clause
+            placeholders = ','.join(['?' for _ in user_ids])
+            
+            # Delete expenses for all users in household
+            delete_expenses_query = f'DELETE FROM expenses WHERE user_id IN ({placeholders})'
+            self._execute(cursor, delete_expenses_query, tuple(user_ids))
+            
+            # Delete income for all users in household
+            delete_income_query = f'DELETE FROM income WHERE user_id IN ({placeholders})'
+            self._execute(cursor, delete_income_query, tuple(user_ids))
+            
+            # Delete allocations for all users in household
+            delete_allocations_query = f'DELETE FROM allocations WHERE user_id IN ({placeholders})'
+            self._execute(cursor, delete_allocations_query, tuple(user_ids))
+        
+        # Delete savings (has household_id directly)
+        self._execute(cursor, '''
+            DELETE FROM savings WHERE household_id = ?
+        ''', (household_id,))
+        
+        # Delete all users in household
+        self._execute(cursor, '''
+            DELETE FROM users WHERE household_id = ?
+        ''', (household_id,))
+        
+        # Finally, delete the household itself
+        self._execute(cursor, '''
+            DELETE FROM households WHERE id = ?
+        ''', (household_id,))
+        
+        self.conn.commit()
+        return (True, "Household and all associated data deleted successfully")
+    except Exception as e:
+        self.conn.rollback()
+        print(f"Error deleting household: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return (False, str(e))
+
+def get_household_members_for_admin(self, household_id):
+    """Get all members of a household (for super admin view)"""
+    try:
+        cursor = self.conn.cursor()
+        self._execute(cursor, '''
+            SELECT id, email, full_name, role, relationship, is_active, created_at
+            FROM users
+            WHERE household_id = ?
+            ORDER BY role DESC, full_name
+        ''', (household_id,))
+        
+        members = cursor.fetchall()
+        return [dict(member) if hasattr(member, 'keys') else {
+            'id': member[0], 'email': member[1], 'full_name': member[2],
+            'role': member[3], 'relationship': member[4], 'is_active': member[5],
+            'created_at': member[6]
+        } for member in members]
+    except Exception as e:
+        print(f"Error fetching household members: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return []
