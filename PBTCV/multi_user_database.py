@@ -1963,23 +1963,40 @@ class MultiUserDB:
         try:
             cursor = self.conn.cursor()
             
-            # Use database-agnostic date extraction (works for both SQLite and PostgreSQL)
-            if is_admin:
-                self._execute(cursor, '''
-                    SELECT DISTINCT EXTRACT(YEAR FROM CAST(i.date AS DATE)) as year
-                    FROM income i JOIN users u ON i.user_id = u.id
-                   WHERE u.household_id = ? ORDER BY year DESC
-                ''', (household_id,))
+            # Use database-specific date extraction
+            if self.use_postgres:
+                # PostgreSQL syntax
+                if is_admin:
+                    self._execute(cursor, '''
+                        SELECT DISTINCT EXTRACT(YEAR FROM i.date::date)::integer as year
+                        FROM income i JOIN users u ON i.user_id = u.id
+                        WHERE u.household_id = %s ORDER BY year DESC
+                    ''', (household_id,))
+                else:
+                    self._execute(cursor, '''
+                        SELECT DISTINCT EXTRACT(YEAR FROM date::date)::integer as year
+                        FROM income WHERE user_id = %s ORDER BY year DESC
+                    ''', (user_id,))
             else:
-                self._execute(cursor, '''
-                    SELECT DISTINCT EXTRACT(YEAR FROM CAST(date AS DATE)) as year
-                    FROM income WHERE user_id = ? ORDER BY year DESC
-                ''', (user_id,))
+                # SQLite syntax
+                if is_admin:
+                    self._execute(cursor, '''
+                        SELECT DISTINCT CAST(strftime('%Y', i.date) as INTEGER) as year
+                        FROM income i JOIN users u ON i.user_id = u.id
+                        WHERE u.household_id = ? ORDER BY year DESC
+                    ''', (household_id,))
+                else:
+                    self._execute(cursor, '''
+                        SELECT DISTINCT CAST(strftime('%Y', date) as INTEGER) as year
+                        FROM income WHERE user_id = ? ORDER BY year DESC
+                    ''', (user_id,))
             
             years = [int(row['year']) if isinstance(row, dict) else int(row[0]) for row in cursor.fetchall()]
             return years
         except Exception as e:
             print(f"Error getting savings years: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return []
     
     def get_monthly_liquidity_by_member(self, household_id, year, is_admin, user_id=None):
@@ -2108,47 +2125,91 @@ class MultiUserDB:
         try:
             cursor = self.conn.cursor()
             
-            # Get income data
-            if is_admin:
-                self._execute(cursor, '''
-                    SELECT u.full_name as member, u.id as user_id,
-                           EXTRACT(MONTH FROM i.date::date)::integer as month,
-                           SUM(i.amount::numeric) as total_income
-                    FROM income i
-                    JOIN users u ON i.user_id = u.id
-                    WHERE u.household_id = %s
-                      AND EXTRACT(YEAR FROM i.date::date)::integer = %s
-                    GROUP BY u.full_name, u.id, EXTRACT(MONTH FROM i.date::date)::integer
-                ''', (household_id, year))
+            # Get income data with database-specific syntax
+            if self.use_postgres:
+                # PostgreSQL syntax
+                if is_admin:
+                    self._execute(cursor, '''
+                        SELECT u.full_name as member, u.id as user_id,
+                               EXTRACT(MONTH FROM i.date::date)::integer as month,
+                               SUM(i.amount::numeric) as total_income
+                        FROM income i
+                        JOIN users u ON i.user_id = u.id
+                        WHERE u.household_id = %s
+                          AND EXTRACT(YEAR FROM i.date::date)::integer = %s
+                        GROUP BY u.full_name, u.id, EXTRACT(MONTH FROM i.date::date)::integer
+                    ''', (household_id, year))
+                else:
+                    self._execute(cursor, '''
+                        SELECT EXTRACT(MONTH FROM date::date)::integer as month,
+                               SUM(amount::numeric) as total_income
+                        FROM income
+                        WHERE user_id = %s
+                          AND EXTRACT(YEAR FROM date::date)::integer = %s
+                        GROUP BY EXTRACT(MONTH FROM date::date)::integer
+                    ''', (user_id, year))
             else:
-                self._execute(cursor, '''
-                    SELECT EXTRACT(MONTH FROM date::date)::integer as month,
-                           SUM(amount::numeric) as total_income
-                    FROM income
-                    WHERE user_id = %s
-                      AND EXTRACT(YEAR FROM date::date)::integer = %s
-                    GROUP BY EXTRACT(MONTH FROM date::date)::integer
-                ''', (user_id, year))
+                # SQLite syntax
+                if is_admin:
+                    self._execute(cursor, '''
+                        SELECT u.full_name as member, u.id as user_id,
+                               CAST(strftime('%m', i.date) as INTEGER) as month,
+                               SUM(CAST(i.amount as REAL)) as total_income
+                        FROM income i
+                        JOIN users u ON i.user_id = u.id
+                        WHERE u.household_id = ?
+                          AND CAST(strftime('%Y', i.date) as INTEGER) = ?
+                        GROUP BY u.full_name, u.id, CAST(strftime('%m', i.date) as INTEGER)
+                    ''', (household_id, year))
+                else:
+                    self._execute(cursor, '''
+                        SELECT CAST(strftime('%m', date) as INTEGER) as month,
+                               SUM(CAST(amount as REAL)) as total_income
+                        FROM income
+                        WHERE user_id = ?
+                          AND CAST(strftime('%Y', date) as INTEGER) = ?
+                        GROUP BY CAST(strftime('%m', date) as INTEGER)
+                    ''', (user_id, year))
             
             income_rows = cursor.fetchall()
             
-            # Get allocation data
-            if is_admin:
-                self._execute(cursor, '''
-                    SELECT u.full_name as member, u.id as user_id, a.month,
-                           SUM(a.allocated_amount::numeric) as total_allocated
-                    FROM allocations a
-                    JOIN users u ON a.user_id = u.id
-                    WHERE u.household_id = %s AND a.year = %s
-                    GROUP BY u.full_name, u.id, a.month
-                ''', (household_id, year))
+            # Get allocation data with database-specific syntax
+            if self.use_postgres:
+                # PostgreSQL syntax
+                if is_admin:
+                    self._execute(cursor, '''
+                        SELECT u.full_name as member, u.id as user_id, a.month,
+                               SUM(a.allocated_amount::numeric) as total_allocated
+                        FROM allocations a
+                        JOIN users u ON a.user_id = u.id
+                        WHERE u.household_id = %s AND a.year = %s
+                        GROUP BY u.full_name, u.id, a.month
+                    ''', (household_id, year))
+                else:
+                    self._execute(cursor, '''
+                        SELECT month, SUM(allocated_amount::numeric) as total_allocated
+                        FROM allocations
+                        WHERE user_id = %s AND year = %s
+                        GROUP BY month
+                    ''', (user_id, year))
             else:
-                self._execute(cursor, '''
-                    SELECT month, SUM(allocated_amount::numeric) as total_allocated
-                    FROM allocations
-                    WHERE user_id = %s AND year = %s
-                    GROUP BY month
-                ''', (user_id, year))
+                # SQLite syntax
+                if is_admin:
+                    self._execute(cursor, '''
+                        SELECT u.full_name as member, u.id as user_id, a.month,
+                               SUM(CAST(a.allocated_amount as REAL)) as total_allocated
+                        FROM allocations a
+                        JOIN users u ON a.user_id = u.id
+                        WHERE u.household_id = ? AND a.year = ?
+                        GROUP BY u.full_name, u.id, a.month
+                    ''', (household_id, year))
+                else:
+                    self._execute(cursor, '''
+                        SELECT month, SUM(CAST(allocated_amount as REAL)) as total_allocated
+                        FROM allocations
+                        WHERE user_id = ? AND year = ?
+                        GROUP BY month
+                    ''', (user_id, year))
             
             alloc_rows = cursor.fetchall()
             
