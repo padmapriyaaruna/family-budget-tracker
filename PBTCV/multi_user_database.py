@@ -1384,8 +1384,10 @@ class MultiUserDB:
         try:
             query = '''
                 SELECT 
+                    id,
                     date as "Date", 
-                    category as "Category", 
+                    category as "Category",
+                    subcategory as "Subcategory",
                     amount as "Amount", 
                     comment as "Comment" 
                 FROM expenses 
@@ -1402,7 +1404,7 @@ class MultiUserDB:
             print(f"Error fetching expenses: {str(e)}")
             import traceback
             traceback.print_exc()
-            return pd.DataFrame(columns=["Date", "Category", "Amount", "Comment"])
+            return pd.DataFrame(columns=["id", "Date", "Category", "Subcategory", "Amount", "Comment"])
     
     def get_total_expenses(self, user_id):
         """Calculate total expenses for a user"""
