@@ -866,6 +866,75 @@ def delete_income(income_id: int, current_user: dict = Depends(verify_jwt_token)
         "message": "Income deleted successfully"
     }
 
+@app.post("/api/admin/recalculate-allocations")
+def recalculate_all_allocations(current_user: dict = Depends(verify_jwt_token)):
+    """
+    Recalculate all allocation spent amounts from actual expenses
+    Fixes discrepancies from old logic that didn't filter by year/month
+    Super admin only
+    """
+    if current_user.get('role') not in ['super', 'superadmin']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super admin access required"
+        )
+    
+    try:
+        # Get all allocations
+        conn = db.conn
+        cursor = conn.cursor()
+        cursor.execute('SELECT id, user_id, category, year, month, allocated_amount FROM allocations')
+        allocations = cursor.fetchall()
+        
+        updated_count = 0
+        
+        for allocation in allocations:
+            alloc_id = allocation['id']
+            user_id = allocation['user_id']
+            category = allocation['category']
+            year = allocation['year']
+            month = allocation['month']
+            allocated_amount = float(allocation['allocated_amount'])
+            
+            # Calculate actual spent amount from expenses for this category/year/month
+            cursor.execute('''
+                SELECT COALESCE(SUM(amount), 0) as total_spent
+                FROM expenses
+                WHERE user_id = ? 
+                  AND category = ?
+                  AND date LIKE ?
+            ''', (user_id, category, f"{year}-{month:02d}%"))
+            
+            result = cursor.fetchone()
+            actual_spent = float(result['total_spent'])
+            new_balance = allocated_amount - actual_spent
+            
+            # Update the allocation
+            cursor.execute('''
+                UPDATE allocations 
+                SET spent_amount = ?, balance = ?
+                WHERE id = ?
+            ''', (actual_spent, new_balance, alloc_id))
+            
+            updated_count += 1
+        
+        conn.commit()
+        
+        return {
+            "status": "success",
+            "message": f"Successfully recalculated {updated_count} allocations",
+            "updated_count": updated_count
+        }
+        
+    except Exception as e:
+        print(f"Error recalculating allocations: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to recalculate allocations: {str(e)}"
+        )
+
 # ==================== Allocation Endpoints ====================
 
 @app.get("/api/allocations/{user_id}")
