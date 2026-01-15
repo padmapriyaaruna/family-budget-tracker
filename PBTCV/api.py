@@ -260,6 +260,50 @@ def get_all_households(current_user: dict = Depends(verify_jwt_token)):
             detail=f"Failed to fetch households: {str(e)}"
         )
 
+@app.get("/api/admin/users")
+def get_all_users_admin(current_user: dict = Depends(verify_jwt_token)):
+    """
+    Get all users across all households (Super Admin only)
+    """
+    if current_user.get('role') != 'superadmin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super admin access required"
+        )
+    
+    try:
+        # Use the existing database method
+        users_df = db.get_all_users_super_admin()
+        
+        users = []
+        for _, row in users_df.iterrows():
+            users.append({
+                "id": int(row['id']),
+                "email": str(row['email']),
+                "full_name": str(row['full_name']),
+                "role": str(row['role']),
+                "household_id": int(row['household_id']) if row.get('household_id') else None,
+                "household_name": str(row.get('household_name', 'N/A')),
+                "relationship": str(row.get('relationship', 'N/A')),
+                "is_active": bool(row.get('is_active', True))
+            })
+        
+        print(f"DEBUG: Returning {len(users)} users to super admin")
+        return {
+            "status": "success",
+            "data": {
+                "users": users
+            }
+        }
+    except Exception as e:
+        print(f"ERROR in get_all_users_admin: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch users: {str(e)}"
+        )
+
 # ==================== Household/Family Admin Endpoints ====================
 
 class CreateMemberRequest(BaseModel):
