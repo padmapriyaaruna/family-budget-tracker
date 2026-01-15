@@ -1460,7 +1460,7 @@ class MultiUserDB:
 
     
     def update_expense(self, expense_id, user_id, date, category, amount, old_category, old_amount, comment, subcategory=None, old_date=None):
-        """Update an existing expense and adjust allocations"
+        """Update an existing expense and adjust allocations"""
         try:
             cursor = self.conn.cursor()
             
