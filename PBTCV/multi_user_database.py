@@ -1275,19 +1275,19 @@ class MultiUserDB:
             self.conn.rollback()
             return False
     
-    def update_allocation_spent(self, user_id, category, expense_amount):
-        """Update spent amount and balance for a category when expense is added"""
+    def update_allocation_spent(self, user_id, category, expense_amount, year, month):
+        """Update spent amount and balance for a category when expense is added (for specific year/month)"""
         try:
             cursor = self.conn.cursor()
             
             self._execute(cursor,
-                'SELECT allocated_amount, spent_amount FROM allocations WHERE user_id = ? AND category = ?',
-                (user_id, category)
+                'SELECT allocated_amount, spent_amount FROM allocations WHERE user_id = ? AND category = ? AND year = ? AND month = ?',
+                (user_id, category, year, month)
             )
             row = cursor.fetchone()
             
             if not row:
-                print(f"Category '{category}' not found")
+                print(f"Category '{category}' not found for period {year}-{month}")
                 return False
             
             allocated = float(row['allocated_amount'])
@@ -1297,8 +1297,8 @@ class MultiUserDB:
             new_balance = allocated - new_spent
             
             self._execute(cursor,
-                'UPDATE allocations SET spent_amount = ?, balance = ? WHERE user_id = ? AND category = ?',
-                (new_spent, new_balance, user_id, category)
+                'UPDATE allocations SET spent_amount = ?, balance = ? WHERE user_id = ? AND category = ? AND year = ? AND month = ?',
+                (new_spent, new_balance, user_id, category, year, month)
             )
             self.conn.commit()
             return True
@@ -1370,7 +1370,12 @@ class MultiUserDB:
                 (user_id, date, category, float(amount), comment, subcategory)
             )
             
-            self.update_allocation_spent(user_id, category, amount)
+            # Extract year and month from date string (format: YYYY-MM-DD)
+            try:
+                year, month = int(date[:4]), int(date[5:7])
+                self.update_allocation_spent(user_id, category, amount, year, month)
+            except (ValueError, IndexError) as e:
+                print(f"Warning: Could not extract year/month from date '{date}': {e}")
             
             self.conn.commit()
             return True
@@ -1454,44 +1459,64 @@ class MultiUserDB:
             return pd.DataFrame(columns=["id", "date", "category", "amount", "subcategory", "comment"])
 
     
-    def update_expense(self, expense_id, user_id, date, category, amount, old_category, old_amount, comment, subcategory=None):
-        """Update an existing expense and adjust allocations"""
-        # This method has complex logic with allocation updates - needs comprehensive fixing
-        # For now, adding traceback to help debug
+    def update_expense(self, expense_id, user_id, date, category, amount, old_category, old_amount, comment, subcategory=None, old_date=None):
+        """Update an existing expense and adjust allocations"
         try:
             cursor = self.conn.cursor()
             
-            # Get old allocation
-            self._execute(cursor,
-                'SELECT allocated_amount, spent_amount FROM allocations WHERE user_id = ? AND category = ?',
-                (user_id, old_category)
-            )
-            old_row = cursor.fetchone()
-            if old_row:
-                old_allocated = float(old_row['allocated_amount'])
-                old_spent = float(old_row['spent_amount'])
-                new_old_spent = old_spent - float(old_amount)
-                new_old_balance = old_allocated - new_old_spent
-                self._execute(cursor,
-                    'UPDATE allocations SET spent_amount = ?, balance = ? WHERE user_id = ? AND category = ?',
-                    (new_old_spent, new_old_balance, user_id, old_category)
-                )
+            # Extract year/month from old and new dates
+            try:
+                if old_date:
+                    old_year, old_month = int(old_date[:4]), int(old_date[5:7])
+                else:
+                    # If old_date not provided, use the date from the expense
+                    self._execute(cursor, 'SELECT date FROM expenses WHERE id = ? AND user_id = ?', (expense_id, user_id))
+                    old_expense = cursor.fetchone()
+                    if old_expense:
+                        old_date_str = old_expense['date']
+                        old_year, old_month = int(old_date_str[:4]), int(old_date_str[5:7])
+                    else:
+                        print(f"Warning: Could not find old expense {expense_id}")
+                        old_year, old_month = None, None
+                
+                new_year, new_month = int(date[:4]), int(date[5:7])
+            except (ValueError, IndexError) as e:
+                print(f"Warning: Could not extract year/month from dates: {e}")
+                old_year, old_month, new_year, new_month = None, None, None, None
             
-            # Get new allocation  
-            self._execute(cursor,
-                'SELECT allocated_amount, spent_amount FROM allocations WHERE user_id = ? AND category = ?',
-                (user_id, category)
-            )
-            new_row = cursor.fetchone()
-            if new_row:
-                new_allocated = float(new_row['allocated_amount'])
-                new_spent = float(new_row['spent_amount'])
-                new_new_spent = new_spent + float(amount)
-                new_new_balance = new_allocated - new_new_spent
+            # Revert old allocation if we have old date info
+            if old_year and old_month:
                 self._execute(cursor,
-                    'UPDATE allocations SET spent_amount = ?, balance = ? WHERE user_id = ? AND category = ?',
-                    (new_new_spent, new_new_balance, user_id, category)
+                    'SELECT allocated_amount, spent_amount FROM allocations WHERE user_id = ? AND category = ? AND year = ? AND month = ?',
+                    (user_id, old_category, old_year, old_month)
                 )
+                old_row = cursor.fetchone()
+                if old_row:
+                    old_allocated = float(old_row['allocated_amount'])
+                    old_spent = float(old_row['spent_amount'])
+                    new_old_spent = old_spent - float(old_amount)
+                    new_old_balance = old_allocated - new_old_spent
+                    self._execute(cursor,
+                        'UPDATE allocations SET spent_amount = ?, balance = ? WHERE user_id = ? AND category = ? AND year = ? AND month = ?',
+                        (new_old_spent, new_old_balance, user_id, old_category, old_year, old_month)
+                    )
+            
+            # Update new allocation if we have new date info
+            if new_year and new_month:
+                self._execute(cursor,
+                    'SELECT allocated_amount, spent_amount FROM allocations WHERE user_id = ? AND category = ? AND year = ? AND month = ?',
+                    (user_id, category, new_year, new_month)
+                )
+                new_row = cursor.fetchone()
+                if new_row:
+                    new_allocated = float(new_row['allocated_amount'])
+                    new_spent = float(new_row['spent_amount'])
+                    new_new_spent = new_spent + float(amount)
+                    new_new_balance = new_allocated - new_new_spent
+                    self._execute(cursor,
+                        'UPDATE allocations SET spent_amount = ?, balance = ? WHERE user_id = ? AND category = ? AND year = ? AND month = ?',
+                        (new_new_spent, new_new_balance, user_id, category, new_year, new_month)
+                    )
             
             # Update expense
             self._execute(cursor,
@@ -1513,20 +1538,35 @@ class MultiUserDB:
         try:
             cursor = self.conn.cursor()
             
-            self._execute(cursor,
-                'SELECT allocated_amount, spent_amount FROM allocations WHERE user_id = ? AND category = ?',
-                (user_id, category)
-            )
-            row = cursor.fetchone()
-            if row:
-                allocated = float(row['allocated_amount'])
-                spent = float(row['spent_amount'])
-                new_spent = spent - float(amount)
-                new_balance = allocated - new_spent
+            # First get the expense date to know which allocation to update
+            self._execute(cursor, 'SELECT date FROM expenses WHERE id = ? AND user_id = ?', (expense_id, user_id))
+            expense = cursor.fetchone()
+            
+            if not expense:
+                print(f"Expense {expense_id} not found")
+                return False
+            
+            # Extract year/month from expense date
+            try:
+                expense_date = expense['date']
+                year, month = int(expense_date[:4]), int(expense_date[5:7])
+                
                 self._execute(cursor,
-                    'UPDATE allocations SET spent_amount = ?, balance = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND category = ?',
-                    (new_spent, new_balance, user_id, category)
+                    'SELECT allocated_amount, spent_amount FROM allocations WHERE user_id = ? AND category = ? AND year = ? AND month = ?',
+                    (user_id, category, year, month)
                 )
+                row = cursor.fetchone()
+                if row:
+                    allocated = float(row['allocated_amount'])
+                    spent = float(row['spent_amount'])
+                    new_spent = spent - float(amount)
+                    new_balance = allocated - new_spent
+                    self._execute(cursor,
+                        'UPDATE allocations SET spent_amount = ?, balance = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND category = ? AND year = ? AND month = ?',
+                        (new_spent, new_balance, user_id, category, year, month)
+                    )
+            except (ValueError, IndexError) as e:
+                print(f"Warning: Could not extract year/month from expense date: {e}")
             
             self._execute(cursor, 'DELETE FROM expenses WHERE id = ? AND user_id = ?', (expense_id, user_id))
             
