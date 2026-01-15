@@ -821,7 +821,7 @@ class MultiUserDB:
         try:
             query = '''
                 SELECT u.id, u.email, u.full_name, u.role, u.is_active,
-                       h.name as household_name, u.created_at
+                       u.household_id, h.name as household_name, u.created_at
                 FROM users u
                 LEFT JOIN households h ON u.household_id = h.id
                 WHERE u.role != 'superadmin'
