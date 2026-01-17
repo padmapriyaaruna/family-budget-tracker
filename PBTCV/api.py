@@ -1065,12 +1065,16 @@ def delete_allocation(allocation_id: int, current_user: dict = Depends(verify_jw
     Delete allocation
     """
     user_id = current_user['id']
+    print(f"Attempting to delete allocation: id={allocation_id}, user_id={user_id}")
+    
     success = db.delete_allocation_by_id(allocation_id, user_id)
+    
+    print(f"Delete allocation result: {success}")
     
     if not success:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to delete allocation"
+            detail=f"Failed to delete allocation id={allocation_id}. Either it doesn't exist or doesn't belong to user {user_id}"
         )
     
     return {
