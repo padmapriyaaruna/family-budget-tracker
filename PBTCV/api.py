@@ -1204,6 +1204,31 @@ def delete_expense(expense_id: int, current_user: dict = Depends(verify_jwt_toke
     """
     Delete expense
     """
+    # Get expense details before deleting for recalculation
+    try:
+        conn = db.conn
+        cursor = conn.cursor()
+        db._execute(cursor, 'SELECT user_id, category, date FROM expenses WHERE id = ?', (expense_id,))
+        expense = cursor.fetchone()
+        
+        if not expense:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Expense not found"
+            )
+        
+        user_id = expense['user_id']
+        category = expense['category']
+        date = expense['date']
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get expense details: {str(e)}"
+        )
+    
     success = db.delete_expense(expense_id)
     
     if not success:
@@ -1211,6 +1236,13 @@ def delete_expense(expense_id: int, current_user: dict = Depends(verify_jwt_toke
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to delete expense"
         )
+    
+    # Recalculate allocation for this category/period
+    try:
+        year, month = int(date[:4]), int(date[5:7])
+        recalculate_allocation_for_category(user_id, category, year, month)
+    except Exception as e:
+        print(f"Warning: Failed to recalculate allocation: {e}")
     
     return {
         "status": "success",
