@@ -998,11 +998,16 @@ def get_allocations(
     
     # Convert DataFrame to list of dicts if needed
     if hasattr(allocations_result, 'to_dict'):
-        # Reset index to ensure 'id' column is included in the output
         if not allocations_result.empty:
-            # If 'id' is in the index, reset it to be a column
-            if allocations_result.index.name == 'id' or 'id' not in allocations_result.columns:
+            # Make sure id is a column, not the index
+            # If id is the index, reset it to be a column
+            if 'id' not in allocations_result.columns and allocations_result.index.name == 'id':
                 allocations_result = allocations_result.reset_index()
+            elif 'id' not in allocations_result.columns:
+                # If there's no id column at all, add row numbers as temporary IDs
+                allocations_result = allocations_result.reset_index(drop=True)
+                allocations_result['id'] = allocations_result.index
+            
             allocations = allocations_result.to_dict('records')
             
             # DEBUG: Print what we're actually returning
