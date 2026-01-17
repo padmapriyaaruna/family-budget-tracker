@@ -883,7 +883,9 @@ def recalculate_all_allocations(current_user: dict = Depends(verify_jwt_token)):
         # Get all allocations
         conn = db.conn
         cursor = conn.cursor()
-        cursor.execute('SELECT id, user_id, category, year, month, allocated_amount FROM allocations')
+        
+        # Use _execute helper for PostgreSQL compatibility
+        db._execute(cursor, 'SELECT id, user_id, category, year, month, allocated_amount FROM allocations', ())
         allocations = cursor.fetchall()
         
         updated_count = 0
@@ -897,7 +899,7 @@ def recalculate_all_allocations(current_user: dict = Depends(verify_jwt_token)):
             allocated_amount = float(allocation['allocated_amount'])
             
             # Calculate actual spent amount from expenses for this category/year/month
-            cursor.execute('''
+            db._execute(cursor, '''
                 SELECT COALESCE(SUM(amount), 0) as total_spent
                 FROM expenses
                 WHERE user_id = ? 
@@ -910,7 +912,7 @@ def recalculate_all_allocations(current_user: dict = Depends(verify_jwt_token)):
             new_balance = allocated_amount - actual_spent
             
             # Update the allocation
-            cursor.execute('''
+            db._execute(cursor, '''
                 UPDATE allocations 
                 SET spent_amount = ?, balance = ?
                 WHERE id = ?
