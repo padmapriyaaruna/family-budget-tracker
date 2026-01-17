@@ -1131,6 +1131,7 @@ class MultiUserDB:
             if year and month:
                 query = '''
                     SELECT 
+                        id,
                         category as "Category", 
                         allocated_amount as "Allocated Amount", 
                         spent_amount as "Spent Amount", 
@@ -1143,6 +1144,7 @@ class MultiUserDB:
             else:
                 query = '''
                     SELECT 
+                        id,
                         category as "Category", 
                         allocated_amount as "Allocated Amount", 
                         spent_amount as "Spent Amount", 
