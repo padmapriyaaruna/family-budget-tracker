@@ -1004,6 +1004,13 @@ def get_allocations(
             if allocations_result.index.name == 'id' or 'id' not in allocations_result.columns:
                 allocations_result = allocations_result.reset_index()
             allocations = allocations_result.to_dict('records')
+            
+            # DEBUG: Print what we're actually returning
+            print(f"=== ALLOCATIONS API DEBUG ===")
+            print(f"Number of allocations: {len(allocations)}")
+            if allocations:
+                print(f"First allocation keys: {list(allocations[0].keys())}")
+                print(f"First allocation: {allocations[0]}")
         else:
             allocations = []
     else:
