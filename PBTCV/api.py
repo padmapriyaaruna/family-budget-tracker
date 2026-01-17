@@ -937,6 +937,51 @@ def recalculate_all_allocations(current_user: dict = Depends(verify_jwt_token)):
             detail=f"Failed to recalculate allocations: {str(e)}"
         )
 
+def recalculate_allocation_for_category(user_id: int, category: str, year: int, month: int):
+    """Helper function to recalculate a single allocation from actual expenses"""
+    try:
+        conn = db.conn
+        cursor = conn.cursor()
+        
+        # Get the allocation for this category/period
+        db._execute(cursor, '''
+            SELECT id, allocated_amount 
+            FROM allocations 
+            WHERE user_id = ? AND category = ? AND year = ? AND month = ?
+        ''', (user_id, category, year, month))
+        
+        allocation = cursor.fetchone()
+        if not allocation:
+            print(f"No allocation found for {category} {year}-{month:02d}")
+            return
+        
+        # Calculate actual spent from expenses
+        db._execute(cursor, '''
+            SELECT COALESCE(SUM(amount), 0) as total_spent
+            FROM expenses
+            WHERE user_id = ? AND category = ? AND date LIKE ?
+        ''', (user_id, category, f"{year}-{month:02d}%"))
+        
+        result = cursor.fetchone()
+        actual_spent = float(result['total_spent'])
+        allocated_amount = float(allocation['allocated_amount'])
+        new_balance = allocated_amount - actual_spent
+        
+        # Update the allocation
+        db._execute(cursor, '''
+            UPDATE allocations 
+            SET spent_amount = ?, balance = ?
+            WHERE id = ?
+        ''', (actual_spent, new_balance, allocation['id']))
+        
+        conn.commit()
+        print(f"Recalculated {category} {year}-{month:02d}: spent={actual_spent}, balance={new_balance}")
+        
+    except Exception as e:
+        print(f"Error in recalculate_allocation_for_category: {e}")
+        import traceback
+        traceback.print_exc()
+
 # ==================== Allocation Endpoints ====================
 
 @app.get("/api/allocations/{user_id}")
@@ -1105,6 +1150,13 @@ def add_expense(request: ExpenseRequest, current_user: dict = Depends(verify_jwt
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to add expense"
         )
+    
+    # Recalculate allocation for this category/period to ensure sync
+    try:
+        year, month = int(request.date[:4]), int(request.date[5:7])
+        recalculate_allocation_for_category(request.user_id, request.category, year, month)
+    except Exception as e:
+        print(f"Warning: Failed to recalculate allocation: {e}")
     
     return {
         "status": "success",
