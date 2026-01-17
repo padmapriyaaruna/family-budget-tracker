@@ -1064,7 +1064,8 @@ def delete_allocation(allocation_id: int, current_user: dict = Depends(verify_jw
     """
     Delete allocation
     """
-    success = db.delete_allocation(allocation_id)
+    user_id = current_user['id']
+    success = db.delete_allocation_by_id(allocation_id, user_id)
     
     if not success:
         raise HTTPException(
