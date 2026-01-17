@@ -1187,6 +1187,13 @@ def update_expense(
             detail="Failed to update expense"
         )
     
+    # Recalculate allocation for this category/period
+    try:
+        year, month = int(request.date[:4]), int(request.date[5:7])
+        recalculate_allocation_for_category(request.user_id, request.category, year, month)
+    except Exception as e:
+        print(f"Warning: Failed to recalculate allocation: {e}")
+    
     return {
         "status": "success",
         "message": "Expense updated successfully"
