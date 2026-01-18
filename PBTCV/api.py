@@ -1061,6 +1061,7 @@ def update_allocation(
     """
     success = db.update_allocation(
         allocation_id,
+        request.user_id,
         request.category,
         request.allocated_amount,
         request.year,
