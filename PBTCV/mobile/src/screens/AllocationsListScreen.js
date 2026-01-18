@@ -3,6 +3,7 @@ import {
     View,
     Text,
     FlatList,
+    TouchableOpacity,
     StyleSheet,
     RefreshControl,
 } from 'react-native';
@@ -41,7 +42,10 @@ const AllocationsListScreen = ({ navigation }) => {
             : 0;
 
         return (
-            <View style={styles.allocationCard}>
+            <TouchableOpacity
+                style={styles.allocationCard}
+                onPress={() => navigation.navigate('AddAllocation', { allocation: item })}
+            >
                 <Text style={styles.category}>{item.category}</Text>
                 <View style={styles.amountRow}>
                     <View>
@@ -63,7 +67,7 @@ const AllocationsListScreen = ({ navigation }) => {
                     <View style={[styles.progress, { width: `${Math.min(percentUsed, 100)}%` }]} />
                 </View>
                 <Text style={styles.percent}>{percentUsed}% used</Text>
-            </View>
+            </TouchableOpacity>
         );
     };
 

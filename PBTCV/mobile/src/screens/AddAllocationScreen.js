@@ -9,14 +9,17 @@ import {
     Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { addAllocation } from '../services/api';
+import { addAllocation, updateAllocation } from '../services/api';
 import { COLORS } from '../config';
 import { getCurrentPeriod } from '../utils/helpers';
 
-const AddAllocationScreen = ({ navigation }) => {
+const AddAllocationScreen = ({ navigation, route }) => {
+    const allocation = route.params?.allocation;
+    const isEditMode = !!allocation;
+
     const [userId, setUserId] = useState(null);
-    const [category, setCategory] = useState('');
-    const [amount, setAmount] = useState('');
+    const [category, setCategory] = useState(allocation?.category || '');
+    const [amount, setAmount] = useState(allocation?.allocated_amount?.toString() || '');
     const [loading, setLoading] = useState(false);
     const period = getCurrentPeriod();
 
@@ -40,20 +43,31 @@ const AddAllocationScreen = ({ navigation }) => {
 
         setLoading(true);
         try {
-            await addAllocation({
-                user_id: userId,
-                category,
-                allocated_amount: parseFloat(amount),
-                year: period.year,
-                month: period.month,
-            });
-
-            Alert.alert('Success', 'Budget allocation added successfully', [
-                { text: 'OK', onPress: () => navigation.goBack() },
-            ]);
+            if (isEditMode) {
+                // Update existing allocation
+                await updateAllocation(allocation.id, {
+                    category,
+                    allocated_amount: parseFloat(amount),
+                });
+                Alert.alert('Success', 'Budget allocation updated successfully', [
+                    { text: 'OK', onPress: () => navigation.goBack() },
+                ]);
+            } else {
+                // Add new allocation
+                await addAllocation({
+                    user_id: userId,
+                    category,
+                    allocated_amount: parseFloat(amount),
+                    year: period.year,
+                    month: period.month,
+                });
+                Alert.alert('Success', 'Budget allocation added successfully', [
+                    { text: 'OK', onPress: () => navigation.goBack() },
+                ]);
+            }
         } catch (error) {
-            console.error('Error adding allocation:', error);
-            Alert.alert('Error', 'Failed to add allocation');
+            console.error(`Error ${isEditMode ? 'updating' : 'adding'} allocation:`, error);
+            Alert.alert('Error', `Failed to ${isEditMode ? 'update' : 'add'} allocation`);
         } finally {
             setLoading(false);
         }
@@ -88,7 +102,7 @@ const AddAllocationScreen = ({ navigation }) => {
                     onPress={handleSave}
                     disabled={loading}>
                     <Text style={styles.buttonText}>
-                        {loading ? 'Saving...' : 'Save Allocation'}
+                        {loading ? (isEditMode ? 'Updating...' : 'Saving...') : (isEditMode ? 'Update Allocation' : 'Save Allocation')}
                     </Text>
                 </TouchableOpacity>
             </View>
