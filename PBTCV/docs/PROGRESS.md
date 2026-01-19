@@ -383,18 +383,21 @@ docs/
 **Completed:**
 - ✅ Beginner's comprehensive guide (600+ lines)
 - ✅ Web app functions Part 1 (8 functions documented)
+- ✅ Mobile app screens Part 1 (Overview, Navigation, Authentication, Dashboard)
+- ✅ Mobile app screens Part 2 (AddAllocationScreen with full v6.1 fixes explained)
 - ✅ Documentation structure and index
 
 **In Progress:**
+- 🔄 Mobile app screens (15 total, 2 detailed, 13 remaining)
 - 🔄 Web app functions (26 total, 8 done, 18 remaining)
 
 **Not Started:**
 - ⏳ Web app functions Part 2 & 3
-- ⏳ Mobile app functions
+- ⏳ Mobile app Part 3 (remaining screens)
 - ⏳ Backend API functions
 - ⏳ Database functions
 
-**Overall Progress:** ~15% complete
+**Overall Progress:** ~25% complete (up from 15%)
 
 ---
 
