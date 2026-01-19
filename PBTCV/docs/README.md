@@ -22,37 +22,93 @@ docs/
 **Status:** COMPLETE (600+ lines)  
 **Audience:** Complete beginners  
 **Coverage:**
-- System overview
-- Web application explained
-- Mobile application explained
+- System overview with analogies
+- Web application explained (all features)
+- Mobile application explained (all screens)
 - Backend API explained
 - Database schema explained
-- Key functions with analogies
-- Complete data flows
+- Key functions with examples
+- Complete data flows (including v6.1 edit allocation)
 - User scenarios
+- Technical glossary
 
-### ✅ web_app_functions_part1.md
+### ✅ functions/web_app_functions_part1.md
 **Status:** COMPLETE  
-**Coverage:**
+**Coverage:** 8 authentication and dashboard functions
 - `get_database()` - Database initialization
 - `show_login_page()` - Authentication router
-- `show_landing_page()` - 4-button landing page
+- `show_landing_page()` - 4-button landing page  
 - `show_master_login()` - Super admin login
-- `show_admin_login()` - Family admin login  
+- `show_admin_login()` - Family admin login
 - `show_member_login()` - Member login
 - `show_password_setup()` - New member onboarding
 - `show_admin_dashboard()` - Admin dashboard (3 tabs)
 
-**Detail Level:**
-- Line-by-line code explanation
-- Parameter descriptions
-- Return values
-- Step-by-step execution flow
-- Example data
-- Security considerations
-- Complete user journeys
+### ✅ functions/mobile_app_screens_part1.md
+**Status:** COMPLETE  
+**Coverage:** Overview, navigation, authentication, dashboard
+- Mobile app architecture
+- Navigation & state management (App.js)
+- LoginScreen - 4-role authentication
+- DashboardScreen - Home screen with summary cards
 
-### 🔄 Remaining Function Documentation (TO CREATE)
+### ✅ functions/mobile_app_screens_part2.md  
+**Status:** COMPLETE (Most Detailed!)  
+**Coverage:** AddAllocationScreen with full v6.1 coverage
+- Component structure
+- State management
+- Data loading
+- **Budget validation logic** (line-by-line)
+- **v6.1 fixes explained** (edit mode, API parameters)
+- Save/update logic
+- Complete user journeys
+- Before/after v6.1 comparisons
+
+### ✅ functions/mobile_app_screens_part3.md
+**Status:** COMPLETE  
+**Coverage:** List screens and API service
+- AllocationsListScreen (with v6.1 edit button)
+- AddExpenseScreen
+- AddIncomeScreen
+- ExpensesListScreen
+- IncomeListScreen
+- API service (api.js) - All functions
+- Request interceptor
+- Error handling patterns
+
+### ✅ functions/backend_api_complete.md
+**Status:** COMPLETE  
+**Coverage:** All API endpoints with v6.1 fixes
+- FastAPI configuration
+- JWT authentication system
+- Pydantic models
+- All authentication endpoints
+- All dashboard endpoints
+- All income endpoints
+- All allocation endpoints (v6.1 update_allocation fix)
+- All expense endpoints
+- Request/response formats
+- Error handling
+- Complete request flow examples
+- Security features
+
+### ✅ functions/database_layer_complete.md
+**Status:** COMPLETE  
+**Coverage:** All 58 database methods
+- Database schema (5 tables)
+- Dual database support (PostgreSQL/SQLite)
+- All authentication methods
+- All member management methods
+- All household management methods
+- All income operations
+- **All allocation operations** (v6.1 update_allocation fix)
+- All expense operations  
+- All analytics methods
+- Connection management
+- Data isolation patterns
+- SQL queries for each method
+
+## 🔄 Remaining Function Documentation (TO CREATE)
 
 #### web_app_functions_part2.md
 - `show_member_dashboard()` - Member interface
