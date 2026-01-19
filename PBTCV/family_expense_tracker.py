@@ -124,6 +124,8 @@ def show_login_page():
         show_member_login()
     elif st.session_state.login_page == 'setup':
         show_password_setup()
+    elif st.session_state.login_page == 'create_family':
+        show_family_registration()
 
 
 def show_landing_page():
@@ -234,6 +236,16 @@ def show_landing_page():
             if st.button("← Back", use_container_width=True, key="btn_back_setup"):
                 st.session_state.password_setup_menu = False
                 st.rerun()
+        
+        # Separator and Create Family button
+        st.markdown("---")
+        st.markdown("### Don't have an account?")
+        st.markdown("")
+        
+        if st.button("🏠 Create New Family", use_container_width=True, key="btn_create_family", type="primary"):
+            st.session_state.login_page = 'create_family'
+            st.session_state.password_setup_menu = False
+            st.rerun()
 
 
 
@@ -378,6 +390,102 @@ def show_password_setup():
                     st.info("You can now login with your email using the 'Family Member' button!")
                 else:
                     st.error(f"❌ {message}")
+
+
+def show_family_registration():
+    """Display public family registration form"""
+    import re
+    import requests
+    
+    # Add spacing for visibility
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Back button
+    if st.button("← Back to Home"):
+        st.session_state.login_page = None
+        st.rerun()
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    st.title("🏠 Create Your Family Account")
+    st.info("Register your family to start tracking your budget together!")
+    
+    with st.form("family_registration_form"):
+        # Family Name
+        family_name = st.text_input(
+            "Family Name *",
+            placeholder="e.g., The Sharma Family",
+            help="This will identify your household"
+        )
+        
+        # Admin Email
+        admin_email = st.text_input(
+            "Your Email Address *",
+            placeholder="admin@example.com",
+            help="You will be the family administrator"
+        )
+        
+        # Admin Name
+        admin_name = st.text_input(
+            "Your Full Name *",
+            placeholder="Raj Sharma"
+        )
+        
+        # Submit button
+        submitted = st.form_submit_button(
+            "Create Family Account",
+            type="primary",
+            use_container_width=True
+        )
+        
+        if submitted:
+            # Validation
+            if not family_name or not admin_email or not admin_name:
+                st.error("⚠️ Please fill all required fields")
+            else:
+                # Email format validation
+                email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+                if not re.match(email_pattern, admin_email):
+                    st.error("⚠️ Please enter a valid email address")
+                else:
+                    # Call database method directly
+                    try:
+                        success, household_id, invite_token, message = db.create_household_with_admin(
+                            household_name=family_name,
+                            admin_email=admin_email,
+                            admin_name=admin_name
+                        )
+                        
+                        if success:
+                            st.success("✅ Family created successfully!")
+                            
+                            # Show invite token
+                            st.markdown("---")
+                            st.subheader("🔑 Your Invite Token")
+                            st.info(
+                                "**Important:** Save this token to set your password!"
+                            )
+                            st.code(invite_token, language=None)
+                            
+                            st.markdown("---")
+                            st.markdown("### Next Steps:")
+                            st.markdown("""
+                            1. **Save your invite token** (shown above)
+                            2. Click "← Back to Home"
+                            3. Select **🔑 Password Setup** → **🆕 New Password**
+                            4. Enter your invite token and create your password
+                            5. Login as **👨‍👩‍👧‍👦 Family Admin** with your email and password
+                            """)
+                            
+                        else:
+                            # Check for duplicate error
+                            if "already exists" in message.lower() or "duplicate" in message.lower():
+                                st.error(f"❌ This family name and email combination already exists!")
+                            else:
+                                st.error(f"❌ {message}")
+                                
+                    except Exception as e:
+                        st.error(f"❌ Error creating family: {str(e)}")
 
 
 
