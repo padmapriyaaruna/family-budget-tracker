@@ -91,6 +91,13 @@ class CopyAllocationsRequest(BaseModel):
     to_year: int
     to_month: int
 
+class FamilyRegistrationRequest(BaseModel):
+    """Public family registration request for mobile/web"""
+    family_name: str
+    admin_email: str
+    admin_name: str
+
+
 # ==================== Helper Functions ====================
 
 def create_jwt_token(user_id: int, email: str, role: str) -> str:
@@ -186,6 +193,66 @@ def setup_password(request: AcceptInviteRequest):
     Setup password for new user (alias for accept-invite)
     """
     return accept_invite(request)
+
+@app.post("/api/families/create")
+def create_family_public(request: FamilyRegistrationRequest):
+    """
+    Public endpoint for family self-registration (mobile/web)
+    No authentication required - this is for new users
+    """
+    try:
+        # Validate inputs
+        if not request.family_name or not request.admin_email or not request.admin_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="All fields are required"
+            )
+        
+        # Email format validation
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, request.admin_email):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid email address format"
+            )
+        
+        # Create household with admin using existing database method
+        success, household_id, invite_token, message = db.create_household_with_admin(
+            household_name=request.family_name,
+            admin_email=request.admin_email,
+            admin_name=request.admin_name
+        )
+        
+        if not success:
+            # Check for duplicate error
+            if "already exists" in message.lower() or "duplicate" in message.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="This family name and email combination already exists"
+                )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=message
+            )
+        
+        # Return success with invite token
+        return {
+            "status": "success",
+            "message": "Family created successfully",
+            "invite_token": invite_token,
+            "household_id": household_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in family registration: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create family: {str(e)}"
+        )
+
 
 # ==================== Super Admin Endpoints ====================
 
