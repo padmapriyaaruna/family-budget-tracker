@@ -286,6 +286,45 @@ def get_admin_stats(current_user: dict = Depends(verify_jwt_token)):
         }
     }
 
+@app.put("/api/admin/household/{household_id}/toggle")
+def toggle_household(household_id: int, current_user: dict = Depends(verify_jwt_token)):
+    """Toggle household active status (Super Admin only)"""
+    if current_user.get('role') != 'superadmin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super admin access required"
+        )
+    
+    success = db.toggle_household_status(household_id)
+    
+    if success:
+        return {"status": "success", "message": "Household status toggled successfully"}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to toggle household status"
+        )
+
+@app.delete("/api/admin/household/{household_id}")
+def delete_household(household_id: int, current_user: dict = Depends(verify_jwt_token)):
+    """Delete household and all its data (Super Admin only)"""
+    if current_user.get('role') != 'superadmin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super admin access required"
+        )
+    
+    success, message = db.delete_household(household_id)
+    
+    if success:
+        return {"status": "success", "message": message}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=message
+        )
+
+
 @app.get("/api/admin/households")
 def get_all_households(current_user: dict = Depends(verify_jwt_token)):
     """
