@@ -706,12 +706,17 @@ class MultiUserDB:
     
     def create_household_with_admin(self, household_name, admin_email, admin_name):
         """Super admin creates a new household with a family admin (using invite token)"""
+        cursor = None
         try:
+            # Ensure connection is alive
+            self._ensure_connection()
             cursor = self.conn.cursor()
             
             # Check if email already exists
             self._execute(cursor, 'SELECT id FROM users WHERE email = ?', (admin_email,))
             if cursor.fetchone():
+                if cursor:
+                    cursor.close()
                 return (False, None, None, "Email already exists")
             
             # Create household - use RETURNING for PostgreSQL
@@ -749,10 +754,22 @@ class MultiUserDB:
             self._execute(cursor, 'UPDATE households SET created_by = ? WHERE id = ?', (admin_id, household_id))
             
             self.conn.commit()
+            
+            if cursor:
+                cursor.close()
+                
             return (True, household_id, invite_token, f"Household '{household_name}' created successfully")
         except Exception as e:
-            self.conn.rollback()
+            if self.conn:
+                self.conn.rollback()
             print(f"Error creating household: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            if cursor:
+                try:
+                    cursor.close()
+                except:
+                    pass
             return (False, None, None, str(e))
     
     def toggle_household_status(self, household_id):
