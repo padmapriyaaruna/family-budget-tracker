@@ -889,19 +889,31 @@ def get_income(
     """
     income_result = db.get_all_income(user_id)
     
-    # Convert DataFrame to list of dicts if needed
     if hasattr(income_result, 'to_dict'):
-        income_list = income_result.to_dict('records') if not income_result.empty else []
+        income = income_result.to_dict('records') if not income_result.empty else []
     else:
-        income_list = income_result if income_result else []
+        income = income_result if income_result else []
     
-    # Filter by period if provided
+    # Filter by period if provided (same logic as expenses)
     if year and month:
-        income_list = [i for i in income_list if i.get('date', '').startswith(f"{year}-{month:02d}")]
+        filtered = []
+        for item in income:
+            # Try both 'date' and 'Date' keys
+            date_val = item.get('Date') or item.get('date', '')
+            # Convert to string if it's a datetime object
+            if hasattr(date_val, 'strftime'):
+                date_str = date_val.strftime('%Y-%m-%d')
+            else:
+                date_str = str(date_val)
+            
+            # Check if date matches year-month pattern
+            if date_str.startswith(f"{year}-{month:02d}"):
+                filtered.append(item)
+        income = filtered
     
     return {
         "status": "success",
-        "data": income_list
+        "data": income
     }
 
 @app.post("/api/income")
