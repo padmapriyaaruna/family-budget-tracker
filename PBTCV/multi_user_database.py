@@ -1996,9 +1996,9 @@ class MultiUserDB:
                 amount = allocation['allocated_amount'] if isinstance(allocation, dict) else allocation[1]
                 
                 self._execute(cursor, '''
-                    INSERT INTO allocations (user_id, category, allocated_amount, spent_amount, year, month)
-                    VALUES (?, ?, ?, 0, ?, ?)
-                ''', (user_id, category, amount, to_year, to_month))
+                    INSERT INTO allocations (user_id, category, allocated_amount, spent_amount, balance, year, month)
+                    VALUES (?, ?, ?, 0, ?, ?, ?)
+                ''', (user_id, category, amount, amount, to_year, to_month))
             
             self.conn.commit()
             return (True, f"Copied {len(source_allocations)} allocations from {from_year}-{from_month} to {to_year}-{to_month}")
