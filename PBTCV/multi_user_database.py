@@ -1872,17 +1872,6 @@ class MultiUserDB:
             self.conn.rollback()
             return False
     
-    def delete_income(self, income_id):
-        """Delete an income entry"""
-        try:
-            cursor = self.conn.cursor()
-            self._execute(cursor, 'DELETE FROM income WHERE id = ?', (income_id,))
-            self.conn.commit()
-            return True
-        except Exception as e:
-            print(f"Error deleting income: {str(e)}")
-            self.conn.rollback()
-            return False
     
     # ==================== EXPENSE MANAGEMENT (Mobile API Support) ====================
     
