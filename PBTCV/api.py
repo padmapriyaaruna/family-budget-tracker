@@ -1253,9 +1253,33 @@ def get_expenses(
     else:
         expenses = expenses_result if expenses_result else []
     
+    print(f"=== EXPENSES API DEBUG ===")
+    print(f"User ID: {user_id}, Year: {year}, Month: {month}")
+    print(f"Total expenses before filter: {len(expenses)}")
+    if expenses:
+        print(f"First expense keys: {list(expenses[0].keys())}")
+        print(f"First expense: {expenses[0]}")
+    
     # Filter by period if provided
     if year and month:
-        expenses = [e for e in expenses if e.get('date', '').startswith(f"{year}-{month:02d}")]
+        filtered = []
+        for e in expenses:
+            # Try both 'date' and 'Date' keys (case-sensitive)
+            date_val = e.get('Date') or e.get('date', '')
+            # Convert to string if it's a datetime object
+            if hasattr(date_val, 'strftime'):
+                date_str = date_val.strftime('%Y-%m-%d')
+            else:
+                date_str = str(date_val)
+            
+            print(f"Checking expense: date_val={date_val}, date_str={date_str}, looking for {year}-{month:02d}")
+            
+            # Check if date matches year-month pattern
+            if date_str.startswith(f"{year}-{month:02d}"):
+                filtered.append(e)
+                print(f"  -> MATCH!")
+        expenses = filtered
+        print(f"After filter: {len(expenses)} expenses")
     
     return {
         "status": "success",
