@@ -887,7 +887,7 @@ def get_income(
     """
     Get income records for a user
     """
-    income_result = db.get_all_income(user_id)
+    income_result = db.get_income_with_ids(user_id)
     
     if hasattr(income_result, 'to_dict'):
         income = income_result.to_dict('records') if not income_result.empty else []
