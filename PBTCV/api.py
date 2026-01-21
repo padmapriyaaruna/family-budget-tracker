@@ -967,6 +967,24 @@ def update_income(
     }
 
 @app.delete("/api/income/{income_id}")
+def delete_income_endpoint(
+    income_id: int,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    """
+    Delete an income entry
+    """
+    user_id = current_user.get('user_id')
+    
+    if db.delete_income(income_id, user_id):
+        return {
+            "status": "success",
+            "message": "Income deleted successfully"
+        }
+    else:
+        raise HTTPException(status_code=400, detail="Failed to delete income")
+
+@app.delete("/api/income/{income_id}")
 def delete_income(income_id: int, current_user: dict = Depends(verify_jwt_token)):
     """
     Delete income entry
