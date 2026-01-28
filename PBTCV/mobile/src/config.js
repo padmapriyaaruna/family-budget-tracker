@@ -30,6 +30,15 @@ export const EXPENSE_SUBCATEGORIES = [
     'Others'
 ];
 
+// Payment Mode Options
+export const PAYMENT_MODES = [
+    'UPI',
+    'Credit Card',
+    'Debit Card',
+    'Netbanking',
+    'Cash'
+];
+
 // Theme Colors
 export const COLORS = {
     primary: '#4CAF50',
@@ -52,5 +61,6 @@ export default {
     CURRENCY_SYMBOL,
     DATE_FORMAT,
     EXPENSE_SUBCATEGORIES,
+    PAYMENT_MODES,
     COLORS,
 };

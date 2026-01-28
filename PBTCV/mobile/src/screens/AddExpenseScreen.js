@@ -13,7 +13,7 @@ import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addExpense } from '../services/api';
-import { COLORS, EXPENSE_SUBCATEGORIES } from '../config';
+import { COLORS, EXPENSE_SUBCATEGORIES, PAYMENT_MODES } from '../config';
 import { formatDate } from '../utils/helpers';
 
 const AddExpenseScreen = ({ navigation }) => {
@@ -24,6 +24,8 @@ const AddExpenseScreen = ({ navigation }) => {
     const [subcategory, setSubcategory] = useState(EXPENSE_SUBCATEGORIES[0]);
     const [amount, setAmount] = useState('');
     const [comment, setComment] = useState('');
+    const [paymentMode, setPaymentMode] = useState(PAYMENT_MODES[0]);
+    const [paymentDetails, setPaymentDetails] = useState('');
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -53,6 +55,8 @@ const AddExpenseScreen = ({ navigation }) => {
                 subcategory,
                 amount: parseFloat(amount),
                 comment: comment || null,
+                payment_mode: paymentMode,
+                payment_details: paymentDetails || null,
             });
 
             Alert.alert('Success', 'Expense added successfully', [
@@ -113,6 +117,28 @@ const AddExpenseScreen = ({ navigation }) => {
                         ))}
                     </Picker>
                 </View>
+
+                {/* Payment Mode */}
+                <Text style={styles.label}>Payment Mode *</Text>
+                <View style={styles.pickerContainer}>
+                    <Picker
+                        selectedValue={paymentMode}
+                        onValueChange={setPaymentMode}
+                        style={styles.picker}>
+                        {PAYMENT_MODES.map((item) => (
+                            <Picker.Item key={item} label={item} value={item} />
+                        ))}
+                    </Picker>
+                </View>
+
+                {/* Payment Details */}
+                <Text style={styles.label}>Payment Details</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="e.g., Card ending in 1234, UPI ID, etc."
+                    value={paymentDetails}
+                    onChangeText={setPaymentDetails}
+                />
 
                 {/* Amount */}
                 <Text style={styles.label}>Amount (₹) *</Text>

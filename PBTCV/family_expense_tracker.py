@@ -1590,12 +1590,13 @@ def show_member_expense_tracking(user_id):
                     # Excel-like Filters - Multiselect for each column
                     st.markdown("**🔍 Filters** (Select to filter, leave empty to show all)")
                     
-                    filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
+                    filter_col1, filter_col2, filter_col3, filter_col4, filter_col5 = st.columns(5)
                     
                     # Get unique values for each column
                     all_dates = sorted(filtered_df['date'].unique().tolist())
                     all_categories = sorted(filtered_df['category'].unique().tolist())
                     all_subcategories = sorted(filtered_df['subcategory'].dropna().unique().tolist())
+                    all_payment_modes = sorted(filtered_df['payment_mode'].dropna().unique().tolist())
                     all_comments = sorted(filtered_df['comment'].dropna().unique().tolist())
                     
                     with filter_col1:
@@ -1608,6 +1609,9 @@ def show_member_expense_tracking(user_id):
                         selected_subcategories = st.multiselect("Subcategory", options=all_subcategories, default=[], key="filter_subcategory")
                     
                     with filter_col4:
+                        selected_payment_modes = st.multiselect("Payment Mode", options=all_payment_modes, default=[], key="filter_payment_mode")
+                    
+                    with filter_col5:
                         selected_comments = st.multiselect("Comment", options=all_comments, default=[], key="filter_comment")
                     
                     # Apply filters
@@ -1621,6 +1625,9 @@ def show_member_expense_tracking(user_id):
                     
                     if selected_subcategories:
                         display_df = display_df[display_df['subcategory'].isin(selected_subcategories)]
+                    
+                    if selected_payment_modes:
+                        display_df = display_df[display_df['payment_mode'].isin(selected_payment_modes)]
                     
                     if selected_comments:
                         display_df = display_df[display_df['comment'].isin(selected_comments)]
@@ -1646,15 +1653,16 @@ def show_member_expense_tracking(user_id):
                             'date': 'Date',
                             'category': 'Category',
                             'subcategory': 'Subcategory',
+                            'payment_mode': 'Payment Mode',
+                            'payment_details': 'Payment Details',
                             'comment': 'Comment'
                         })
                         
                         # Show as dataframe with horizontal scroll enabled
                         st.dataframe(
-                            display_df_formatted[['Date', 'Category', 'Amount', 'Subcategory', 'Comment']],
-                            use_container_width=True,
+                            display_df_formatted[['Date', 'Category', 'Amount', 'Subcategory', 'Payment Mode', 'Payment Details', 'Comment']],
                             hide_index=True,
-                            height=400  # Fixed height enables both vertical and horizontal scrollbars
+                            height=400  # Fixed height enables scrollbars
                         )
                     else:
                         st.info("No expenses match the selected filters")

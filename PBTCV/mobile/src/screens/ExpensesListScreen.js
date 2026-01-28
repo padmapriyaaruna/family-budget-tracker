@@ -43,6 +43,12 @@ const ExpensesListScreen = ({ navigation }) => {
                 <Text style={styles.amount}>{formatCurrency(item.amount)}</Text>
             </View>
             <Text style={styles.subcategory}>{item.subcategory}</Text>
+            {item.payment_mode && (
+                <Text style={styles.paymentInfo}>
+                    💳 {item.payment_mode}
+                    {item.payment_details && ` - ${item.payment_details}`}
+                </Text>
+            )}
             <Text style={styles.date}>{item.date}</Text>
             {item.comment && <Text style={styles.comment}>{item.comment}</Text>}
         </View>
@@ -98,6 +104,12 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: COLORS.textLight,
         marginBottom: 4,
+    },
+    paymentInfo: {
+        fontSize: 13,
+        color: COLORS.secondary,
+        marginBottom: 4,
+        fontWeight: '500',
     },
     date: {
         fontSize: 12,
