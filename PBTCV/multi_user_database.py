@@ -1510,19 +1510,19 @@ class MultiUserDB:
     def get_expenses_with_ids(self, user_id):
         """Get all expenses with IDs for editing"""
         try:
-            query = 'SELECT id, date, category, amount, subcategory, comment FROM expenses WHERE user_id = ? ORDER BY date DESC'
+            query = 'SELECT id, date, category, amount, subcategory, comment, payment_mode, payment_details FROM expenses WHERE user_id = ? ORDER BY date DESC'
             # Use engine for pandas queries if PostgreSQL
             conn_to_use = self.engine if (self.use_postgres and self.engine) else self.conn
             if self.use_postgres and self.engine:
                 # For PostgreSQL, replace ? with parameter placeholder
-                query = 'SELECT id, date, category, amount, subcategory, comment FROM expenses WHERE user_id = %s ORDER BY date DESC'
+                query = 'SELECT id, date, category, amount, subcategory, comment, payment_mode, payment_details FROM expenses WHERE user_id = %s ORDER BY date DESC'
             df = pd.read_sql_query(query, conn_to_use, params=(user_id,))
             return df
         except Exception as e:
             print(f"Error fetching expenses with IDs: {str(e)}")
             import traceback
             traceback.print_exc()
-            return pd.DataFrame(columns=["id", "date", "category", "amount", "subcategory", "comment"])
+            return pd.DataFrame(columns=["id", "date", "category", "amount", "subcategory", "comment", "payment_mode", "payment_details"])
 
     
     def update_expense(self, expense_id, user_id, date, category, amount, old_category, old_amount, comment, subcategory=None, old_date=None, payment_mode=None, payment_details=None):
