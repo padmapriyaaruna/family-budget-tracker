@@ -1547,6 +1547,13 @@ def show_member_expense_tracking(user_id):
                     subcategory_options = ["Investment", "Food - Online", "Food - Hotel", "Grocery - Online", "Grocery - Offline", "School Fee", "Extra-Curricular", "Co-Curricular", "House Rent", "Maintenance", "Vehicle", "Gadgets", "Others"]
                     expense_subcategory = st.selectbox("Subcategory", options=subcategory_options)
                     
+                    # Payment Mode dropdown
+                    payment_mode_options = ["UPI", "Credit Card", "Debit Card", "Netbanking", "Cash"]
+                    expense_payment_mode = st.selectbox("Payment Mode", options=payment_mode_options)
+                    
+                    # Payment Details text box
+                    expense_payment_details = st.text_input("Payment Details", placeholder="e.g., Card ending in 1234, UPI ID, etc.")
+                    
                     expense_comment = st.text_area("Comment", placeholder="Brief description")
                     
                     submit_expense = st.form_submit_button("➕ Add Expense", use_container_width=True)
@@ -1557,7 +1564,7 @@ def show_member_expense_tracking(user_id):
                             st.error("⚠️ Comment is required when subcategory is 'Others'")
                         else:
                             if db.add_expense(user_id, expense_date.strftime(config.DATE_FORMAT), 
-                                            expense_category, expense_amount, expense_comment, expense_subcategory):
+                                            expense_category, expense_amount, expense_comment, expense_subcategory, expense_payment_mode, expense_payment_details):
                                 st.success(f"✅ Added expense: {config.CURRENCY_SYMBOL}{expense_amount:,.2f}")
                                 st.cache_resource.clear()
                                 st.rerun()
@@ -1695,6 +1702,16 @@ def show_member_expense_tracking(user_id):
                                     subcat_index = subcategory_options.index(current_subcategory) if current_subcategory in subcategory_options else 0
                                     new_subcategory = st.selectbox("Subcategory", options=subcategory_options, index=subcat_index, key=f"edit_exp_subcat_{expense_id}")
                                     
+                                    # Payment Mode dropdown
+                                    payment_mode_options = ["UPI", "Credit Card", "Debit Card", "Netbanking", "Cash"]
+                                    current_payment_mode = selected_row.get('payment_mode', None) or "UPI"
+                                    payment_mode_index = payment_mode_options.index(current_payment_mode) if current_payment_mode in payment_mode_options else 0
+                                    new_payment_mode = st.selectbox("Payment Mode", options=payment_mode_options, index=payment_mode_index, key=f"edit_exp_payment_mode_{expense_id}")
+                                    
+                                    # Payment Details text box
+                                    current_payment_details = selected_row.get('payment_details', None) or ""
+                                    new_payment_details = st.text_input("Payment Details", value=current_payment_details, placeholder="e.g., Card ending in 1234, UPI ID, etc.", key=f"edit_exp_payment_details_{expense_id}")
+                                    
                                     new_comment = st.text_input("Comment", value=selected_row['comment'] if selected_row['comment'] else "", key=f"edit_exp_cmt_{expense_id}")
                                     
                                     col_a, col_b = st.columns(2)
@@ -1710,7 +1727,7 @@ def show_member_expense_tracking(user_id):
                                             old_category = selected_row['category']
                                             old_amount = float(selected_row['amount'])
                                             if db.update_expense(expense_id, user_id, new_date.strftime(config.DATE_FORMAT), 
-                                                               new_category, new_amount, old_category, old_amount, new_comment, new_subcategory):
+                                                               new_category, new_amount, old_category, old_amount, new_comment, new_subcategory, None, new_payment_mode, new_payment_details):
                                                 st.success("✅ Updated successfully!")
                                                 st.cache_resource.clear()
                                                 st.rerun()

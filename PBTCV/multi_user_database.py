@@ -245,6 +245,9 @@ class MultiUserDB:
         # Run migration to add subcategory column
         self._migrate_add_subcategory_column()
         
+        # Run migration to add payment columns
+        self._migrate_add_payment_columns()
+        
         # Create super admin if it doesn't exist
         self._create_super_admin()
     
@@ -417,6 +420,50 @@ class MultiUserDB:
             
         except Exception as e:
             print(f"⚠️ Subcategory migration error (might be already migrated): {str(e)}")
+            self.conn.rollback()
+    
+    def _migrate_add_payment_columns(self):
+        """Add payment_mode and payment_details columns to expenses table if they don't exist"""
+        try:
+            cursor = self.conn.cursor()
+            
+            if self.use_postgres:
+                # PostgreSQL: Check if columns exist
+                self._execute(cursor, """
+                    SELECT column_name FROM information_schema.columns 
+                    WHERE table_name = 'expenses' AND column_name IN ('payment_mode', 'payment_details')
+                """)
+                existing_cols = [row['column_name'] for row in cursor.fetchall()]
+                
+                if 'payment_mode' not in existing_cols:
+                    print("🔄 Adding payment_mode column to expenses table...")
+                    self._execute(cursor, 'ALTER TABLE expenses ADD COLUMN payment_mode TEXT')
+                    print("✅ Added payment_mode column to expenses table")
+                
+                if 'payment_details' not in existing_cols:
+                    print("🔄 Adding payment_details column to expenses table...")
+                    self._execute(cursor, 'ALTER TABLE expenses ADD COLUMN payment_details TEXT')
+                    print("✅ Added payment_details column to expenses table")
+            else:
+                # SQLite: Check if columns exist
+                cursor.execute("PRAGMA table_info(expenses)")
+                columns = [column[1] for column in cursor.fetchall()]
+                
+                if 'payment_mode' not in columns:
+                    print("🔄 Adding payment_mode column to expenses table...")
+                    cursor.execute('ALTER TABLE expenses ADD COLUMN payment_mode TEXT')
+                    print("✅ Added payment_mode column to expenses table")
+                
+                if 'payment_details' not in columns:
+                    print("🔄 Adding payment_details column to expenses table...")
+                    cursor.execute('ALTER TABLE expenses ADD COLUMN payment_details TEXT')
+                    print("✅ Added payment_details column to expenses table")
+            
+            self.conn.commit()
+            print("✅ Payment columns migration completed successfully")
+            
+        except Exception as e:
+            print(f"⚠️ Payment columns migration error (might be already migrated): {str(e)}")
             self.conn.rollback()
     
     # ==================== AUTHENTICATION & USER MANAGEMENT ====================
@@ -1379,14 +1426,14 @@ class MultiUserDB:
     
     # ==================== EXPENSE OPERATIONS (USER-SCOPED) ====================
     
-    def add_expense(self, user_id, date, category, amount, comment, subcategory=None):
+    def add_expense(self, user_id, date, category, amount, comment, subcategory=None, payment_mode=None, payment_details=None):
         """Add a new expense and auto-update allocation"""
         try:
             cursor = self.conn.cursor()
             
             self._execute(cursor,
-                'INSERT INTO expenses (user_id, date, category, amount, comment, subcategory) VALUES (?, ?, ?, ?, ?, ?)',
-                (user_id, date, category, float(amount), comment, subcategory)
+                'INSERT INTO expenses (user_id, date, category, amount, comment, subcategory, payment_mode, payment_details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                (user_id, date, category, float(amount), comment, subcategory, payment_mode, payment_details)
             )
             
             # Extract year and month from date string (format: YYYY-MM-DD)
@@ -1478,7 +1525,7 @@ class MultiUserDB:
             return pd.DataFrame(columns=["id", "date", "category", "amount", "subcategory", "comment"])
 
     
-    def update_expense(self, expense_id, user_id, date, category, amount, old_category, old_amount, comment, subcategory=None, old_date=None):
+    def update_expense(self, expense_id, user_id, date, category, amount, old_category, old_amount, comment, subcategory=None, old_date=None, payment_mode=None, payment_details=None):
         """Update an existing expense and adjust allocations"""
         try:
             cursor = self.conn.cursor()
@@ -1539,8 +1586,8 @@ class MultiUserDB:
             
             # Update expense
             self._execute(cursor,
-                'UPDATE expenses SET date = ?, category = ?, amount = ?, comment = ?, subcategory = ? WHERE id = ? AND user_id = ?',
-                (date, category, float(amount), comment, subcategory, expense_id, user_id)
+                'UPDATE expenses SET date = ?, category = ?, amount = ?, comment = ?, subcategory = ?, payment_mode = ?, payment_details = ? WHERE id = ? AND user_id = ?',
+                (date, category, float(amount), comment, subcategory, payment_mode, payment_details, expense_id, user_id)
             )
             
             self.conn.commit()
