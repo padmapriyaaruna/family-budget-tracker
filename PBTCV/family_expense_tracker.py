@@ -1649,11 +1649,12 @@ def show_member_expense_tracking(user_id):
                             'comment': 'Comment'
                         })
                         
-                        # Show as dataframe
+                        # Show as dataframe with horizontal scroll enabled
                         st.dataframe(
                             display_df_formatted[['Date', 'Category', 'Amount', 'Subcategory', 'Comment']],
                             use_container_width=True,
-                            hide_index=True
+                            hide_index=True,
+                            height=400  # Fixed height enables both vertical and horizontal scrollbars
                         )
                     else:
                         st.info("No expenses match the selected filters")
