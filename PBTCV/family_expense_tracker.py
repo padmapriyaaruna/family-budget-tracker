@@ -1596,7 +1596,13 @@ def show_member_expense_tracking(user_id):
                     all_dates = sorted(filtered_df['date'].unique().tolist())
                     all_categories = sorted(filtered_df['category'].unique().tolist())
                     all_subcategories = sorted(filtered_df['subcategory'].dropna().unique().tolist())
-                    all_payment_modes = sorted(filtered_df['payment_mode'].dropna().unique().tolist())
+                    
+                    # Safely get payment modes if column exists
+                    if 'payment_mode' in filtered_df.columns:
+                        all_payment_modes = sorted(filtered_df['payment_mode'].dropna().unique().tolist())
+                    else:
+                        all_payment_modes = []
+                    
                     all_comments = sorted(filtered_df['comment'].dropna().unique().tolist())
                     
                     with filter_col1:
@@ -1609,7 +1615,12 @@ def show_member_expense_tracking(user_id):
                         selected_subcategories = st.multiselect("Subcategory", options=all_subcategories, default=[], key="filter_subcategory")
                     
                     with filter_col4:
-                        selected_payment_modes = st.multiselect("Payment Mode", options=all_payment_modes, default=[], key="filter_payment_mode")
+                        # Only show payment mode filter if column exists
+                        if all_payment_modes:
+                            selected_payment_modes = st.multiselect("Payment Mode", options=all_payment_modes, default=[], key="filter_payment_mode")
+                        else:
+                            selected_payment_modes = []
+                            st.info("No payment data yet")
                     
                     with filter_col5:
                         selected_comments = st.multiselect("Comment", options=all_comments, default=[], key="filter_comment")
@@ -1626,7 +1637,7 @@ def show_member_expense_tracking(user_id):
                     if selected_subcategories:
                         display_df = display_df[display_df['subcategory'].isin(selected_subcategories)]
                     
-                    if selected_payment_modes:
+                    if selected_payment_modes and 'payment_mode' in display_df.columns:
                         display_df = display_df[display_df['payment_mode'].isin(selected_payment_modes)]
                     
                     if selected_comments:
@@ -1649,18 +1660,34 @@ def show_member_expense_tracking(user_id):
                     if not display_df.empty:
                         display_df_formatted = display_df.copy()
                         display_df_formatted['Amount'] = display_df_formatted['amount'].apply(lambda x: f"{config.CURRENCY_SYMBOL}{float(x):,.2f}")
-                        display_df_formatted = display_df_formatted.rename(columns={
+                        
+                        # Build column rename dict based on what exists
+                        rename_dict = {
                             'date': 'Date',
                             'category': 'Category',
                             'subcategory': 'Subcategory',
-                            'payment_mode': 'Payment Mode',
-                            'payment_details': 'Payment Details',
                             'comment': 'Comment'
-                        })
+                        }
+                        
+                        # Add payment columns if they exist
+                        if 'payment_mode' in display_df_formatted.columns:
+                            rename_dict['payment_mode'] = 'Payment Mode'
+                        if 'payment_details' in display_df_formatted.columns:
+                            rename_dict['payment_details'] = 'Payment Details'
+                        
+                        display_df_formatted = display_df_formatted.rename(columns=rename_dict)
+                        
+                        # Build column list based on what exists
+                        display_columns = ['Date', 'Category', 'Amount', 'Subcategory']
+                        if 'Payment Mode' in display_df_formatted.columns:
+                            display_columns.append('Payment Mode')
+                        if 'Payment Details' in display_df_formatted.columns:
+                            display_columns.append('Payment Details')
+                        display_columns.append('Comment')
                         
                         # Show as dataframe with horizontal scroll enabled
                         st.dataframe(
-                            display_df_formatted[['Date', 'Category', 'Amount', 'Subcategory', 'Payment Mode', 'Payment Details', 'Comment']],
+                            display_df_formatted[display_columns],
                             hide_index=True,
                             height=400  # Fixed height enables scrollbars
                         )
