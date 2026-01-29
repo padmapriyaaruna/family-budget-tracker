@@ -1587,6 +1587,7 @@ class MultiUserDB:
                     )
             
             # Update expense
+            print(f"DB: d={date} c={category} a={amount} cm={comment} s={subcategory} pm={payment_mode} pd={payment_details} eid={expense_id} uid={user_id}")
             self._execute(cursor,
                 'UPDATE expenses SET date = ?, category = ?, amount = ?, comment = ?, subcategory = ?, payment_mode = ?, payment_details = ? WHERE id = ? AND user_id = ?',
                 (date, category, float(amount), comment, subcategory, payment_mode, payment_details, expense_id, user_id)
