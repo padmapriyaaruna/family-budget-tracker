@@ -1377,7 +1377,9 @@ def update_expense(
     print(f"payment_details: {request.payment_details}")
     print(f"==========================================")
     
+    
     # Database signature: update_expense(expense_id, user_id, date, category, amount, old_category, old_amount, comment, subcategory, old_date, payment_mode, payment_details)
+    print("API: About to call db.update_expense...")
     success = db.update_expense(
         expense_id,
         request.user_id,
@@ -1392,6 +1394,7 @@ def update_expense(
         request.payment_mode,
         request.payment_details
     )
+    print(f"API: db.update_expense returned: {success}")
     
     if not success:
         raise HTTPException(
