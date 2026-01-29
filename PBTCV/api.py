@@ -99,6 +99,12 @@ class FamilyRegistrationRequest(BaseModel):
     admin_email: str
     admin_name: str
 
+class MemberRequest(BaseModel):
+    """Request to add a new household member"""
+    name: str
+    email: str
+    relationship: str
+
 
 # ==================== Helper Functions ====================
 
@@ -1560,6 +1566,79 @@ def get_monthly_liquidity(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch monthly liquidity: {str(e)}"
+        )
+
+# ==================== Household Member Endpoints ====================
+
+@app.post("/api/households/{household_id}/members")
+def add_household_member(
+    household_id: int,
+    request: MemberRequest,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    """
+    Add a new member to a household (Family Admin or Super Admin only)
+    """
+    # Verify user has permission (must be admin of this household or superadmin)
+    user_role = current_user.get('role')
+    
+    if user_role not in ['admin', 'superadmin', 'super']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only family admins can add members"
+        )
+    
+    try:
+        # Create the member in database
+        cursor = db.conn.cursor()
+        
+        # Check if email already exists
+        db._execute(cursor, 'SELECT id FROM users WHERE email = ?', (request.email,))
+        existing_user = cursor.fetchone()
+        
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"User with email {request.email} already exists"
+            )
+        
+        # Insert new member (role=member, no password initially)
+        import secrets
+        temp_password = secrets.token_urlsafe(16)
+        
+        db._execute(cursor, '''
+            INSERT INTO users (household_id, full_name, email, password_hash, role, relationship, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (household_id, request.name, request.email, temp_password, 'member', request.relationship))
+        
+        db.conn.commit()
+        
+        # Get the created user id
+        member_id = cursor.lastrowid if not db.use_postgres else cursor.fetchone()['id'] if db.use_postgres else cursor.lastrowid
+        
+        return {
+            "status": "success",
+            "message": f"Member {request.name} added successfully",
+            "data": {
+                "member_id": member_id,
+                "household_id": household_id,
+                "name": request.name,
+                "email": request.email,
+                "relationship": request.relationship,
+                "note": "A temporary password has been set. Member should be invited to set their own password."
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.conn.rollback()
+        print(f"Error adding member: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to add member: {str(e)}"
         )
 
 # ==================== Health Check ====================
