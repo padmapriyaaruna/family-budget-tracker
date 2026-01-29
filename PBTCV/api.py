@@ -83,6 +83,8 @@ class ExpenseRequest(BaseModel):
     subcategory: Optional[str] = None
     amount: float
     comment: Optional[str] = None
+    payment_mode: Optional[str] = None
+    payment_details: Optional[str] = None
 
 class CopyAllocationsRequest(BaseModel):
     user_id: int
@@ -1359,11 +1361,17 @@ def update_expense(
     """
     success = db.update_expense(
         expense_id,
+        request.user_id,
         request.date,
         request.category,
-        request.subcategory,
         request.amount,
-        request.comment
+        None,  # old_category (not needed for mobile)
+        None,  # old_amount (not needed for mobile)
+        request.comment,
+        request.subcategory,
+        None,  # old_date (not needed for mobile)
+        request.payment_mode,
+        request.payment_details
     )
     
     if not success:
