@@ -836,8 +836,15 @@ def get_dashboard(
     else:
         allocations_list = allocations_result if allocations_result else []
     
-    total_allocated = sum(item.get('allocated_amount', 0) for item in allocations_list)
-    total_spent = sum(item.get('spent_amount', 0) for item in allocations_list)
+    # Try both field name formats (Title Case with spaces and snake_case)
+    total_allocated = sum(
+        item.get('Allocated Amount', item.get('allocated_amount', 0)) 
+        for item in allocations_list
+    )
+    total_spent = sum(
+        item.get('Spent Amount', item.get('spent_amount', 0)) 
+        for item in allocations_list
+    )
     
     # Calculate budget used percentage (total_expenses / total_income * 100)
     budget_used_percentage = 0
@@ -846,6 +853,8 @@ def get_dashboard(
     print(f"DEBUG Budget Calc - Total Income: {total_income} (from {len(filtered_income)} income records)")
     print(f"DEBUG Budget Calc - Total Expenses: {total_expenses} (from {len(filtered_expenses)} expense records)")
     print(f"DEBUG Budget Calc - Allocations: allocated={total_allocated}, spent={total_spent}")
+    print(f"DEBUG Budget Calc - Allocations list sample: {allocations_list[:1] if allocations_list else 'empty'}")
+
     
     if total_income > 0:
         # Force float division and log values for debugging
