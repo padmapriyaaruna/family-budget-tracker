@@ -1323,13 +1323,18 @@ def add_expense(request: ExpenseRequest, current_user: dict = Depends(verify_jwt
     """
     Add new expense
     """
+    # Debug: Log what we received from mobile
+    print(f"DEBUG add_expense received: payment_mode={request.payment_mode}, payment_details={request.payment_details}")
+    
     success = db.add_expense(
         request.user_id,
         request.date,
         request.category,
         request.amount,
         request.comment,
-        request.subcategory
+        request.subcategory,
+        request.payment_mode,
+        request.payment_details
     )
     
     if not success:
@@ -1359,6 +1364,9 @@ def update_expense(
     """
     Update expense
     """
+    # Debug: Log what we received from mobile
+    print(f"DEBUG update_expense received: payment_mode={request.payment_mode}, payment_details={request.payment_details}")
+    
     # Database signature: update_expense(expense_id, user_id, date, category, amount, old_category, old_amount, comment, subcategory, old_date, payment_mode, payment_details)
     success = db.update_expense(
         expense_id,
