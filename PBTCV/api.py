@@ -1641,6 +1641,66 @@ def add_household_member(
             detail=f"Failed to add member: {str(e)}"
         )
 
+@app.delete("/api/admin/users/{user_id}")
+def delete_user(
+    user_id: int,
+    current_user: dict = Depends(verify_jwt_token)
+):
+    """
+    Delete a user/family member (Super Admin only)
+    """
+    # Only super admin can delete users
+    user_role = current_user.get('role')
+    
+    if user_role not in ['superadmin', 'super']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only super admins can delete users"
+        )
+    
+    try:
+        cursor = db.conn.cursor()
+        
+        # Check if user exists
+        db._execute(cursor, 'SELECT id, full_name FROM users WHERE id = ?', (user_id,))
+        user = cursor.fetchone()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User with ID {user_id} not found"
+            )
+        
+        user_name = user['full_name'] if isinstance(user, dict) else user[1]
+        
+        # Delete user's data first (cascade delete)
+        db._execute(cursor, 'DELETE FROM expenses WHERE user_id = ?', (user_id,))
+        db._execute(cursor, 'DELETE FROM income WHERE user_id = ?', (user_id,))
+        db._execute(cursor, 'DELETE FROM allocations WHERE user_id = ?', (user_id,))
+        db._execute(cursor, 'DELETE FROM savings WHERE user_id = ?', (user_id,))
+        
+        # Finally delete the user
+        db._execute(cursor, 'DELETE FROM users WHERE id = ?', (user_id,))
+        
+        db.conn.commit()
+        
+        return {
+            "status": "success",
+            "message": f"User {user_name} (ID: {user_id}) and all associated data deleted successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.conn.rollback()
+        print(f"Error deleting user: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete user: {str(e)}"
+        )
+
 # ==================== Health Check ====================
 
 @app.get("/")
