@@ -1364,8 +1364,18 @@ def update_expense(
     """
     Update expense
     """
-    # Debug: Log what we received from mobile
-    print(f"DEBUG update_expense received: payment_mode={request.payment_mode}, payment_details={request.payment_details}")
+    # Debug: Log EVERYTHING we received from mobile
+    print(f"========== UPDATE EXPENSE DEBUG ==========")
+    print(f"expense_id: {expense_id}")
+    print(f"user_id: {request.user_id}")
+    print(f"date: {request.date}")
+    print(f"category: {request.category}")
+    print(f"amount: {request.amount}")
+    print(f"comment: {request.comment}")
+    print(f"subcategory: {request.subcategory}")
+    print(f"payment_mode: {request.payment_mode}")
+    print(f"payment_details: {request.payment_details}")
+    print(f"==========================================")
     
     # Database signature: update_expense(expense_id, user_id, date, category, amount, old_category, old_amount, comment, subcategory, old_date, payment_mode, payment_details)
     success = db.update_expense(
