@@ -1359,17 +1359,18 @@ def update_expense(
     """
     Update expense
     """
+    # Database signature: update_expense(expense_id, user_id, date, category, amount, old_category, old_amount, comment, subcategory, old_date, payment_mode, payment_details)
     success = db.update_expense(
         expense_id,
         request.user_id,
         request.date,
         request.category,
         request.amount,
-        None,  # old_category (not needed for mobile)
-        None,  # old_amount (not needed for mobile)
+        None,  # old_category
+        None,  # old_amount
         request.comment,
         request.subcategory,
-        None,  # old_date (not needed for mobile)
+        None,  # old_date
         request.payment_mode,
         request.payment_details
     )
