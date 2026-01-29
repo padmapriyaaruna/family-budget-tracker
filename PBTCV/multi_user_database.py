@@ -1588,6 +1588,7 @@ class MultiUserDB:
             
             # Update expense
             print(f"DB: d={date} c={category} a={amount} cm={comment} s={subcategory} pm={payment_mode} pd={payment_details} eid={expense_id} uid={user_id}")
+            # SQL parameter positions: 1=date, 2=category, 3=amount, 4=comment, 5=subcategory, 6=payment_mode, 7=payment_details, 8=id, 9=user_id
             self._execute(cursor,
                 'UPDATE expenses SET date = ?, category = ?, amount = ?, comment = ?, subcategory = ?, payment_mode = ?, payment_details = ? WHERE id = ? AND user_id = ?',
                 (date, category, float(amount), comment, subcategory, payment_mode, payment_details, expense_id, user_id)
@@ -1937,44 +1938,6 @@ class MultiUserDB:
             return True
         except Exception as e:
             print(f"Error adding expense: {str(e)}")
-            self.conn.rollback()
-            return False
-    
-    def update_expense(self, expense_id, user_id_or_date=None, date_or_category=None, 
-                      category_or_subcategory=None, amount=None, old_category_or_comment=None,
-                      old_amount=None, comment=None, subcategory=None, old_date=None, payment_mode=None, payment_details=None):
-        """Update an existing expense entry (supports both old and new signatures)"""
-        try:
-            cursor = self.conn.cursor()
-            
-            # Detect which signature is being used
-            if old_amount is not None:
-                # Website signature: (expense_id, user_id, new_date, new_category, new_amount, 
-                #                     old_category, old_amount, new_comment, new_subcategory, old_date, payment_mode, payment_details)
-                date = date_or_category
-                category = category_or_subcategory
-                # amount is already correct
-                comment = comment or old_category_or_comment  # Use new_comment if provided
-                subcategory = subcategory
-                # payment_mode and payment_details are already passed
-            else:
-                # Mobile API signature: (expense_id, date, category, subcategory, amount, comment, payment_mode, payment_details)
-                date = user_id_or_date
-                category = date_or_category
-                subcategory = category_or_subcategory
-                # amount is already correct
-                comment = old_category_or_comment
-                # payment_mode and payment_details should be in the parameters
-            
-            self._execute(cursor, '''
-                UPDATE expenses
-                SET date = ?, category = ?, subcategory = ?, amount = ?, comment = ?, payment_mode = ?, payment_details = ?
-                WHERE id = ?
-            ''', (date, category, subcategory, amount, comment, payment_mode, payment_details, expense_id))
-            self.conn.commit()
-            return True
-        except Exception as e:
-            print(f"Error updating expense: {str(e)}")
             self.conn.rollback()
             return False
     
