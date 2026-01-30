@@ -294,7 +294,7 @@ def get_admin_stats(current_user: dict = Depends(verify_jwt_token)):
         }
     }
 
-@app.put("/api/admin/household/{household_id}/toggle")
+@app.patch("/api/admin/households/{household_id}/toggle")
 def toggle_household(household_id: int, current_user: dict = Depends(verify_jwt_token)):
     """Toggle household active status (Super Admin only)"""
     if current_user.get('role') != 'superadmin':
@@ -303,11 +303,38 @@ def toggle_household(household_id: int, current_user: dict = Depends(verify_jwt_
             detail="Super admin access required"
         )
     
-    success = db.toggle_household_status(household_id)
-    
-    if success:
-        return {"status": "success", "message": "Household status toggled successfully"}
-    else:
+    try:
+        cursor = db.conn.cursor()
+        
+        # Get current status
+        db._execute(cursor, 'SELECT is_active FROM households WHERE id = ?', (household_id,))
+        result = cursor.fetchone()
+        
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Household {household_id} not found"
+            )
+            
+        current_status = result['is_active'] if hasattr(result, '__getitem__') else result[0]
+        # Toggle status (1->0 or 0->1, True->False or False->True)
+        new_status = 0 if current_status else 1
+        
+        # Update status
+        db._execute(cursor, 'UPDATE households SET is_active = ? WHERE id = ?', (new_status, household_id))
+        db.conn.commit()
+        
+        return {
+            "status": "success", 
+            "message": f"Household status toggled to {'Active' if new_status else 'Inactive'}",
+            "data": {"is_active": bool(new_status)}
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.conn.rollback()
+        print(f"Error toggling household: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to toggle household status"
