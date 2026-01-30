@@ -315,10 +315,18 @@ def toggle_household(household_id: int, current_user: dict = Depends(verify_jwt_
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Household {household_id} not found"
             )
+        
+        # Robust boolean extraction
+        try:
+            current_status = result['is_active']
+        except (TypeError, IndexError, KeyError):
+            current_status = result[0]
             
-        current_status = result['is_active'] if hasattr(result, '__getitem__') else result[0]
-        # Toggle status (1->0 or 0->1, True->False or False->True)
-        new_status = 0 if current_status else 1
+        # Toggle status
+        is_active = bool(current_status)
+        new_status = not is_active
+        
+        print(f"DEBUG: Toggling household {household_id} status: {is_active} -> {new_status}")
         
         # Update status
         db._execute(cursor, 'UPDATE households SET is_active = ? WHERE id = ?', (new_status, household_id))
@@ -327,7 +335,7 @@ def toggle_household(household_id: int, current_user: dict = Depends(verify_jwt_
         return {
             "status": "success", 
             "message": f"Household status toggled to {'Active' if new_status else 'Inactive'}",
-            "data": {"is_active": bool(new_status)}
+            "data": {"is_active": new_status}
         }
         
     except HTTPException:
@@ -335,9 +343,11 @@ def toggle_household(household_id: int, current_user: dict = Depends(verify_jwt_
     except Exception as e:
         db.conn.rollback()
         print(f"Error toggling household: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to toggle household status"
+            detail=f"Failed to toggle household status: {str(e)}"
         )
 
 @app.delete("/api/admin/household/{household_id}")

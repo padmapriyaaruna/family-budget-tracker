@@ -154,13 +154,20 @@ class MultiUserDB:
             )
         ''')
         
-        # Check and add is_active column to households if it doesn't exist (SQLite only)
+        # Check and add is_active column to households if it doesn't exist
         if not self.use_postgres:
             cursor.execute("PRAGMA table_info(households)")
             columns = [column[1] for column in cursor.fetchall()]
             if 'is_active' not in columns:
                 cursor.execute('ALTER TABLE households ADD COLUMN is_active INTEGER DEFAULT 1')
-                print("✅ Added is_active column to households table")
+                print("✅ Added is_active column to households table (SQLite)")
+        else:
+            # Postgres: Ensure is_active column exists
+            try:
+                # Postgres 9.6+ supports IF NOT EXISTS
+                cursor.execute("ALTER TABLE households ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE")
+            except Exception as e:
+                print(f"⚠️ Postgres is_active column check: {str(e)}")
         
         # Income table (with user_id)
         cursor.execute(f'''
