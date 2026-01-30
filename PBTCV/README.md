@@ -1,8 +1,20 @@
 # Family Budget Tracker - Multi-User Version
 
-## 🎉 What's New
+## 🎉 What's New in v6.4
+
+**Latest Version: 6.4** - Enhanced mobile app experience with intelligent period management and validation!
 
 This is the **Commercial Multi-User Version** of the Personal Expense Tracker, designed for families where multiple members track their finances.
+
+### v6.4 Highlights
+- 🎯 **Dynamic Savings Status** - Smart grading system (Excellent/Good/Moderate/Low/Deficit)
+- 📅 **Period Synchronization** - Selected month/year syncs across all screens
+- ⚠️ **Data Validation** - Prevents adding expenses without allocations
+- 🔧 **New API Endpoints** - Add members and delete users via mobile app
+- 🎨 **Dashboard Improvements** - Cleaner UI with better readability
+- 🐛 **Budget Fix** - Correctly displays budget percentage
+
+[See full release notes](RELEASE_NOTES_v6.4.md)
 
 ### Key Features
 - 👨‍👩‍👧‍👦 **Multi-user support** - Admin + family members
@@ -173,5 +185,5 @@ Use your email and password to log in
 ---
 
 **Developed by**: AntiGravity AI  
-**Version**: 1.0 (Multi-User Commercial)  
+**Version**: 6.4 (Multi-User Commercial)  
 **License**: Personal Use

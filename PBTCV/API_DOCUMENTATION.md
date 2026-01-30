@@ -248,6 +248,67 @@ DELETE /api/expenses/{expense_id}
 Authorization: Bearer <token>
 ```
 
+### 7. Household Member Management
+
+#### Add Member to Household (Admin/Super Admin Only)
+```http
+POST /api/households/{household_id}/members
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "relationship": "Son"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Member John Doe added successfully",
+  "data": {
+    "member_id": 45,
+    "household_id": 12,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "relationship": "Son",
+    "note": "A temporary password has been set. Member should be invited to set their own password."
+  }
+}
+```
+
+**Permissions Required:** Family Admin or Super Admin role
+
+**Validation:**
+- Email must be unique across all users
+- All fields (name, email, relationship) are required
+- Returns 400 if email already exists
+- Returns 403 if user lacks admin privileges
+
+#### Delete User (Super Admin Only)
+```http
+DELETE /api/admin/users/{user_id}
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "User Sarah Smith (ID: 44) and all associated data deleted successfully"
+}
+```
+
+**Permissions Required:** Super Admin role only
+
+**Behavior:**
+- Performs cascade delete: Removes user's expenses, income, allocations, and savings
+- Returns 404 if user not found
+- Returns 403 if user is not super admin
+- Transaction-based: All deletes succeed or all fail (rollback on error)
+
 ## Running Locally
 
 ### 1. Install Dependencies
