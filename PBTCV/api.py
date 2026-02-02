@@ -871,6 +871,13 @@ def get_dashboard(
     filtered_expenses = [e for e in expenses_list if str(e.get('Date', '')).startswith(f"{year}-{month:02d}")]
     total_expenses = sum(item.get('Amount', 0) for item in filtered_expenses)
     
+    # Calculate spent amount per category from ACTUAL expenses
+    category_spent = {}
+    for expense in filtered_expenses:
+        cat = expense.get('Category')
+        if cat:
+            category_spent[cat] = category_spent.get(cat, 0) + expense.get('Amount', 0)
+    
     # Get allocations (returns list of dicts)
     allocations_result = db.get_all_allocations(user_id, year, month)
     # Check if it's a DataFrame
@@ -879,15 +886,33 @@ def get_dashboard(
     else:
         allocations_list = allocations_result if allocations_result else []
     
-    # Try both field name formats (Title Case with spaces and snake_case)
+    # Update allocations with actual calculated spent amounts
+    # This fixes any drift in the allocations table
+    for allocation in allocations_list:
+        category = allocation.get('Category', allocation.get('category'))
+        if category:
+            # Get actual spent for this category (default to 0)
+            actual_spent = category_spent.get(category, 0)
+            allocated_amount = allocation.get('Allocated Amount', allocation.get('allocated_amount', 0))
+            
+            # Update the allocation object
+            if 'Spent Amount' in allocation:
+                allocation['Spent Amount'] = actual_spent
+                allocation['Balance'] = allocated_amount - actual_spent
+            else:
+                allocation['spent_amount'] = actual_spent
+                allocation['balance'] = allocated_amount - actual_spent
+            
+            # print(f"DEBUG: Category {category} - Allocated: {allocated_amount}, Calculated Spent: {actual_spent}")
+
+    # Calculate totals from the updated list
     total_allocated = sum(
         item.get('Allocated Amount', item.get('allocated_amount', 0)) 
         for item in allocations_list
     )
-    total_spent = sum(
-        item.get('Spent Amount', item.get('spent_amount', 0)) 
-        for item in allocations_list
-    )
+    
+    # Sum the calculated spent amounts, NOT the raw DB values
+    total_spent = sum(category_spent.values())
     
     # Calculate budget used percentage (total_expenses / total_income * 100)
     budget_used_percentage = 0
