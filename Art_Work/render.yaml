@@ -2,7 +2,7 @@ services:
   - type: web
     name: artwork-engine-backend
     env: docker
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./Art_Work/Dockerfile
     envVars:
       - key: DATABASE_URL
         sync: false      # Set this manually in Render dashboard
@@ -17,8 +17,8 @@ services:
   - type: web
     name: artwork-engine-frontend
     env: static
-    buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: ./frontend/dist
+    buildCommand: cd Art_Work/frontend && npm install && npm run build
+    staticPublishPath: ./Art_Work/frontend/dist
     routes:
       - type: rewrite
         source: /*
